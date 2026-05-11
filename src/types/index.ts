@@ -32,6 +32,8 @@ export interface Room {
   leftByUid?: string;
   /** Lobby: peer navigated away (optional notice) */
   lobbyLeftByUid?: string;
+  /** Private room only: hide chat, use voice action buttons instead */
+  voiceMode?: boolean;
   createdAt: Timestamp | null;
   lastActivityAt: Timestamp | null;
   cleanupAt: Timestamp | null;

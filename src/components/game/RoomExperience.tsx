@@ -29,6 +29,78 @@ import { ConfettiBurst } from "@/components/game/ConfettiBurst";
 
 type Props = { roomId: string };
 
+const CARD_PLACEHOLDER = "/cards/_placeholder.svg";
+
+function CardImage({ src, alt }: { src: string; alt: string }) {
+  const [errored, setErrored] = useState(false);
+  const finalSrc = errored || !src ? CARD_PLACEHOLDER : src;
+  return (
+    <Image
+      src={finalSrc}
+      alt={alt}
+      fill
+      className="object-cover"
+      sizes="(max-width: 512px) 100vw, 512px"
+      unoptimized
+      onError={() => setErrored(true)}
+    />
+  );
+}
+
+function CircularTimer({
+  secLeft,
+  maxSec,
+  active,
+}: {
+  secLeft: number;
+  maxSec: number;
+  active: boolean;
+}) {
+  const r = 28;
+  const circumference = 2 * Math.PI * r;
+  const pct = maxSec > 0 ? Math.max(0, Math.min(1, secLeft / maxSec)) : 0;
+  const dash = circumference * pct;
+  const urgent = secLeft <= 5 && active;
+
+  return (
+    <div className="relative h-[68px] w-[68px] shrink-0">
+      <svg
+        className="absolute inset-0 -rotate-90"
+        width="68"
+        height="68"
+        viewBox="0 0 68 68"
+      >
+        <circle
+          cx="34"
+          cy="34"
+          r={r}
+          fill="none"
+          stroke={active ? "rgba(255,255,255,0.35)" : "#e8d5b5"}
+          strokeWidth="6"
+        />
+        <circle
+          cx="34"
+          cy="34"
+          r={r}
+          fill="none"
+          stroke={urgent ? "#ef4444" : active ? "white" : "#c5a77a"}
+          strokeWidth="6"
+          strokeDasharray={`${dash} ${circumference}`}
+          strokeLinecap="round"
+          style={{ transition: "stroke-dasharray 0.2s linear, stroke 0.4s" }}
+        />
+      </svg>
+      <div
+        className={`absolute inset-0 flex items-center justify-center font-mono text-xl font-black tabular-nums ${
+          urgent ? "text-red-400" : active ? "text-white" : "text-[#9b8060]"
+        }`}
+      >
+        {secLeft}
+      </div>
+    </div>
+  );
+}
+
 export function RoomExperience({ roomId }: Props) {
   const { user } = useAuth();
   const router = useRouter();
@@ -44,6 +116,8 @@ export function RoomExperience({ roomId }: Props) {
   const [busy, setBusy] = useState(false);
   const [banner, setBanner] = useState<string | null>(null);
   const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false);
+  const [turnPopup, setTurnPopup] = useState<string | null>(null);
+
   const chatEndRef = useRef<HTMLDivElement>(null);
   const autoStartRef = useRef(false);
   const firedTimeoutForDeadline = useRef<number | null>(null);
@@ -52,6 +126,7 @@ export function RoomExperience({ roomId }: Props) {
   const lastTickSecond = useRef<number | null>(null);
   const confettiDone = useRef(false);
   const defeatPlayed = useRef(false);
+  const turnPopupTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [clock, setClock] = useState(() => Date.now());
   useEffect(() => {
@@ -66,6 +141,7 @@ export function RoomExperience({ roomId }: Props) {
   const me = room?.players.find((p) => p.uid === uid);
   const isHost = Boolean(uid && room?.hostUid === uid);
   const bothReady = Boolean(room?.players?.length === 2 && room.players.every((p) => p.ready));
+  const voiceMode = Boolean(room?.voiceMode && !room?.randomMatch);
 
   const ended = room?.status === "ended" || match?.status === "ended";
   const winnerUid = match?.winnerUid ?? null;
@@ -120,9 +196,14 @@ export function RoomExperience({ roomId }: Props) {
     resumeAudioContext();
   }, []);
 
+  // Combined turn change: audio cue + transition popup
   useEffect(() => {
-    if (myTurn && !prevMyTurn.current && match?.status === "active") {
-      playTurnCue();
+    const wasMyTurn = prevMyTurn.current;
+    if (match?.status === "active" && myTurn !== wasMyTurn) {
+      if (myTurn) playTurnCue();
+      if (turnPopupTimer.current) clearTimeout(turnPopupTimer.current);
+      setTurnPopup(myTurn ? "دورك الآن!" : "دور الخصم");
+      turnPopupTimer.current = setTimeout(() => setTurnPopup(null), 1800);
     }
     prevMyTurn.current = myTurn;
   }, [myTurn, match?.status]);
@@ -182,6 +263,12 @@ export function RoomExperience({ roomId }: Props) {
     }
   }, [ended, iWon, winnerUid]);
 
+  useEffect(() => {
+    return () => {
+      if (turnPopupTimer.current) clearTimeout(turnPopupTimer.current);
+    };
+  }, []);
+
   const startMatch = useCallback(async () => {
     if (!room) return;
     setBusy(true);
@@ -227,6 +314,24 @@ export function RoomExperience({ roomId }: Props) {
       setBusy(false);
     }
   }, [room, match, draft, displayName, myTurn]);
+
+  const sendVoiceAck = useCallback(async () => {
+    if (!room || !match || !myTurn) return;
+    setBusy(true);
+    setBanner(null);
+    try {
+      await postGame("/api/game/chat", {
+        roomId: room.id,
+        matchId: match.id,
+        text: phase === "question" ? "(سؤال صوتي)" : "(إجابة صوتية)",
+        displayName,
+      });
+    } catch (e) {
+      setBanner(e instanceof Error ? e.message : "تعذر التقدم");
+    } finally {
+      setBusy(false);
+    }
+  }, [room, match, myTurn, phase, displayName]);
 
   const submitGuess = useCallback(async () => {
     if (!room || !match || !guessDraft.trim()) return;
@@ -313,6 +418,7 @@ export function RoomExperience({ roomId }: Props) {
     );
   }
 
+  // ─── LOBBY ──────────────────────────────────────────────────────────────────
   if (room.status === "lobby") {
     const randomLobby = Boolean(room.randomMatch);
     return (
@@ -338,7 +444,14 @@ export function RoomExperience({ roomId }: Props) {
           </Panel>
         ) : (
           <Panel>
-            <p className="text-sm text-[#bc7a45]">غرفة انتظار · شارك الرمز مع صديقك</p>
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-sm text-[#bc7a45]">غرفة انتظار · شارك الرمز مع صديقك</p>
+              {voiceMode ? (
+                <span className="shrink-0 rounded-xl bg-[#fff2dd] px-2.5 py-1 text-xs font-bold text-[#c2410c]">
+                  🎙 وضع المكالمة
+                </span>
+              ) : null}
+            </div>
             <div className="mt-3 flex flex-wrap items-center gap-3">
               <div className="min-w-0 flex-1 rounded-2xl border-2 border-[#f4be84] bg-[#fff6ea] px-4 py-3 text-center text-2xl font-black tracking-[0.35em] text-[#8a3f16] sm:text-3xl">
                 {room.code}
@@ -409,12 +522,8 @@ export function RoomExperience({ roomId }: Props) {
                 <Panel className="max-w-sm text-center">
                   <p className="text-lg font-bold text-[#8a3f16]">هل أنت متأكد من الخروج؟</p>
                   <div className="mt-5 flex gap-3">
-                    <Button type="button" className="flex-1" onClick={() => void confirmLeave()}>
-                      نعم
-                    </Button>
-                    <Button type="button" variant="ghost" className="flex-1" onClick={() => setLeaveConfirmOpen(false)}>
-                      إلغاء
-                    </Button>
+                    <Button type="button" className="flex-1" onClick={() => void confirmLeave()}>نعم</Button>
+                    <Button type="button" variant="ghost" className="flex-1" onClick={() => setLeaveConfirmOpen(false)}>إلغاء</Button>
                   </div>
                 </Panel>
               </motion.div>
@@ -425,16 +534,30 @@ export function RoomExperience({ roomId }: Props) {
     );
   }
 
+  // ─── PLAYING / ENDED ────────────────────────────────────────────────────────
+
+  const bannerText = match?.status === "active"
+    ? myTurn
+      ? voiceMode
+        ? phase === "question" ? "اسأل الآن بصوتك!" : "أجب الآن بصوتك!"
+        : phase === "question" ? "دورك — اسأل بسرعة!" : "أجب على السؤال"
+      : voiceMode
+        ? phase === "question" ? "الخصم يسألك… استمع" : "الخصم يجيب… انتظر"
+        : phase === "question" ? "بانتظار سؤال الخصم" : "بانتظار إجابة الخصم"
+    : null;
+
   return (
-    <div className="mx-auto flex min-h-[100dvh] w-full max-w-5xl flex-col px-3 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 sm:px-4 sm:py-6">
+    <div className="mx-auto flex min-h-[100dvh] w-full max-w-lg flex-col px-3 pb-[max(5.5rem,env(safe-area-inset-bottom))] pt-4">
       <ConfettiBurst active={ended && iWon && Boolean(winnerUid)} />
 
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+      {/* Nav */}
+      <div className="mb-3 flex items-center justify-between">
         <Button type="button" variant="ghost" className="min-h-[44px]" onClick={requestExit}>
           ← الرئيسية
         </Button>
       </div>
 
+      {/* Error/info banner */}
       <AnimatePresence>
         {banner ? (
           <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
@@ -449,37 +572,105 @@ export function RoomExperience({ roomId }: Props) {
         </Panel>
       ) : null}
 
-      <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 lg:grid-cols-2 lg:gap-4">
-        <Panel className="order-1 flex min-h-[min(52vh,520px)] flex-col lg:order-2 lg:min-h-[560px]">
-          <div className="flex flex-wrap items-start justify-between gap-2">
-            <h3 className="text-lg font-black text-[#8a3f16] sm:text-xl">الدردشة</h3>
-            {match?.status === "active" ? (
-              <div className="flex flex-wrap items-center gap-2">
-                <motion.span
-                  layout
-                  className={`rounded-xl px-3 py-1.5 text-xs font-bold ${
-                    myTurn ? "bg-[#dcfce7] text-[#166534]" : "bg-[#fff2dd] text-[#a16231]"
-                  }`}
-                >
-                  {myTurn
-                    ? phase === "answer"
-                      ? "دورك: إجابة"
-                      : "دورك: سؤال"
-                    : "دور الخصم"}
-                </motion.span>
-                {secLeft !== null && match.status === "active" ? (
-                  <span className="rounded-xl bg-[#fff7ed] px-3 py-1.5 font-mono text-sm font-bold tabular-nums text-[#c2410c]">
-                    {secLeft}ث / {maxPhaseSec}
-                  </span>
-                ) : null}
-              </div>
+      {/* ── TURN BANNER ────────────────────────────────────── */}
+      {match?.status === "active" && !ended ? (
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={`${myTurn ? "mine" : "theirs"}-${phase}`}
+            initial={{ opacity: 0, y: -12, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 12, scale: 0.96 }}
+            transition={{ type: "spring", stiffness: 320, damping: 28 }}
+            className={`mb-4 flex items-center justify-between gap-3 rounded-3xl px-5 py-4 ${
+              myTurn
+                ? "bg-[#ea8c2f] shadow-[0_6px_28px_rgba(234,140,47,0.5)]"
+                : "border-2 border-[#f5c99b] bg-[#fff6ea]"
+            }`}
+          >
+            <span
+              className={`text-xl font-black leading-snug sm:text-2xl ${
+                myTurn ? "text-white" : "text-[#8a3f16]"
+              }`}
+            >
+              {bannerText}
+            </span>
+            {secLeft !== null ? (
+              <CircularTimer secLeft={secLeft} maxSec={maxPhaseSec} active={myTurn} />
             ) : null}
-          </div>
-          <p className="mt-1 text-xs leading-relaxed text-[#c48652]">
-            بالتناوب: {qSec}ث سؤال، ثم {aSec}ث إجابة.
-          </p>
+          </motion.div>
+        </AnimatePresence>
+      ) : null}
 
-          <div className="mt-3 min-h-0 flex-1 space-y-2 overflow-y-auto rounded-3xl border border-[#f5c99b] bg-[#fff6ea] p-3 overscroll-contain [-webkit-overflow-scrolling:touch]">
+      {/* ── OPPONENT CARD ───────────────────────────────────── */}
+      <div className="mb-4">
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-[#bc7a45]">
+          بطاقة خصمك
+        </p>
+        <div className="relative overflow-hidden rounded-3xl border-2 border-[#f5c99b] bg-[#fff7eb] shadow-[0_12px_36px_rgba(220,140,50,0.24)]">
+          <div className="pointer-events-none absolute -left-8 -top-8 h-24 w-24 rounded-full bg-[#ffb96b]/25 blur-2xl" />
+          {opponentCard?.imageUrl ? (
+            <motion.div
+              animate={{ y: [0, -6, 0] }}
+              transition={{ duration: 3.5, repeat: Infinity, ease: "easeInOut" }}
+              className="relative aspect-[4/3] w-full"
+            >
+              <CardImage
+                src={opponentCard.imageUrl}
+                alt={opponentCard.nameAr}
+              />
+              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/55 to-transparent px-4 pb-4 pt-10">
+                <h2 className="text-xl font-black text-white sm:text-2xl">
+                  {opponentCard.nameAr}
+                </h2>
+              </div>
+            </motion.div>
+          ) : (
+            <div className="flex aspect-[4/3] max-h-[44vh] items-center justify-center text-sm text-[#bc7a45]">
+              بعد بدء المباراة
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── VOICE MODE ACTIONS ──────────────────────────────── */}
+      {voiceMode && match?.status === "active" && !ended ? (
+        <div className="mb-4">
+          {myTurn ? (
+            <motion.button
+              whileTap={{ scale: 0.96 }}
+              disabled={busy}
+              onClick={() => void sendVoiceAck()}
+              className="w-full rounded-3xl bg-[#ea8c2f] py-6 text-2xl font-black text-white shadow-xl shadow-[#ea8c2f]/30 transition-opacity disabled:opacity-60 active:scale-95"
+            >
+              {phase === "question" ? "✓ تم السؤال" : "✓ تمت الإجابة"}
+            </motion.button>
+          ) : (
+            <div className="rounded-3xl border-2 border-dashed border-[#f5c99b] bg-[#fff9ef] py-6 text-center text-lg font-bold text-[#bc7a45]">
+              {phase === "question" ? "⏳ بانتظار سؤال الخصم…" : "⏳ بانتظار إجابة الخصم…"}
+            </div>
+          )}
+        </div>
+      ) : null}
+
+      {/* ── CHAT (non-voice mode) ───────────────────────────── */}
+      {!voiceMode && match?.status === "active" && !ended ? (
+        <div className="mb-4 flex flex-col overflow-hidden rounded-3xl border border-[#f5c99b] bg-[#fff6ea]">
+          {/* Chat header */}
+          <div className="flex items-center justify-between px-4 pb-2 pt-3">
+            <h3 className="text-sm font-bold text-[#8a3f16]">الدردشة</h3>
+            <span
+              className={`rounded-lg px-2.5 py-1 text-xs font-bold ${
+                myTurn ? "bg-[#dcfce7] text-[#166534]" : "bg-[#fff2dd] text-[#a16231]"
+              }`}
+            >
+              {myTurn
+                ? phase === "answer" ? "دورك: إجابة" : "دورك: سؤال"
+                : "دور الخصم"}
+            </span>
+          </div>
+
+          {/* Messages */}
+          <div className="min-h-[110px] max-h-[200px] space-y-2 overflow-y-auto px-3 pb-2 overscroll-contain [-webkit-overflow-scrolling:touch]">
             {messages.length === 0 ? (
               <p className="text-sm text-[#c48652]">لا رسائل بعد.</p>
             ) : (
@@ -492,12 +683,12 @@ export function RoomExperience({ roomId }: Props) {
                   <motion.div
                     key={m.id}
                     layout
-                    initial={{ opacity: 0, y: 8, scale: 0.98 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
                     transition={{ type: "spring", stiffness: 420, damping: 28 }}
                     className={`rounded-2xl px-3 py-2 text-sm shadow-sm ${
                       isSystem
-                        ? "border border-[#f2d4b5] bg-[#fff0df] text-[#8a5a2a] text-center"
+                        ? "border border-[#f2d4b5] bg-[#fff0df] text-center text-[#8a5a2a]"
                         : isGuessMsg
                           ? m.correct
                             ? "border-2 border-[#16a34a] bg-[#dcfce7] text-[#14532d]"
@@ -513,9 +704,7 @@ export function RoomExperience({ roomId }: Props) {
                       <div className={`mb-1 text-xs font-semibold ${isMe ? "text-[#bc7a45]" : "text-[#9b6338]"}`}>
                         {isMe ? "أنت" : m.senderName}
                         {isQuestion ? " · سؤال" : null}
-                        {isGuessMsg ? (
-                          <span className="mr-1">{m.correct ? " 🎉" : ""}</span>
-                        ) : null}
+                        {isGuessMsg && m.correct ? " 🎉" : null}
                       </div>
                     ) : null}
                     <div className="whitespace-pre-wrap break-words">{m.text}</div>
@@ -526,93 +715,77 @@ export function RoomExperience({ roomId }: Props) {
             <div ref={chatEndRef} />
           </div>
 
-          {!ended && match?.status === "active" ? (
-            <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-              <Input
-                value={draft}
-                onChange={(e) => setDraft(e.target.value)}
-                placeholder={
-                  !myTurn
-                    ? "انتظر دور الخصم…"
-                    : phase === "answer"
-                      ? `إجابتك (${aSec}ث)`
-                      : `سؤالك (${qSec}ث)`
-                }
-                disabled={!myTurn || busy}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && myTurn) void sendDraft();
-                }}
-                className="min-h-[48px] flex-1"
-              />
-              <Button
-                type="button"
-                className="min-h-[48px] shrink-0 px-6 active:scale-[0.98]"
-                disabled={busy || !draft.trim() || !myTurn}
-                onClick={() => void sendDraft()}
-              >
-                إرسال
-              </Button>
-            </div>
-          ) : null}
-
-          {!ended && match?.status === "active" && !myTurn ? (
-            <p className="mt-2 text-center text-xs font-semibold text-[#bc7a45]">مفتاح الإدخال مقفول حتى دورك</p>
-          ) : null}
-        </Panel>
-
-        <div className="order-2 space-y-3 lg:order-1">
-          <Panel className="relative overflow-hidden">
-            <div className="pointer-events-none absolute -left-6 -top-6 h-16 w-16 rounded-full bg-[#ffb96b]/40 blur-xl" />
-            <p className="text-xs font-semibold uppercase tracking-wider text-[#bc7a45]">بطاقة خصمك</p>
-            <h2 className="mt-1 text-lg font-black text-[#8a3f16] sm:text-xl">
-              {opponentCard ? opponentCard.nameAr : "انتظار…"}
-            </h2>
-            <div className="mt-3 overflow-hidden rounded-3xl border-2 border-[#f5c99b] bg-[#fff7eb] shadow-[0_12px_24px_rgba(220,140,50,0.18)]">
-              {opponentCard?.imageUrl ? (
-                <motion.div layout className="relative aspect-[4/3] w-full max-h-[min(52vh,420px)]">
-                  <Image
-                    src={opponentCard.imageUrl}
-                    alt={opponentCard.nameAr}
-                    fill
-                    className="object-cover"
-                    sizes="100vw"
-                    unoptimized
-                  />
-                </motion.div>
-              ) : (
-                <div className="flex aspect-[4/3] max-h-[40vh] items-center justify-center text-sm text-[#bc7a45]">
-                  بعد بدء المباراة
-                </div>
-              )}
-            </div>
-          </Panel>
-
-          <Panel>
-            <p className="text-xs font-semibold uppercase tracking-wider text-[#bc7a45]">بطاقتك الخفية</p>
-            <h2 className="mt-1 text-xl font-black text-[#8a3f16]">؟؟؟</h2>
-            <div className="mt-3 flex aspect-[4/3] w-full max-h-[min(40vh,320px)] items-center justify-center overflow-hidden rounded-3xl border-2 border-dashed border-[#f5c99b] bg-gradient-to-br from-[#fff6ea] to-[#ffe8ca]">
-              <div className="text-center">
-                <div className="text-6xl">🃏</div>
-                <p className="mt-3 text-sm font-bold text-[#bc7a45]">مخفية عنك</p>
+          {/* Input area */}
+          <div className="border-t border-[#f5c99b] p-3">
+            {myTurn ? (
+              <div className="flex gap-2">
+                <Input
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value)}
+                  placeholder={phase === "answer" ? `إجابتك (${aSec}ث)` : `سؤالك (${qSec}ث)`}
+                  disabled={busy}
+                  onKeyDown={(e) => { if (e.key === "Enter" && !busy) void sendDraft(); }}
+                  className="min-h-[44px] flex-1"
+                />
+                <Button
+                  type="button"
+                  className="min-h-[44px] shrink-0 px-5"
+                  disabled={busy || !draft.trim()}
+                  onClick={() => void sendDraft()}
+                >
+                  إرسال
+                </Button>
               </div>
-            </div>
-            {match?.status === "active" ? (
-              <Button
-                type="button"
-                className="mt-4 min-h-[52px] w-full text-lg active:scale-[0.99]"
-                disabled={busy || !myTurn}
-                onClick={openGuessFlow}
-              >
-                🎯 تخمين
-              </Button>
-            ) : null}
-            {match?.status === "active" && !myTurn ? (
-              <p className="mt-2 text-center text-xs text-[#c48652]">التخمين متاح في دورك فقط</p>
-            ) : null}
-          </Panel>
+            ) : (
+              <div className="flex items-center justify-center gap-2 py-2 text-sm font-semibold text-[#c48652]">
+                <span className="animate-pulse">●</span>
+                <span>بانتظار دورك…</span>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      ) : null}
 
+      {/* ── FLOATING GUESS BUTTON ────────────────────────────── */}
+      {match?.status === "active" && !ended ? (
+        <div className="fixed bottom-6 right-4 z-40">
+          <motion.button
+            whileTap={{ scale: 0.92 }}
+            onClick={openGuessFlow}
+            className={`flex items-center gap-1.5 rounded-2xl px-5 py-3.5 text-base font-bold shadow-lg transition-all duration-200 ${
+              myTurn
+                ? "bg-[#ea8c2f] text-white shadow-[#ea8c2f]/40"
+                : "bg-[#f0e0cc] text-[#bc7a45]"
+            }`}
+          >
+            🎯 <span>تخمين</span>
+          </motion.button>
+        </div>
+      ) : null}
+
+      {/* ── TURN TRANSITION POPUP ───────────────────────────── */}
+      <AnimatePresence>
+        {turnPopup ? (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="pointer-events-none fixed inset-0 z-[60] flex items-center justify-center"
+          >
+            <motion.div
+              initial={{ scale: 0.75, y: 24 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.75, y: 24 }}
+              transition={{ type: "spring", stiffness: 380, damping: 26 }}
+              className="rounded-3xl bg-[#ea8c2f] px-10 py-6 text-3xl font-black text-white shadow-2xl"
+            >
+              {turnPopup}
+            </motion.div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+
+      {/* ── ENDED MODAL ─────────────────────────────────────── */}
       <AnimatePresence>
         {ended ? (
           <motion.div
@@ -662,6 +835,7 @@ export function RoomExperience({ roomId }: Props) {
         ) : null}
       </AnimatePresence>
 
+      {/* ── GUESS: ARE YOU SURE ──────────────────────────────── */}
       <AnimatePresence>
         {guessSureOpen ? (
           <motion.div
@@ -681,12 +855,8 @@ export function RoomExperience({ roomId }: Props) {
                 <p className="text-xl font-black text-[#8a3f16]">هل أنت متأكد؟</p>
                 <p className="mt-2 text-sm text-[#a16231]">سيتم استخدام محاولة التخمين في دورك الحالي.</p>
                 <div className="mt-6 flex gap-3">
-                  <Button type="button" className="min-h-[48px] flex-1" onClick={confirmGuessSure}>
-                    تأكيد
-                  </Button>
-                  <Button type="button" variant="ghost" className="min-h-[48px] flex-1" onClick={() => setGuessSureOpen(false)}>
-                    إلغاء
-                  </Button>
+                  <Button type="button" className="min-h-[48px] flex-1" onClick={confirmGuessSure}>تأكيد</Button>
+                  <Button type="button" variant="ghost" className="min-h-[48px] flex-1" onClick={() => setGuessSureOpen(false)}>إلغاء</Button>
                 </div>
               </Panel>
             </motion.div>
@@ -694,6 +864,7 @@ export function RoomExperience({ roomId }: Props) {
         ) : null}
       </AnimatePresence>
 
+      {/* ── GUESS: INPUT ─────────────────────────────────────── */}
       <AnimatePresence>
         {guessInputOpen ? (
           <motion.div
@@ -718,12 +889,15 @@ export function RoomExperience({ roomId }: Props) {
                     onChange={(e) => setGuessDraft(e.target.value)}
                     placeholder="مثال: جوال، قطة…"
                     className="min-h-[48px]"
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") void submitGuess();
-                    }}
+                    onKeyDown={(e) => { if (e.key === "Enter") void submitGuess(); }}
                   />
                   <div className="flex flex-wrap gap-3">
-                    <Button type="button" className="min-h-[48px] flex-1" disabled={busy || !guessDraft.trim()} onClick={() => void submitGuess()}>
+                    <Button
+                      type="button"
+                      className="min-h-[48px] flex-1"
+                      disabled={busy || !guessDraft.trim()}
+                      onClick={() => void submitGuess()}
+                    >
                       تأكيد التخمين
                     </Button>
                     <Button type="button" variant="ghost" className="min-h-[48px]" onClick={() => setGuessInputOpen(false)}>
@@ -737,6 +911,7 @@ export function RoomExperience({ roomId }: Props) {
         ) : null}
       </AnimatePresence>
 
+      {/* ── LEAVE CONFIRM ───────────────────────────────────── */}
       <AnimatePresence>
         {leaveConfirmOpen ? (
           <motion.div
@@ -745,16 +920,16 @@ export function RoomExperience({ roomId }: Props) {
             className="fixed inset-0 z-[56] flex items-center justify-center bg-[#6a3f1b]/45 px-4 backdrop-blur-sm"
             onClick={() => setLeaveConfirmOpen(false)}
           >
-            <motion.div initial={{ scale: 0.92 }} animate={{ scale: 1 }} onClick={(e: MouseEvent) => e.stopPropagation()}>
+            <motion.div
+              initial={{ scale: 0.92 }}
+              animate={{ scale: 1 }}
+              onClick={(e: MouseEvent) => e.stopPropagation()}
+            >
               <Panel className="max-w-sm text-center">
                 <p className="text-lg font-bold text-[#8a3f16]">هل أنت متأكد من الخروج؟</p>
                 <div className="mt-5 flex gap-3">
-                  <Button type="button" className="flex-1 min-h-[48px]" onClick={() => void confirmLeave()}>
-                    نعم
-                  </Button>
-                  <Button type="button" variant="ghost" className="flex-1 min-h-[48px]" onClick={() => setLeaveConfirmOpen(false)}>
-                    إلغاء
-                  </Button>
+                  <Button type="button" className="min-h-[48px] flex-1" onClick={() => void confirmLeave()}>نعم</Button>
+                  <Button type="button" variant="ghost" className="min-h-[48px] flex-1" onClick={() => setLeaveConfirmOpen(false)}>إلغاء</Button>
                 </div>
               </Panel>
             </motion.div>

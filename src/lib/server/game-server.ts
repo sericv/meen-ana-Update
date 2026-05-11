@@ -59,7 +59,8 @@ export async function startMatchForRoom(args: {
 
   const { q: qSec, a: aSec } = readRoomTimers(room);
 
-  const pair = pickTwoCards();
+  const categoryId = typeof room.categoryId === "string" ? room.categoryId : undefined;
+  const pair = pickTwoCards(categoryId);
   if (!pair) throw new Error("NOT_ENOUGH_CARDS");
 
   const [c0, c1] = pair;
@@ -287,7 +288,12 @@ export async function handleGuess(args: {
     if (!cardSnap.exists) throw new Error("NO_HIDDEN_CARD");
 
     const card = cardSnap.data()!;
-    const correct = guessMatchesCard(args.guess, String(card.name ?? ""), String(card.nameAr ?? ""));
+    const correct = guessMatchesCard(
+      args.guess,
+      String(card.name ?? ""),
+      String(card.nameAr ?? ""),
+      typeof card.cardId === "string" ? card.cardId : undefined,
+    );
 
     tx.set(msgs.doc(), {
       senderUid: args.uid,

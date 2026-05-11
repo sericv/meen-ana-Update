@@ -18,6 +18,13 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   title: "مين أنا؟",
   description: "لعبة تخمين اجتماعية سريعة عبر الويب",
+  icons: {
+    icon: [
+      { url: "/icon.png", type: "image/png" },
+      { url: "/favicon.ico", sizes: "any" },
+    ],
+    apple: "/icon.png",
+  },
 };
 
 export default function RootLayout({
@@ -30,9 +37,6 @@ export default function RootLayout({
       <body className="min-h-[100dvh] min-h-full font-sans text-[#5e3011] antialiased">
         <AuthProvider>
           <div className="relative min-h-full overflow-x-hidden">
-            <div className="pointer-events-none fixed -top-16 -right-16 h-64 w-64 rounded-full bg-[#ffbc72]/45 blur-3xl" />
-            <div className="pointer-events-none fixed top-1/2 -left-20 h-72 w-72 rounded-full bg-[#ffd59f]/45 blur-3xl" />
-            <div className="pointer-events-none fixed bottom-0 right-1/4 h-48 w-48 rounded-full bg-[#ffc180]/35 blur-3xl" />
             {children}
           </div>
         </AuthProvider>

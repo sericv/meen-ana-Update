@@ -28,52 +28,18 @@ if (!getApps().length) {
 const db = getFirestore();
 
 const categories = [
-  { id: "cat_objects", nameAr: "أشياء", slug: "objects", order: 10 },
-  { id: "cat_animals", nameAr: "حيوانات", slug: "animals", order: 20 },
+  { id: "cat_general",     nameAr: "عام",      slug: "general",     order: 10 },
+  { id: "cat_celebrities", nameAr: "مشاهير",   slug: "celebrities", order: 20 },
+  { id: "cat_animals",     nameAr: "حيوانات",  slug: "animals",     order: 30 },
+  { id: "cat_games",       nameAr: "ألعاب",    slug: "games",       order: 40 },
+  { id: "cat_anime",       nameAr: "أنمي",      slug: "anime",       order: 50 },
 ];
 
-const cards = [
-  {
-    id: "card_iphone",
-    name: "iPhone",
-    nameAr: "آيفون",
-    categoryId: "cat_objects",
-    imageUrl: "https://picsum.photos/seed/iphone/800/600",
-    tags: ["electronic", "phone", "screen", "portable"],
-  },
-  {
-    id: "card_watch",
-    name: "Smartwatch",
-    nameAr: "ساعة ذكية",
-    categoryId: "cat_objects",
-    imageUrl: "https://picsum.photos/seed/watch/800/600",
-    tags: ["electronic", "wearable", "screen", "portable"],
-  },
-  {
-    id: "card_banana",
-    name: "Banana",
-    nameAr: "موز",
-    categoryId: "cat_objects",
-    imageUrl: "https://picsum.photos/seed/banana/800/600",
-    tags: ["food", "fruit", "portable"],
-  },
-  {
-    id: "card_cat",
-    name: "Cat",
-    nameAr: "قطة",
-    categoryId: "cat_animals",
-    imageUrl: "https://picsum.photos/seed/cat/800/600",
-    tags: ["animal", "mammal"],
-  },
-  {
-    id: "card_camel",
-    name: "Camel",
-    nameAr: "جمل",
-    categoryId: "cat_animals",
-    imageUrl: "https://picsum.photos/seed/camel/800/600",
-    tags: ["animal", "mammal"],
-  },
-];
+/**
+ * Note: at runtime, cards are now loaded from src/lib/game/cards-data/*.json,
+ * NOT from Firestore. Only categories are seeded here.
+ */
+const cards = [];
 
 let batch = db.batch();
 let n = 0;

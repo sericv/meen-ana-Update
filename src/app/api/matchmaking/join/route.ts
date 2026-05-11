@@ -1,6 +1,7 @@
 import { HttpError, jsonError, jsonOk, requireUidFromRequest } from "@/lib/server/auth";
 import { AdminConfigError } from "@/lib/firebase/admin";
 import { joinMatchmakingQueue } from "@/lib/server/matchmaking-server";
+import { DEFAULT_CATEGORY_ID } from "@/lib/game/categories";
 
 export async function POST(req: Request) {
   try {
@@ -11,7 +12,7 @@ export async function POST(req: Request) {
       displayName?: string;
     };
     const poolId = body.poolId?.trim() || "all";
-    const categoryId = body.categoryId?.trim() || "cat_all";
+    const categoryId = body.categoryId?.trim() || DEFAULT_CATEGORY_ID;
     const displayName = body.displayName?.trim() || "لاعب";
 
     const result = await joinMatchmakingQueue({

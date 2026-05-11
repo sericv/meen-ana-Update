@@ -12,8 +12,9 @@ import { matchmakingAck, matchmakingJoin, matchmakingLeave } from "@/lib/api/mat
 import { getFirebaseDb } from "@/lib/firebase/client";
 import { col } from "@/lib/firestore/paths";
 import { MATCHMAKING_POOL_ALL } from "@/lib/game/constants";
+import { DEFAULT_CATEGORY_ID } from "@/lib/game/categories";
 
-const DEFAULT_CATEGORY = "cat_all";
+const DEFAULT_CATEGORY = DEFAULT_CATEGORY_ID;
 
 export default function RandomPlayPage() {
   return (

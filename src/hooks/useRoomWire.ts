@@ -58,6 +58,7 @@ export function useRoomWire(roomId: string | null, myUid: string | null) {
           answerTimerSec: d.answerTimerSec !== undefined ? Number(d.answerTimerSec) : undefined,
           leftByUid: d.leftByUid !== undefined ? String(d.leftByUid) : undefined,
           lobbyLeftByUid: d.lobbyLeftByUid !== undefined ? String(d.lobbyLeftByUid) : undefined,
+          voiceMode: d.voiceMode !== undefined ? Boolean(d.voiceMode) : undefined,
           createdAt: (d.createdAt as Timestamp | null) ?? null,
           lastActivityAt: (d.lastActivityAt as Timestamp | null) ?? null,
           cleanupAt: (d.cleanupAt as Timestamp | null) ?? null,
