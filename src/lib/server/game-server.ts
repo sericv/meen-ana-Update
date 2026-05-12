@@ -1,11 +1,14 @@
+import { randomUUID } from "node:crypto";
 import { FieldValue, Timestamp, type Firestore } from "firebase-admin/firestore";
 import { getAdminDb } from "@/lib/firebase/admin";
 import { col, roomPlayerCardsCol } from "@/lib/firestore/paths";
 import {
   ANSWER_PHASE_SECONDS,
   QUESTION_PHASE_SECONDS,
+  ROOM_POST_MATCH_CLEANUP_MS,
 } from "@/lib/game/constants";
 import { pickTwoCards } from "@/lib/game/cards";
+import { generateGuessAliases } from "@/lib/game/guess-alias-generator";
 import { guessMatchesCard } from "@/lib/game/validation";
 
 function messagesRef(db: Firestore, roomId: string) {
@@ -36,6 +39,78 @@ function readMatchTimers(m: Record<string, unknown>): { q: number; a: number } {
   };
 }
 
+/** Firestore document max ~1 MiB; two cards + room fields — hard cap per image */
+const MAX_CUSTOM_DATA_URL_CHARS = 180_000;
+
+type CardAssignment = {
+  cardId: string;
+  name: string;
+  nameAr: string;
+  imageUrl: string;
+  categoryId: string;
+  guessAliases: string[];
+};
+
+function storedCardToAssignment(
+  item: Record<string, unknown>,
+  categoryId: string,
+): CardAssignment {
+  const id = String(item.id ?? "").trim();
+  const nameAr = String(item.nameAr ?? "").trim();
+  const imageUrl = String(item.imageUrl ?? "").trim();
+  const name = String(item.name ?? nameAr).trim();
+  const clientAliases = Array.isArray(item.aliases)
+    ? item.aliases.map((x) => String(x).trim()).filter(Boolean)
+    : [];
+  if (!id || nameAr.length < 1) throw new Error("CUSTOM_OPPONENT_INVALID");
+  if (!imageUrl.startsWith("data:image/")) throw new Error("CUSTOM_OPPONENT_INVALID");
+  if (imageUrl.length > MAX_CUSTOM_DATA_URL_CHARS) throw new Error("CUSTOM_IMAGE_TOO_LARGE");
+  const guessAliases = [
+    ...new Set([
+      ...generateGuessAliases(nameAr),
+      ...generateGuessAliases(name),
+      ...clientAliases,
+    ]),
+  ];
+  return {
+    cardId: `custom:${id}`,
+    name,
+    nameAr,
+    imageUrl,
+    categoryId,
+    guessAliases,
+  };
+}
+
+function readOpponentCustomAssignments(
+  room: Record<string, unknown>,
+  p0: string,
+  p1: string,
+): { forP0: CardAssignment; forP1: CardAssignment } | null {
+  if (room.customCardsEnabled !== true) return null;
+
+  const raw = room.customOpponentSelections;
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new Error("CUSTOM_OPPONENT_INCOMPLETE");
+
+  const map = raw as Record<string, unknown>;
+  const fromP1 = map[p1];
+  const fromP0 = map[p0];
+
+  if (!fromP1 || typeof fromP1 !== "object" || Array.isArray(fromP1)) {
+    throw new Error("CUSTOM_OPPONENT_INCOMPLETE");
+  }
+  if (!fromP0 || typeof fromP0 !== "object" || Array.isArray(fromP0)) {
+    throw new Error("CUSTOM_OPPONENT_INCOMPLETE");
+  }
+
+  const categoryId = typeof room.categoryId === "string" ? room.categoryId : "general";
+
+  return {
+    forP0: storedCardToAssignment(fromP1 as Record<string, unknown>, categoryId),
+    forP1: storedCardToAssignment(fromP0 as Record<string, unknown>, categoryId),
+  };
+}
+
 // ─── Start match ─────────────────────────────────────────────────────────────
 
 export async function startMatchForRoom(args: {
@@ -60,10 +135,33 @@ export async function startMatchForRoom(args: {
   const { q: qSec, a: aSec } = readRoomTimers(room);
 
   const categoryId = typeof room.categoryId === "string" ? room.categoryId : undefined;
-  const pair = pickTwoCards(categoryId);
-  if (!pair) throw new Error("NOT_ENOUGH_CARDS");
-
-  const [c0, c1] = pair;
+  const customPair = readOpponentCustomAssignments(room, playerUids[0]!, playerUids[1]!);
+  let c0: CardAssignment;
+  let c1: CardAssignment;
+  if (customPair) {
+    c0 = customPair.forP0;
+    c1 = customPair.forP1;
+  } else {
+    const pair = pickTwoCards(categoryId);
+    if (!pair) throw new Error("NOT_ENOUGH_CARDS");
+    const [g0, g1] = pair;
+    c0 = {
+      cardId: g0.id,
+      name: g0.name,
+      nameAr: g0.nameAr,
+      imageUrl: g0.imageUrl,
+      categoryId: g0.categoryId,
+      guessAliases: [],
+    };
+    c1 = {
+      cardId: g1.id,
+      name: g1.name,
+      nameAr: g1.nameAr,
+      imageUrl: g1.imageUrl,
+      categoryId: g1.categoryId,
+      guessAliases: [],
+    };
+  }
   const [p0, p1] = [playerUids[0]!, playerUids[1]!];
 
   const matchRef = db.collection(col.matches).doc();
@@ -73,7 +171,7 @@ export async function startMatchForRoom(args: {
 
   const batch = db.batch();
 
-  batch.set(roomRef, { status: "playing", matchId, lastActivityAt: now, cleanupAt: Timestamp.fromMillis(Date.now() + 60 * 60 * 1000) }, { merge: true });
+  batch.set(roomRef, { status: "playing", matchId, lastActivityAt: now, cleanupAt: null }, { merge: true });
 
   batch.set(matchRef, {
     roomId: args.roomId,
@@ -92,8 +190,22 @@ export async function startMatchForRoom(args: {
 
   const pc0 = db.doc(`${roomPlayerCardsCol(args.roomId)}/${p0}`);
   const pc1 = db.doc(`${roomPlayerCardsCol(args.roomId)}/${p1}`);
-  batch.set(pc0, { cardId: c0.id, name: c0.name, nameAr: c0.nameAr, imageUrl: c0.imageUrl, categoryId: c0.categoryId });
-  batch.set(pc1, { cardId: c1.id, name: c1.name, nameAr: c1.nameAr, imageUrl: c1.imageUrl, categoryId: c1.categoryId });
+  batch.set(pc0, {
+    cardId: c0.cardId,
+    name: c0.name,
+    nameAr: c0.nameAr,
+    imageUrl: c0.imageUrl,
+    categoryId: c0.categoryId,
+    guessAliases: c0.guessAliases,
+  });
+  batch.set(pc1, {
+    cardId: c1.cardId,
+    name: c1.name,
+    nameAr: c1.nameAr,
+    imageUrl: c1.imageUrl,
+    categoryId: c1.categoryId,
+    guessAliases: c1.guessAliases,
+  });
 
   const sysRef = messagesRef(db, args.roomId).doc();
   batch.set(sysRef, {
@@ -288,11 +400,15 @@ export async function handleGuess(args: {
     if (!cardSnap.exists) throw new Error("NO_HIDDEN_CARD");
 
     const card = cardSnap.data()!;
+    const storedAliases = Array.isArray(card.guessAliases)
+      ? (card.guessAliases as unknown[]).map((x) => String(x))
+      : undefined;
     const correct = guessMatchesCard(
       args.guess,
       String(card.name ?? ""),
       String(card.nameAr ?? ""),
       typeof card.cardId === "string" ? card.cardId : undefined,
+      storedAliases,
     );
 
     tx.set(msgs.doc(), {
@@ -313,7 +429,15 @@ export async function handleGuess(args: {
         createdAt: FieldValue.serverTimestamp(),
       });
       tx.set(matchRef, { status: "ended", winnerUid: args.uid, winReason: "guess", endedAt: FieldValue.serverTimestamp() }, { merge: true });
-      tx.set(roomRef, { status: "ended", lastActivityAt: FieldValue.serverTimestamp(), cleanupAt: Timestamp.fromMillis(Date.now() + 30 * 60 * 1000) }, { merge: true });
+      tx.set(
+        roomRef,
+        {
+          status: "ended",
+          lastActivityAt: FieldValue.serverTimestamp(),
+          cleanupAt: Timestamp.fromMillis(Date.now() + ROOM_POST_MATCH_CLEANUP_MS),
+        },
+        { merge: true },
+      );
     } else {
       tx.set(msgs.doc(), {
         senderUid: "system",
@@ -387,10 +511,75 @@ export async function handleLeaveMatch(args: { roomId: string; uid: string }) {
         status: "ended",
         leftByUid: args.uid,
         lastActivityAt: FieldValue.serverTimestamp(),
-        cleanupAt: Timestamp.fromMillis(Date.now() + 30 * 60 * 1000),
+        cleanupAt: Timestamp.fromMillis(Date.now() + ROOM_POST_MATCH_CLEANUP_MS),
       }, { merge: true });
       return;
     }
+  });
+}
+
+export async function setOpponentCustomCard(args: {
+  roomId: string;
+  uid: string;
+  card: {
+    id?: string;
+    nameAr: string;
+    name?: string;
+    imageUrl: string;
+    aliases?: string[];
+  };
+}) {
+  const db = getAdminDb();
+  const roomRef = db.collection(col.rooms).doc(args.roomId);
+
+  await db.runTransaction(async (tx) => {
+    const roomSnap = await tx.get(roomRef);
+    if (!roomSnap.exists) throw new Error("ROOM_NOT_FOUND");
+    const room = roomSnap.data()!;
+    if (String(room.status) !== "lobby") throw new Error("ROOM_NOT_LOBBY");
+    const uids = (room.playerUids as string[]) ?? [];
+    if (!uids.includes(args.uid)) throw new Error("NOT_IN_ROOM");
+    if (room.customCardsEnabled !== true) throw new Error("CUSTOM_NOT_ENABLED");
+    if (uids.length !== 2) throw new Error("WAIT_FOR_OPPONENT");
+
+    const img = String(args.card.imageUrl ?? "").trim();
+    if (!img.startsWith("data:image/")) throw new Error("CUSTOM_OPPONENT_INVALID");
+    if (img.length > MAX_CUSTOM_DATA_URL_CHARS) throw new Error("CUSTOM_IMAGE_TOO_LARGE");
+    const nameAr = String(args.card.nameAr ?? "").trim();
+    if (nameAr.length < 1) throw new Error("CUSTOM_OPPONENT_INVALID");
+
+    const name = String(args.card.name ?? nameAr).trim();
+    const id = String(args.card.id ?? "").trim() || randomUUID();
+    const clientAliases = Array.isArray(args.card.aliases)
+      ? args.card.aliases.map((x) => String(x).trim()).filter(Boolean)
+      : [];
+
+    const aliases = [
+      ...new Set([
+        ...generateGuessAliases(nameAr),
+        ...generateGuessAliases(name),
+        ...clientAliases,
+      ]),
+    ];
+
+    const stored = {
+      id,
+      nameAr,
+      name,
+      imageUrl: img,
+      aliases,
+      savedAt: FieldValue.serverTimestamp(),
+    };
+
+    tx.set(
+      roomRef,
+      {
+        [`customOpponentSelections.${args.uid}`]: stored,
+        [`customOpponentCardAssigned.${args.uid}`]: true,
+        lastActivityAt: FieldValue.serverTimestamp(),
+      },
+      { merge: true },
+    );
   });
 }
 

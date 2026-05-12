@@ -95,6 +95,7 @@ function NewRoomInner() {
   const [questionTimerSec, setQuestionTimerSec] = useState(QUESTION_PHASE_SECONDS);
   const [answerTimerSec, setAnswerTimerSec] = useState(ANSWER_PHASE_SECONDS);
   const [voiceMode, setVoiceMode] = useState(false);
+  const [customCardsEnabled, setCustomCardsEnabled] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -128,6 +129,7 @@ function NewRoomInner() {
         questionTimerSec: clamp(questionTimerSec),
         answerTimerSec: clamp(answerTimerSec),
         voiceMode,
+        customCardsEnabled,
       });
       router.push(`/room/${roomId}`);
     } catch (e) {
@@ -250,6 +252,11 @@ function NewRoomInner() {
 
             {/* ── Voice mode ── */}
             <VoiceModeSection voiceMode={voiceMode} onToggle={() => setVoiceMode((v) => !v)} />
+
+            <CustomOpponentCardsLobbyToggle
+              enabled={customCardsEnabled}
+              onToggle={() => setCustomCardsEnabled((v) => !v)}
+            />
           </div>
         </motion.div>
 
@@ -447,6 +454,111 @@ function CategoryPill({
       </span>
       {cat.nameAr}
     </motion.button>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   CUSTOM OPPONENT CARDS — lobby picks only (toggle here)
+   ════════════════════════════════════════════════════════════════════ */
+function CustomOpponentCardsLobbyToggle({
+  enabled,
+  onToggle,
+}: {
+  enabled: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <section className="pt-6">
+      <motion.div
+        animate={
+          enabled
+            ? {
+                boxShadow:
+                  "0 0 0 2px rgba(168,85,247,0.55), 0 0 24px rgba(255,149,0,0.2), 0 12px 32px rgba(196,134,82,0.18)",
+              }
+            : { boxShadow: "0 0 0 1.5px rgba(244,196,141,0.55), 0 6px 16px rgba(196,134,82,0.1)" }
+        }
+        transition={{ duration: 0.3 }}
+        className="relative overflow-hidden rounded-2xl p-4"
+        style={{
+          background: enabled
+            ? "linear-gradient(145deg,#FFF8FF 0%,#FFF5E8 48%,#FFF0DC 100%)"
+            : "#FFF8EE",
+        }}
+      >
+        {enabled && (
+          <>
+            <div
+              aria-hidden
+              className="pointer-events-none absolute -left-8 -top-10 h-28 w-28 rounded-full blur-3xl"
+              style={{ background: "rgba(168,85,247,0.22)" }}
+            />
+            <div
+              aria-hidden
+              className="pointer-events-none absolute -bottom-8 -right-6 h-32 w-32 rounded-full blur-3xl"
+              style={{ background: "rgba(255,149,0,0.28)" }}
+            />
+          </>
+        )}
+
+        <div className="relative flex flex-col gap-3">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="flex items-center gap-2 text-[15px] font-extrabold text-[#8a3f16]">
+                <span
+                  className="grid h-7 w-7 shrink-0 place-items-center rounded-lg text-sm font-black text-white"
+                  style={{
+                    background: "linear-gradient(135deg,#c084fc 0%,#FF9F0A 100%)",
+                    boxShadow: "0 2px 8px rgba(168,85,247,0.35)",
+                  }}
+                >
+                  ★
+                </span>
+                بطاقة للخصم
+              </p>
+              <p className="mt-1 text-xs font-semibold leading-relaxed text-[#9a5a2a]">
+                في الغرفة، كل لاعب يختار صورة واحدة وإجابة واحدة لخصمه فقط — ليس مجموعة بطاقات مشتركة.
+              </p>
+            </div>
+            <motion.button
+              type="button"
+              role="switch"
+              aria-checked={enabled}
+              onClick={onToggle}
+              className="relative h-8 w-14 shrink-0 rounded-full"
+              animate={{ background: enabled ? "#a855f7" : "#E2CAB0" }}
+              transition={{ duration: 0.22 }}
+              style={{
+                boxShadow: enabled
+                  ? "inset 0 2px 0 rgba(255,255,255,0.3), 0 4px 12px rgba(168,85,247,0.45)"
+                  : "inset 0 2px 4px rgba(0,0,0,0.1)",
+              }}
+            >
+              <motion.span
+                className="absolute top-1 h-6 w-6 rounded-full bg-white shadow-[0_2px_6px_rgba(0,0,0,0.22)]"
+                animate={{ left: enabled ? "calc(100% - 28px)" : "4px" }}
+                transition={{ type: "spring", stiffness: 380, damping: 28 }}
+              />
+            </motion.button>
+          </div>
+
+          <p className="text-[11px] font-bold text-[#a16231]">تفعيل البطاقات المخصصة</p>
+
+          <AnimatePresence>
+            {enabled && (
+              <motion.p
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                className="overflow-hidden text-xs font-semibold text-[#bc7a45]"
+              >
+                بعد الدخول للغرفة مع الخصم، سيظهر لك قسم «اختر بطاقة لخصمك». لا يمكن بدء المباراة قبل أن يختار كلٌ منكما بطاقة للآخر.
+              </motion.p>
+            )}
+          </AnimatePresence>
+        </div>
+      </motion.div>
+    </section>
   );
 }
 

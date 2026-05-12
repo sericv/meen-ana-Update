@@ -31,6 +31,7 @@ function baseRoomFields(args: {
   questionTimerSec?: number;
   answerTimerSec?: number;
   voiceMode?: boolean;
+  customCardsEnabled?: boolean;
 }) {
   const code = generateRoomCode();
   const now = serverTimestamp();
@@ -57,6 +58,9 @@ function baseRoomFields(args: {
     matchId: null,
     openJoin: args.openJoin,
     voiceMode: args.voiceMode ?? false,
+    customCardsEnabled: Boolean(args.customCardsEnabled),
+    customOpponentSelections: {},
+    customOpponentCardAssigned: {},
     questionTimerSec: qSec,
     answerTimerSec: aSec,
     createdAt: now,
@@ -72,6 +76,7 @@ export async function createPrivateRoom(args: {
   questionTimerSec?: number;
   answerTimerSec?: number;
   voiceMode?: boolean;
+  customCardsEnabled?: boolean;
 }): Promise<{ roomId: string; code: string }> {
   const batch = writeBatch(db());
   const roomRef = doc(collection(db(), col.rooms));

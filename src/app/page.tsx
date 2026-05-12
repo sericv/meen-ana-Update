@@ -339,6 +339,8 @@ function BackgroundLayer() {
 /* ════════════════════════════════════════════════════════════════════
    LOGO
    ════════════════════════════════════════════════════════════════════ */
+const HOME_LOGO_SRC = "https://i.top4top.io/p_378405pkd1.png";
+
 function LogoHero() {
   return (
     <motion.div
@@ -359,17 +361,18 @@ function LogoHero() {
       <motion.div
         animate={{ y: [0, -7, 0] }}
         transition={{ duration: 4.2, repeat: Infinity, ease: "easeInOut" }}
+        className="flex justify-center"
       >
         <Image
-          src="/logo.png"
+          src={HOME_LOGO_SRC}
           alt="مين أنا؟"
           width={560}
           height={440}
           priority
-          sizes="(max-width:640px) 82vw,(max-width:1024px) 64vw,520px"
-          /* PNG with transparency: do NOT set background; let it composite naturally */
+          unoptimized
+          sizes="(max-width:640px) 82vw,(max-width:1024px) 66vw,440px"
           className="
-            h-auto w-[min(82vw,300px)]
+            h-auto w-[min(82vw,300px)] max-w-full object-contain
             sm:w-[min(66vw,360px)]
             md:w-[400px]
             lg:w-[440px]

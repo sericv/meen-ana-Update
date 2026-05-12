@@ -22,6 +22,14 @@ function resultRef(uid: string) {
 
 /**
  * Atomically join queue or pair with a waiter. Creates room via Admin when paired.
+ *
+ * Stability hardening:
+ *  - Always clear THIS user's stale `matchmakingResults` doc before searching,
+ *    so a previously-acked-but-leftover redirect cannot fire instantly and
+ *    land them in an ended room ("ghost match" / "instant defeat").
+ *  - When pairing, write a `matchmakingResults` doc for BOTH players (the
+ *    waiter (who is listening via snapshot) AND the joiner (resilient to
+ *    navigation hiccups). Joiner page may also navigate from the response.
  */
 export async function joinMatchmakingQueue(args: {
   poolId: string;
@@ -31,6 +39,10 @@ export async function joinMatchmakingQueue(args: {
 }): Promise<{ status: "waiting" } | { status: "matched"; roomId: string }> {
   const db = getAdminDb();
   const pref = poolRef(args.poolId);
+
+  // 1) Clear any stale matchmakingResults doc this user may still have from
+  //    a previous match. This is the #1 cause of "instant victory" reports.
+  await resultRef(args.uid).delete().catch(() => undefined);
 
   const outcome = await db.runTransaction(async (tx) => {
     const snap = await tx.get(pref);
@@ -52,6 +64,7 @@ export async function joinMatchmakingQueue(args: {
     }
 
     if (waitingUid === args.uid) {
+      // Same user re-joining (e.g. quick double tap). Stay waiting.
       return { kind: "wait" as const };
     }
 
@@ -121,7 +134,15 @@ export async function joinMatchmakingQueue(args: {
 
   batch.set(db.collection(col.roomCodes).doc(code), { roomId });
 
+  // Write redirect doc for BOTH players. The waiter relies on it (they have
+  // an onSnapshot listener). The joiner has the roomId in the API response,
+  // but writing it makes them resilient to transient navigation failures.
   batch.set(resultRef(waiterUid), {
+    roomId,
+    poolId: args.poolId,
+    createdAt: FieldValue.serverTimestamp(),
+  });
+  batch.set(resultRef(joinerUid), {
     roomId,
     poolId: args.poolId,
     createdAt: FieldValue.serverTimestamp(),
@@ -132,16 +153,18 @@ export async function joinMatchmakingQueue(args: {
   return { status: "matched", roomId };
 }
 
-/** Clear queue if this uid is currently waiting. */
+/** Clear queue if this uid is currently waiting. Also clears any pending
+ *  redirect doc IF the user is still the current waiter (i.e. unmatched),
+ *  so cancelling can never leave a stale redirect that fires on next search. */
 export async function leaveMatchmakingQueue(poolId: string, uid: string): Promise<void> {
   const db = getAdminDb();
   const pref = poolRef(poolId);
 
-  await db.runTransaction(async (tx) => {
+  const wasWaiting = await db.runTransaction(async (tx) => {
     const snap = await tx.get(pref);
-    if (!snap.exists) return;
+    if (!snap.exists) return false;
     const waitingUid = (snap.data()?.waitingUid as string | undefined) ?? null;
-    if (waitingUid !== uid) return;
+    if (waitingUid !== uid) return false;
     tx.set(
       pref,
       {
@@ -152,7 +175,15 @@ export async function leaveMatchmakingQueue(poolId: string, uid: string): Promis
       },
       { merge: true },
     );
+    return true;
   });
+
+  // Only clear the redirect doc if the user was still waiting (unmatched).
+  // If they had already been paired, the doc points to a real room they
+  // (or their next page) still need to navigate to — don't touch it.
+  if (wasWaiting) {
+    await resultRef(uid).delete().catch(() => undefined);
+  }
 }
 
 export async function deleteMatchmakingResult(uid: string): Promise<void> {

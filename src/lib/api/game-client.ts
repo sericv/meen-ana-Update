@@ -18,7 +18,27 @@ export async function postGame<T extends Record<string, unknown>>(
     },
     body: JSON.stringify(body),
   });
-  const j = (await res.json()) as { ok?: boolean; error?: string } & Record<string, unknown>;
-  if (!j.ok) throw new Error(j.error ?? "فشل الطلب");
+
+  const text = await res.text();
+  let j: { ok?: boolean; error?: string } & Record<string, unknown> = {};
+  try {
+    j = text ? (JSON.parse(text) as typeof j) : {};
+  } catch {
+    if (res.status === 413 || res.status === 431) {
+      throw new Error("حجم الطلب كبير جداً — جرّب صورة أصغر أو أبسط");
+    }
+    if (res.status >= 500) {
+      throw new Error("فشل حفظ الصورة — خطأ في الخادم، حاول مجدداً");
+    }
+    throw new Error(text?.slice(0, 200) || "فشل حفظ الصورة");
+  }
+
+  if (!j.ok) {
+    const err = j.error ?? "فشل حفظ الصورة";
+    if (res.status === 413 || res.status === 431) {
+      throw new Error("حجم الطلب كبير جداً — جرّب صورة أصغر أو أبسط");
+    }
+    throw new Error(err);
+  }
   return j as T & { ok: true };
 }

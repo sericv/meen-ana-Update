@@ -17,6 +17,9 @@ export const MATCH_MAX_MINUTES = 12;
 /** Room inactivity before eligible for cleanup (ms) */
 export const ROOM_INACTIVE_MS = 45 * 60 * 1000;
 
+/** After a match ends, schedule full room deletion (cron respects `cleanupAt`) */
+export const ROOM_POST_MATCH_CLEANUP_MS = 5 * 60 * 1000;
+
 /** Min interval between chat sends (client hint; server should enforce too) */
 export const CHAT_COOLDOWN_MS = 1200;
 

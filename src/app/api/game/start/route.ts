@@ -24,6 +24,10 @@ export async function POST(req: Request) {
       NEED_TWO_PLAYERS: "يلزم لاعبان",
       NOT_READY: "اللاعبون ليسوا جاهزين",
       NOT_ENOUGH_CARDS: "لا توجد بطاقات كافية في التصنيف",
+      CUSTOM_CARDS_INVALID: "البطاقات المخصصة غير مكتملة أو غير صالحة",
+      CUSTOM_OPPONENT_INCOMPLETE: "يلزم أن يختار كل لاعب بطاقة للخصم قبل البدء",
+      CUSTOM_OPPONENT_INVALID: "بطاقة مخصصة غير صالحة",
+      CUSTOM_IMAGE_TOO_LARGE: "صورة بطاقة مخصصة كبيرة جداً في الغرفة — احذف البطاقات وأعد حفظها من الانتظار",
     };
     return jsonError(400, map[msg] ?? "تعذر بدء المباراة");
   }

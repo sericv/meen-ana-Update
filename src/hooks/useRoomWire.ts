@@ -18,7 +18,52 @@ import {
   ANSWER_PHASE_SECONDS,
   QUESTION_PHASE_SECONDS,
 } from "@/lib/game/constants";
-import type { ChatMessage, GameCard, MatchState, Room } from "@/types";
+import { isOpponentCustomCardComplete } from "@/lib/custom-cards/opponent-card-gate";
+import type { ChatMessage, GameCard, MatchState, Room, StoredCustomRoomCard } from "@/types";
+
+function parseCustomOpponentAssigned(raw: unknown): Room["customOpponentCardAssigned"] | undefined {
+  if (raw == null || typeof raw !== "object" || Array.isArray(raw)) return undefined;
+  const out: Record<string, boolean> = {};
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (v === true) out[k] = true;
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
+function parseOpponentSelections(raw: unknown): Room["customOpponentSelections"] | undefined {
+  if (raw == null) return undefined;
+  const entries: [string, unknown][] =
+    raw instanceof Map
+      ? [...raw.entries()].map(([k, v]) => [String(k), v])
+      : typeof raw === "object" && !Array.isArray(raw)
+        ? Object.entries(raw as Record<string, unknown>)
+        : [];
+  if (!entries.length) return undefined;
+
+  const out: Record<string, StoredCustomRoomCard> = {};
+  for (const [key, val] of entries) {
+    if (!val || typeof val !== "object" || Array.isArray(val)) continue;
+    const v = val as Record<string, unknown>;
+    const nameAr = String(v.nameAr ?? "").trim();
+    const imageUrl = String(v.imageUrl ?? "").trim();
+    const id = String(v.id ?? "").trim() || key;
+    const savedAt =
+      v.savedAt && typeof v.savedAt === "object" && "toMillis" in (v.savedAt as object)
+        ? (v.savedAt as Timestamp)
+        : null;
+    const card: StoredCustomRoomCard = {
+      id,
+      nameAr,
+      name: v.name !== undefined ? String(v.name) : undefined,
+      imageUrl,
+      aliases: Array.isArray(v.aliases) ? v.aliases.map((x) => String(x)) : [],
+      savedAt: savedAt ?? undefined,
+    };
+    if (!isOpponentCustomCardComplete(card)) continue;
+    out[key] = card;
+  }
+  return Object.keys(out).length ? out : undefined;
+}
 
 export function useRoomWire(roomId: string | null, myUid: string | null) {
   const [room, setRoom] = useState<Room | null>(null);
@@ -59,6 +104,10 @@ export function useRoomWire(roomId: string | null, myUid: string | null) {
           leftByUid: d.leftByUid !== undefined ? String(d.leftByUid) : undefined,
           lobbyLeftByUid: d.lobbyLeftByUid !== undefined ? String(d.lobbyLeftByUid) : undefined,
           voiceMode: d.voiceMode !== undefined ? Boolean(d.voiceMode) : undefined,
+          customCardsEnabled:
+            d.customCardsEnabled !== undefined ? Boolean(d.customCardsEnabled) : undefined,
+          customOpponentSelections: parseOpponentSelections(d.customOpponentSelections),
+          customOpponentCardAssigned: parseCustomOpponentAssigned(d.customOpponentCardAssigned),
           createdAt: (d.createdAt as Timestamp | null) ?? null,
           lastActivityAt: (d.lastActivityAt as Timestamp | null) ?? null,
           cleanupAt: (d.cleanupAt as Timestamp | null) ?? null,

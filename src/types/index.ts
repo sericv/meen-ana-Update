@@ -11,6 +11,19 @@ export interface RoomPlayer {
   joinedAt: Timestamp | null;
 }
 
+/** One custom card a player assigns for their opponent (image as data URL). */
+export interface StoredCustomRoomCard {
+  id: string;
+  nameAr: string;
+  /** Optional Latin / display name — defaults to nameAr when omitted */
+  name?: string;
+  imageUrl: string;
+  /** Client-precomputed alias hints; server merges with `generateGuessAliases` */
+  aliases: string[];
+  /** Server timestamp when card was last saved (lobby confirmation) */
+  savedAt?: Timestamp | null;
+}
+
 export interface Room {
   id: string;
   code: string;
@@ -34,6 +47,15 @@ export interface Room {
   lobbyLeftByUid?: string;
   /** Private room only: hide chat, use voice action buttons instead */
   voiceMode?: boolean;
+  /** Premium: each player picks one image card for their opponent in lobby */
+  customCardsEnabled?: boolean;
+  /**
+   * Map giverUid → card they chose for their opponent.
+   * Recipient sees opponentCard from playerCards; assignment at match start: `selections[opponentUid]`.
+   */
+  customOpponentSelections?: Record<string, StoredCustomRoomCard>;
+  /** Server-set: uid → true after successful opponent-custom save (cleared on replay) */
+  customOpponentCardAssigned?: Record<string, boolean>;
   createdAt: Timestamp | null;
   lastActivityAt: Timestamp | null;
   cleanupAt: Timestamp | null;

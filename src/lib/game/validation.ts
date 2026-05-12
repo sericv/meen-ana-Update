@@ -12,7 +12,10 @@ export function guessMatchesCard(
   cardName: string,
   cardNameAr: string,
   cardId?: string,
+  storedAliases?: string[],
 ): boolean {
-  const aliases = cardId ? getAliasesForCard(cardId) : [];
-  return matchesGuess(guess, cardName, cardNameAr, aliases);
+  const registry =
+    cardId && !String(cardId).startsWith("custom:") ? getAliasesForCard(cardId) : [];
+  const merged = [...registry, ...(storedAliases ?? [])];
+  return matchesGuess(guess, cardName, cardNameAr, merged);
 }
