@@ -1,7 +1,13 @@
 "use client";
 
 import { initializeApp, getApps, type FirebaseApp } from "firebase/app";
-import { getAuth, type Auth } from "firebase/auth";
+import {
+  type Auth,
+  browserLocalPersistence,
+  getAuth,
+  indexedDBLocalPersistence,
+  initializeAuth,
+} from "firebase/auth";
 import { getFirestore, type Firestore } from "firebase/firestore";
 import { getStorage, type FirebaseStorage } from "firebase/storage";
 import { firebaseConfig } from "./config";
@@ -18,8 +24,28 @@ export function getFirebaseApp(): FirebaseApp {
   return app;
 }
 
+/**
+ * Single Auth instance with explicit persistence (IndexedDB → localStorage).
+ * Avoids relying on implicit init ordering and helps sessions survive refresh on mobile
+ * and embedded WebViews where defaults behave inconsistently.
+ */
 export function getFirebaseAuth(): Auth {
-  if (!auth) auth = getAuth(getFirebaseApp());
+  if (!auth) {
+    const firebaseApp = getFirebaseApp();
+    try {
+      auth = initializeAuth(firebaseApp, {
+        persistence: [indexedDBLocalPersistence, browserLocalPersistence],
+      });
+    } catch (e: unknown) {
+      const code =
+        e && typeof e === "object" && "code" in e ? String((e as { code: unknown }).code) : "";
+      if (code === "auth/already-initialized") {
+        auth = getAuth(firebaseApp);
+      } else {
+        throw e;
+      }
+    }
+  }
   return auth;
 }
 

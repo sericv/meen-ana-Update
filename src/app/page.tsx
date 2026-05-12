@@ -4,7 +4,10 @@ import { AnimatePresence, motion } from "framer-motion";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { ProfileAvatar } from "@/components/profile/ProfileAvatar";
 import { useAuth } from "@/components/providers/AuthProvider";
+import { usePlayerCosmetics } from "@/hooks/usePlayerCosmetics";
+import { playUIButton, resumeAudioContext } from "@/lib/audio/game-sounds";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Panel } from "@/components/ui/Panel";
@@ -98,6 +101,10 @@ export default function HomePage() {
     ? (user.displayName || (user.isAnonymous ? "زائر" : (user.email?.split("@")[0] ?? "لاعب")))
     : null;
 
+  const profileUid = user?.uid ?? null;
+  const profileCosmetics = usePlayerCosmetics(profileUid ? [profileUid] : []);
+  const myProfileCosmetic = profileUid ? profileCosmetics[profileUid] : undefined;
+
   function navTo(href: string) {
     if (!user) {
       router.push(`/login?next=${encodeURIComponent(href)}`);
@@ -120,11 +127,26 @@ export default function HomePage() {
           <div className="relative" ref={menuRef}>
             <motion.button
               type="button"
+              whileHover={{ scale: 1.03 }}
               whileTap={{ scale: 0.94 }}
-              onClick={() => setMenuOpen((v) => !v)}
+              onClick={() => {
+                resumeAudioContext();
+                playUIButton();
+                setMenuOpen((v) => !v);
+              }}
               className="flex items-center gap-2 rounded-full border border-white/70 bg-white/90 px-4 py-2.5 text-sm font-extrabold text-[#8a3f16] shadow-[0_6px_18px_rgba(196,134,82,0.25)] backdrop-blur"
             >
-              <IconUser className="h-4 w-4 text-[#F58C2B]" />
+              {user && profileUid ? (
+                <ProfileAvatar
+                  cosmetic={myProfileCosmetic}
+                  fallbackPhotoURL={user.photoURL}
+                  displayName={displayName ?? undefined}
+                  size="xs"
+                  idle
+                />
+              ) : (
+                <IconUser className="h-4 w-4 text-[#F58C2B]" />
+              )}
               <span className="max-w-[110px] truncate">
                 {loading ? "..." : (displayName ?? "دخول")}
               </span>
@@ -137,12 +159,24 @@ export default function HomePage() {
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.94, y: -6 }}
                   transition={{ duration: 0.16 }}
-                  className="absolute left-0 top-[calc(100%+8px)] z-50 min-w-[200px] rounded-2xl border border-[#f4c48d] bg-white p-2 shadow-[0_16px_40px_rgba(200,120,40,0.24)]"
+                  className="absolute left-0 top-[calc(100%+8px)] z-50 min-w-[220px] rounded-2xl border border-[#f4c48d] bg-white p-2 shadow-[0_16px_40px_rgba(200,120,40,0.24)]"
                 >
                   {displayName ? (
                     <>
-                      <p className="truncate px-3 py-1 text-xs text-[#c48652]">{displayName}</p>
+                      <div className="flex items-center gap-2.5 px-3 py-2">
+                        <ProfileAvatar
+                          cosmetic={myProfileCosmetic}
+                          fallbackPhotoURL={user?.photoURL}
+                          displayName={displayName}
+                          size="sm"
+                          idle
+                        />
+                        <p className="min-w-0 flex-1 truncate text-xs font-bold text-[#c48652]">{displayName}</p>
+                      </div>
                       <hr className="my-1 border-[#f4d4b0]" />
+                      <MenuItem onClick={() => { setMenuOpen(false); router.push("/profile"); }}>
+                        المظهر والإطار
+                      </MenuItem>
                       <MenuItem
                         onClick={() => {
                           setNameDraft(displayName);
@@ -545,7 +579,11 @@ function MenuItem({
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={() => {
+        resumeAudioContext();
+        playUIButton();
+        onClick();
+      }}
       className={`mt-1 w-full rounded-xl px-3 py-2 text-right text-sm font-semibold transition-colors first:mt-0 ${
         tone === "danger"
           ? "text-[#b45309] hover:bg-[#fff0dd]"

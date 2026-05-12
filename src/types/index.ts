@@ -49,6 +49,10 @@ export interface Room {
   voiceMode?: boolean;
   /** Premium: each player picks one image card for their opponent in lobby */
   customCardsEnabled?: boolean;
+  /** Solo mode: the second player is an automated bot (uid starts with "bot:") */
+  vsBot?: boolean;
+  /** Solo mode: the bot's player uid (synthetic). Present iff `vsBot` is true. */
+  botUid?: string;
   /**
    * Map giverUid → card they chose for their opponent.
    * Recipient sees opponentCard from playerCards; assignment at match start: `selections[opponentUid]`.
@@ -117,6 +121,10 @@ export interface UserProfile {
   isGuest: boolean;
   createdAt: Timestamp | null;
   lastSeen: Timestamp | null;
+  /** Preset avatar key when `photoURL` is empty (see `AVATAR_PRESETS`). */
+  avatarId?: string;
+  /** Decorative frame id (`none`, `crown`, …). */
+  avatarFrameId?: string;
 }
 
 export interface OpponentCardView {

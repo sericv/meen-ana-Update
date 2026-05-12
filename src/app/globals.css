@@ -3,6 +3,34 @@
 :root {
   --background: #fff7ef;
   --foreground: #5e3011;
+
+  /* 8pt spacing system — use via var(--gap-2), var(--gap-3) … */
+  --gap-1: 4px;
+  --gap-2: 8px;
+  --gap-3: 12px;
+  --gap-4: 16px;
+  --gap-5: 20px;
+  --gap-6: 24px;
+  --gap-8: 32px;
+  --gap-10: 40px;
+  --gap-12: 48px;
+
+  /* Safe-area shortcuts */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+
+  /* Card aspect ratios — keep cards visually identical everywhere. */
+  --card-ratio: 3 / 4;
+  --card-ratio-square: 1 / 1;
+  --card-ratio-wide: 4 / 3;
+
+  /* Dynamic viewport height: starts at 100dvh and is overridden by the
+     VisualViewport hook to match the *actual* visible area when the soft
+     keyboard opens. Components should use height: var(--app-vh) for full
+     height regions. */
+  --app-vh: 100dvh;
 }
 
 @theme inline {
@@ -11,16 +39,133 @@
   --font-sans: var(--font-tajawal), system-ui, -apple-system, Segoe UI, Arial, sans-serif;
 }
 
+/* ─── App-shell: lock the page to the viewport and silence rubber-banding
+       so the game feels fixed (no rubber bounce, no chrome-bar shift). ─── */
+html,
 body {
+  min-height: 100dvh;
+  height: 100%;
+}
+
+.app-shell {
   background:
     radial-gradient(circle at 10% 20%, #ffe4c8 0%, transparent 30%),
     radial-gradient(circle at 90% 15%, #ffd7ab 0%, transparent 28%),
     radial-gradient(circle at 85% 80%, #ffe9cf 0%, transparent 24%),
     linear-gradient(180deg, #fff7ef 0%, #ffefdb 100%);
   color: var(--foreground);
-  min-height: 100vh;
+  /* Stop iOS rubber-band overscroll inside the game shell. */
+  overscroll-behavior-y: contain;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  /* Allow horizontal touch on chat scroll but prevent diagonal browser
+     gestures from hijacking the game. */
+  touch-action: manipulation;
 }
 
 ::selection {
   background: rgba(255, 162, 74, 0.35);
+}
+
+/* ─── No-zoom inputs ─────────────────────────────────────────────────
+   iOS Safari auto-zooms when a focused input's computed font-size is
+   below 16px. The `maximum-scale=1` viewport flag handles older iOS,
+   but we still enforce a 16px minimum on every interactive control as
+   a defensive belt-and-braces measure. Visually we still show smaller
+   text in chat bubbles — only the inputs themselves are forced 16px. */
+input,
+textarea,
+select,
+button {
+  font-family: inherit;
+}
+
+@media (max-width: 768px) {
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
+    line-height: 1.35 !important;
+  }
+}
+
+/* Disable iOS Safari's tap-highlight flash + double-tap zoom delay on
+   anything we treat as a touch target. */
+a,
+button,
+[role="button"],
+input,
+textarea,
+select,
+label {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* ─── Card image system — uniform aspect ratio everywhere ─────────── */
+.card-frame {
+  aspect-ratio: var(--card-ratio);
+  width: 100%;
+  overflow: hidden;
+  position: relative;
+  contain: layout paint;
+}
+.card-frame > img,
+.card-frame > picture > img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+}
+
+/* For full-art cards that should not crop (custom uploads), authors can
+   add `data-fit="contain"` on the frame. */
+.card-frame[data-fit="contain"] > img {
+  object-fit: contain;
+  background: #fff8ee;
+}
+
+/* ─── Scroll containers — gentle inertia, no chain ────────────────── */
+.scroll-y {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+
+/* Hide native scrollbar while preserving scroll (used in chat lists). */
+.scroll-y-hidden::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+.scroll-y-hidden {
+  scrollbar-width: none;
+}
+
+/* ─── Keyboard-safe footer: anchored above the soft keyboard via the
+       JS-updated --kbd-h variable. Falls back to safe-area on desktop. */
+.kbd-safe {
+  padding-bottom: calc(max(var(--safe-bottom), 8px) + var(--kbd-h, 0px));
+  transition: padding-bottom 180ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Sticky composer that hugs the keyboard. */
+.kbd-anchor {
+  position: sticky;
+  bottom: 0;
+  background: inherit;
+}
+
+/* ─── Reduced motion friendliness ─────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
 }

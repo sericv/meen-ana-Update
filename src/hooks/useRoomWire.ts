@@ -11,7 +11,7 @@ import {
   setDoc,
   type Timestamp,
 } from "firebase/firestore";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { getFirebaseDb } from "@/lib/firebase/client";
 import { col } from "@/lib/firestore/paths";
 import {
@@ -65,12 +65,113 @@ function parseOpponentSelections(raw: unknown): Room["customOpponentSelections"]
   return Object.keys(out).length ? out : undefined;
 }
 
+function tsMillis(t: Timestamp | null | undefined): number | null {
+  if (!t || typeof (t as Timestamp).toMillis !== "function") return null;
+  return (t as Timestamp).toMillis();
+}
+
+/** Fingerprint room for snapshot dedup (avoids rerenders when Firestore echoes identical data). */
+function roomWireSignature(r: Room): string {
+  return JSON.stringify({
+    id: r.id,
+    code: r.code,
+    hostUid: r.hostUid,
+    players: r.players.map((p) => ({
+      uid: p.uid,
+      displayName: p.displayName,
+      ready: p.ready,
+      joinedAt: tsMillis(p.joinedAt),
+    })),
+    playerJoinedAt: r.playerJoinedAt
+      ? Object.fromEntries(
+          Object.entries(r.playerJoinedAt).map(([k, v]) => [k, tsMillis(v)]),
+        )
+      : {},
+    playerUids: r.playerUids,
+    status: r.status,
+    categoryId: r.categoryId,
+    matchId: r.matchId,
+    tutorial: r.tutorial,
+    openJoin: r.openJoin,
+    randomMatch: r.randomMatch,
+    questionTimerSec: r.questionTimerSec,
+    answerTimerSec: r.answerTimerSec,
+    leftByUid: r.leftByUid,
+    lobbyLeftByUid: r.lobbyLeftByUid,
+    voiceMode: r.voiceMode,
+    customCardsEnabled: r.customCardsEnabled,
+    customOpponentSelections: r.customOpponentSelections
+      ? Object.fromEntries(
+          Object.entries(r.customOpponentSelections).map(([k, c]) => [
+            k,
+            {
+              id: c.id,
+              nameAr: c.nameAr,
+              name: c.name,
+              imageUrlLen: (c.imageUrl ?? "").length,
+              imageHeadTail: (() => {
+                const u = c.imageUrl ?? "";
+                if (!u) return "";
+                return u.length <= 160 ? u : `${u.slice(0, 80)}…${u.slice(-80)}`;
+              })(),
+              aliases: c.aliases,
+              savedAt: tsMillis(c.savedAt ?? null),
+            },
+          ]),
+        )
+      : undefined,
+    customOpponentCardAssigned: r.customOpponentCardAssigned,
+    createdAt: tsMillis(r.createdAt),
+    lastActivityAt: tsMillis(r.lastActivityAt),
+    cleanupAt: tsMillis(r.cleanupAt),
+  });
+}
+
+function matchWireSignature(m: MatchState): string {
+  return JSON.stringify({
+    id: m.id,
+    roomId: m.roomId,
+    status: m.status,
+    playerOrder: m.playerOrder,
+    actorUid: m.actorUid,
+    chatPhase: m.chatPhase,
+    turnDeadline: tsMillis(m.turnDeadline),
+    questionSeconds: m.questionSeconds,
+    answerSeconds: m.answerSeconds,
+    winnerUid: m.winnerUid,
+    winReason: m.winReason,
+    startedAt: tsMillis(m.startedAt),
+    endedAt: tsMillis(m.endedAt),
+  });
+}
+
+function messagesWireSignature(list: ChatMessage[]): string {
+  return list
+    .map(
+      (m) =>
+        `${m.id}\t${m.senderUid}\t${m.senderName}\t${m.type}\t${m.text}\t${m.correct ?? ""}\t${m.createdAt?.toMillis() ?? "n"}`,
+    )
+    .join("\n");
+}
+
+function opponentCardWireSignature(c: GameCard | null): string {
+  if (!c) return "";
+  const u = c.imageUrl ?? "";
+  const tail = u.length <= 120 ? u : `${u.slice(0, 60)}…${u.slice(-60)}`;
+  return `${c.id}\t${c.name}\t${c.nameAr}\t${c.categoryId}\t${u.length}\t${tail}`;
+}
+
 export function useRoomWire(roomId: string | null, myUid: string | null) {
   const [room, setRoom] = useState<Room | null>(null);
   const [match, setMatch] = useState<MatchState | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [opponentCard, setOpponentCard] = useState<GameCard | null>(null);
   const [wireError, setWireError] = useState<string | null>(null);
+
+  const roomSigRef = useRef<string | null>(null);
+  const matchSigRef = useRef<string | null>(null);
+  const messagesSigRef = useRef<string | null>(null);
+  const opponentCardSigRef = useRef<string | null>(null);
 
   const opponentUid = useMemo(() => {
     if (!room || !myUid) return null;
@@ -79,14 +180,22 @@ export function useRoomWire(roomId: string | null, myUid: string | null) {
 
   // Room snapshot
   useEffect(() => {
-    if (!roomId) return;
+    if (!roomId) {
+      roomSigRef.current = null;
+      queueMicrotask(() => setRoom(null));
+      return;
+    }
     const db = getFirebaseDb();
     return onSnapshot(
       doc(db, col.rooms, roomId),
       (snap) => {
-        if (!snap.exists()) { setRoom(null); return; }
+        if (!snap.exists()) {
+          roomSigRef.current = null;
+          setRoom(null);
+          return;
+        }
         const d = snap.data();
-        setRoom({
+        const next: Room = {
           id: snap.id,
           code: String(d.code ?? ""),
           hostUid: String(d.hostUid ?? ""),
@@ -111,7 +220,11 @@ export function useRoomWire(roomId: string | null, myUid: string | null) {
           createdAt: (d.createdAt as Timestamp | null) ?? null,
           lastActivityAt: (d.lastActivityAt as Timestamp | null) ?? null,
           cleanupAt: (d.cleanupAt as Timestamp | null) ?? null,
-        });
+        };
+        const sig = roomWireSignature(next);
+        if (sig === roomSigRef.current) return;
+        roomSigRef.current = sig;
+        setRoom(next);
       },
       (e) => setWireError(e.message),
     );
@@ -119,16 +232,25 @@ export function useRoomWire(roomId: string | null, myUid: string | null) {
 
   // Match snapshot (simplified — no turn fields)
   useEffect(() => {
-    if (!room?.matchId) { setMatch(null); return; }
+    if (!room?.matchId) {
+      matchSigRef.current = null;
+      queueMicrotask(() => setMatch(null));
+      return;
+    }
     const db = getFirebaseDb();
+    const mid = room.matchId;
     return onSnapshot(
-      doc(db, col.matches, room.matchId),
+      doc(db, col.matches, mid),
       (snap) => {
-        if (!snap.exists()) { setMatch(null); return; }
+        if (!snap.exists()) {
+          matchSigRef.current = null;
+          setMatch(null);
+          return;
+        }
         const d = snap.data();
         const qs = Number(d.questionSeconds ?? QUESTION_PHASE_SECONDS);
         const as = Number(d.answerSeconds ?? ANSWER_PHASE_SECONDS);
-        setMatch({
+        const next: MatchState = {
           id: snap.id,
           roomId: String(d.roomId ?? ""),
           status: d.status as MatchState["status"],
@@ -142,61 +264,131 @@ export function useRoomWire(roomId: string | null, myUid: string | null) {
           winReason: (d.winReason as MatchState["winReason"]) ?? null,
           startedAt: (d.startedAt as Timestamp | null) ?? null,
           endedAt: (d.endedAt as Timestamp | null) ?? null,
-        });
+        };
+        const sig = matchWireSignature(next);
+        if (sig === matchSigRef.current) return;
+        matchSigRef.current = sig;
+        setMatch(next);
       },
       (e) => setWireError(e.message),
     );
   }, [room?.matchId]);
 
-  // Opponent card — now stored directly in playerCards (no second Firestore lookup)
+  // Opponent card — read directly from `playerCards/{opponentUid}` via a
+  // realtime snapshot. If Firestore Rules block the read (e.g. deployed rules
+  // are out of sync with the repo) we fall back to a server endpoint that
+  // surfaces the same card using the Admin SDK.
   useEffect(() => {
-    if (!roomId || !opponentUid) { setOpponentCard(null); return; }
+    if (!roomId || !opponentUid) {
+      opponentCardSigRef.current = null;
+      queueMicrotask(() => setOpponentCard(null));
+      return;
+    }
     const db = getFirebaseDb();
-    return onSnapshot(
-      doc(db, col.rooms, roomId, "playerCards", opponentUid),
+    const ouid = opponentUid;
+    let fallbackTimer: ReturnType<typeof setInterval> | null = null;
+    let cancelled = false;
+
+    const applyCard = (c: {
+      cardId?: unknown; name?: unknown; nameAr?: unknown;
+      imageUrl?: unknown; categoryId?: unknown;
+    } | null) => {
+      if (cancelled) return;
+      if (!c) {
+        opponentCardSigRef.current = null;
+        setOpponentCard(null);
+        return;
+      }
+      const next: GameCard = {
+        id: String(c.cardId ?? ""),
+        name: String(c.name ?? ""),
+        nameAr: String(c.nameAr ?? ""),
+        imageUrl: String(c.imageUrl ?? ""),
+        categoryId: String(c.categoryId ?? ""),
+        tags: [],
+      };
+      const sig = opponentCardWireSignature(next);
+      if (sig === opponentCardSigRef.current) return;
+      opponentCardSigRef.current = sig;
+      setOpponentCard(next);
+    };
+
+    const fetchViaServer = async () => {
+      try {
+        const { postGame } = await import("@/lib/api/game-client");
+        const res = (await postGame("/api/game/reveal-cards", { roomId })) as {
+          opponentCard?: {
+            cardId: string; name: string; nameAr: string;
+            imageUrl: string; categoryId: string;
+          } | null;
+        };
+        applyCard(res.opponentCard ?? null);
+      } catch {
+        // ignored — endpoint refuses until match has actually started
+      }
+    };
+
+    const unsub = onSnapshot(
+      doc(db, col.rooms, roomId, "playerCards", ouid),
       (snap) => {
-        if (!snap.exists()) { setOpponentCard(null); return; }
-        const c = snap.data();
-        setOpponentCard({
-          id: String(c.cardId ?? ""),
-          name: String(c.name ?? ""),
-          nameAr: String(c.nameAr ?? ""),
-          imageUrl: String(c.imageUrl ?? ""),
-          categoryId: String(c.categoryId ?? ""),
-          tags: [],
-        });
+        if (!snap.exists()) {
+          opponentCardSigRef.current = null;
+          setOpponentCard(null);
+          return;
+        }
+        applyCard(snap.data());
       },
-      (e) => setWireError(e.message),
+      () => {
+        // Permission denied (rules drift) or transient error: switch to
+        // server-driven polling until the match ends.
+        setWireError(null);
+        if (fallbackTimer) return;
+        void fetchViaServer();
+        fallbackTimer = setInterval(() => void fetchViaServer(), 2000);
+      },
     );
+
+    return () => {
+      cancelled = true;
+      if (fallbackTimer) clearInterval(fallbackTimer);
+      unsub();
+    };
   }, [roomId, opponentUid]);
 
   // Messages
   useEffect(() => {
-    if (!roomId) return;
+    if (!roomId) {
+      messagesSigRef.current = null;
+      queueMicrotask(() => setMessages([]));
+      return;
+    }
     const db = getFirebaseDb();
+    const rid = roomId;
     const q = query(
-      collection(db, col.rooms, roomId, "messages"),
+      collection(db, col.rooms, rid, "messages"),
       orderBy("createdAt", "asc"),
       limit(150),
     );
     return onSnapshot(
       q,
       (snap) => {
-        setMessages(
-          snap.docs.map((d) => {
-            const x = d.data();
-            return {
-              id: d.id,
-              roomId,
-              senderUid: String(x.senderUid ?? ""),
-              senderName: String(x.senderName ?? ""),
-              type: x.type as ChatMessage["type"],
-              text: String(x.text ?? ""),
-              correct: x.correct as boolean | undefined,
-              createdAt: (x.createdAt as Timestamp | null) ?? null,
-            };
-          }),
-        );
+        const next: ChatMessage[] = snap.docs.map((d) => {
+          const x = d.data();
+          return {
+            id: d.id,
+            roomId: rid,
+            senderUid: String(x.senderUid ?? ""),
+            senderName: String(x.senderName ?? ""),
+            type: x.type as ChatMessage["type"],
+            text: String(x.text ?? ""),
+            correct: x.correct as boolean | undefined,
+            createdAt: (x.createdAt as Timestamp | null) ?? null,
+          };
+        });
+        const sig = messagesWireSignature(next);
+        if (sig === messagesSigRef.current) return;
+        messagesSigRef.current = sig;
+        setMessages(next);
       },
       (e) => setWireError(e.message),
     );
@@ -211,7 +403,7 @@ export function useRoomWire(roomId: string | null, myUid: string | null) {
     void tick();
     const id = window.setInterval(() => void tick(), 15000);
     return () => window.clearInterval(id);
-  }, [roomId, myUid]);
+  }, [roomId, opponentUid]);
 
   return { room, match, messages, opponentCard, opponentUid, wireError };
 }

@@ -3,15 +3,19 @@
 import type { User } from "firebase/auth";
 import {
   GoogleAuthProvider,
+  browserPopupRedirectResolver,
+  getRedirectResult,
   onAuthStateChanged,
   signInAnonymously,
   signInWithPopup,
+  signInWithRedirect,
   signOut,
   updateProfile,
 } from "firebase/auth";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { getFirebaseAuth } from "@/lib/firebase/client";
 import { upsertUserDocument } from "@/lib/firestore/users.client";
+import { useVisualViewport } from "@/hooks/useVisualViewport";
 
 type AuthState = {
   user: User | null;
@@ -25,20 +29,24 @@ type AuthState = {
 const Ctx = createContext<AuthState | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  // Keep --app-vh / --kbd-h in sync with the soft keyboard for the whole app.
+  useVisualViewport();
+
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const auth = getFirebaseAuth();
-    return onAuthStateChanged(auth, async (u) => {
+    // Completes OAuth when signInWithRedirect was used (popup blocked / strict browsers).
+    void getRedirectResult(auth).catch(() => undefined);
+
+    return onAuthStateChanged(auth, (u) => {
       setUser(u);
       setLoading(false);
       if (u) {
-        try {
-          await upsertUserDocument(u);
-        } catch {
-          // offline / rules — non-fatal
-        }
+        void upsertUserDocument(u).catch(() => {
+          // offline / rules — non-fatal; auth user still valid
+        });
       }
     });
   }, []);
@@ -46,7 +54,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signInGoogle = useCallback(async () => {
     const auth = getFirebaseAuth();
     const provider = new GoogleAuthProvider();
-    await signInWithPopup(auth, provider);
+    provider.addScope("profile");
+    provider.addScope("email");
+    provider.setCustomParameters({ prompt: "select_account" });
+    try {
+      await signInWithPopup(auth, provider, browserPopupRedirectResolver);
+    } catch (e: unknown) {
+      const code =
+        e && typeof e === "object" && "code" in e ? String((e as { code: unknown }).code) : "";
+      if (
+        code === "auth/popup-blocked" ||
+        code === "auth/operation-not-supported-in-this-environment"
+      ) {
+        await signInWithRedirect(auth, provider, browserPopupRedirectResolver);
+        return;
+      }
+      throw e;
+    }
   }, []);
 
   const signInGuest = useCallback(async () => {

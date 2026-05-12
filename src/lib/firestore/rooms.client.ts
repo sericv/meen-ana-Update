@@ -22,6 +22,11 @@ function db(): Firestore {
   return getFirebaseDb();
 }
 
+/** Synthetic uid for a bot opponent. Stable per-room so realtime sync works. */
+export function makeBotUid(seed: string): string {
+  return `bot:${seed}`;
+}
+
 function baseRoomFields(args: {
   uid: string;
   displayName: string;
@@ -32,37 +37,55 @@ function baseRoomFields(args: {
   answerTimerSec?: number;
   voiceMode?: boolean;
   customCardsEnabled?: boolean;
+  vsBot?: boolean;
+  botUid?: string;
 }) {
   const code = generateRoomCode();
   const now = serverTimestamp();
   const qSec = args.questionTimerSec ?? QUESTION_PHASE_SECONDS;
   const aSec = args.answerTimerSec ?? ANSWER_PHASE_SECONDS;
+
+  const me: RoomPlayer = {
+    uid: args.uid,
+    displayName: args.displayName,
+    ready: false,
+    joinedAt: null,
+  };
+  const players: RoomPlayer[] = [me];
+  const playerUids: string[] = [args.uid];
+  const playerJoinedAt: Record<string, unknown> = { [args.uid]: now };
+
+  if (args.vsBot && args.botUid) {
+    const bot: RoomPlayer = {
+      uid: args.botUid,
+      displayName: "البوت",
+      ready: true,
+      joinedAt: null,
+    };
+    players.push(bot);
+    playerUids.push(args.botUid);
+    playerJoinedAt[args.botUid] = now;
+  }
+
   return {
     code,
     hostUid: args.uid,
-    playerUids: [args.uid],
-    players: [
-      {
-        uid: args.uid,
-        displayName: args.displayName,
-        ready: false,
-        joinedAt: null,
-      },
-    ],
-    playerJoinedAt: {
-      [args.uid]: now,
-    },
+    playerUids,
+    players,
+    playerJoinedAt,
     status: "lobby" as const,
     categoryId: args.categoryId,
     tutorial: args.tutorial,
     matchId: null,
-    openJoin: args.openJoin,
+    openJoin: args.openJoin && !args.vsBot,
     voiceMode: args.voiceMode ?? false,
     customCardsEnabled: Boolean(args.customCardsEnabled),
     customOpponentSelections: {},
     customOpponentCardAssigned: {},
     questionTimerSec: qSec,
     answerTimerSec: aSec,
+    vsBot: Boolean(args.vsBot),
+    botUid: args.vsBot ? args.botUid ?? null : null,
     createdAt: now,
     lastActivityAt: now,
     cleanupAt: null,
@@ -77,10 +100,13 @@ export async function createPrivateRoom(args: {
   answerTimerSec?: number;
   voiceMode?: boolean;
   customCardsEnabled?: boolean;
+  vsBot?: boolean;
 }): Promise<{ roomId: string; code: string }> {
   const batch = writeBatch(db());
   const roomRef = doc(collection(db(), col.rooms));
-  const fields = baseRoomFields({ ...args, tutorial: false, openJoin: false });
+  // Bot uid is bound to the room id so subscriptions key cleanly.
+  const botUid = args.vsBot ? makeBotUid(roomRef.id) : undefined;
+  const fields = baseRoomFields({ ...args, tutorial: false, openJoin: false, botUid });
   batch.set(roomRef, fields);
   batch.set(doc(db(), col.roomCodes, fields.code), { roomId: roomRef.id });
   await batch.commit();

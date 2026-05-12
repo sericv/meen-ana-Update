@@ -5,12 +5,16 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AuthGate } from "@/components/auth/AuthGate";
+import { ProfileAvatar } from "@/components/profile/ProfileAvatar";
 import { useAuth } from "@/components/providers/AuthProvider";
+import { playMatchFound, resumeAudioContext } from "@/lib/audio/game-sounds";
 import { matchmakingAck, matchmakingJoin, matchmakingLeave } from "@/lib/api/matchmaking-client";
 import { getFirebaseDb } from "@/lib/firebase/client";
 import { col } from "@/lib/firestore/paths";
 import { DEFAULT_CATEGORY_ID } from "@/lib/game/categories";
 import { MATCHMAKING_POOL_ALL } from "@/lib/game/constants";
+import { usePlayerCosmetics } from "@/hooks/usePlayerCosmetics";
+import { normalizeCosmetic, type PlayerCosmetic } from "@/lib/profile/cosmetics";
 
 const DEFAULT_CATEGORY = DEFAULT_CATEGORY_ID;
 
@@ -104,77 +108,41 @@ function PageDecor() {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   PLAYER AVATAR (real player — left side)
+   PLAYER FACE (cosmetics + warm glow)
    ═══════════════════════════════════════════════════════════════════ */
-function PlayerAvatar({
+function MatchProfileFace({
   name,
   active,
-  revealed = true,
+  cosmetic,
+  fallbackPhotoURL,
   size = "md",
-  photoURL,
 }: {
   name: string;
   active: boolean;
-  revealed?: boolean;
+  cosmetic?: PlayerCosmetic | null;
+  fallbackPhotoURL?: string | null;
   size?: "md" | "lg";
-  photoURL?: string | null;
 }) {
   const isLg = size === "lg";
   return (
-    <div className="flex flex-col items-center gap-2">
+    <div className={`flex flex-col items-center ${isLg ? "gap-2" : "gap-1.5"}`}>
       <div className="relative">
         <motion.div
           aria-hidden
-          animate={active
-            ? { opacity: [0.5, 1, 0.5], scale: [0.92, 1.08, 0.92] }
-            : { opacity: 0.3, scale: 1 }}
+          animate={active ? { opacity: [0.5, 1, 0.5], scale: [0.92, 1.08, 0.92] } : { opacity: 0.35, scale: 1 }}
           transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
           className="absolute inset-0 -z-10 rounded-full blur-xl"
           style={{ background: "rgba(255,149,0,0.55)" }}
         />
-        <div
-          className={
-            isLg
-              ? "relative flex h-20 w-20 items-center justify-center overflow-hidden rounded-full sm:h-24 sm:w-24"
-              : "relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-full sm:h-20 sm:w-20"
-          }
-          style={{
-            background: revealed
-              ? "linear-gradient(135deg,#FF9F0A 0%,#FF6B00 100%)"
-              : "linear-gradient(135deg,#F5E0C0 0%,#EAC898 100%)",
-            boxShadow: active
-              ? "0 0 0 3px #FFB300, 0 0 0 6px rgba(255,179,0,0.30), 0 8px 24px rgba(255,122,0,0.45)"
-              : "0 0 0 3px rgba(255,179,0,0.4), 0 6px 18px rgba(255,122,0,0.25)",
-          }}
-        >
-          {photoURL ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={photoURL} alt="" className="h-full w-full object-cover" />
-          ) : (
-            <svg viewBox="0 0 56 56" fill="none" className={isLg ? "h-12 w-12 sm:h-14 sm:w-14" : "h-10 w-10 sm:h-12 sm:w-12"} aria-hidden>
-              <circle cx="28" cy="22" r="10" fill={revealed ? "rgba(255,255,255,0.92)" : "rgba(139,100,50,0.28)"} />
-              <ellipse cx="28" cy="44" rx="14" ry="9" fill={revealed ? "rgba(255,255,255,0.92)" : "rgba(139,100,50,0.22)"} />
-              {revealed && (
-                <>
-                  <circle cx="24.5" cy="21" r="1.8" fill="#8a3f16" />
-                  <circle cx="31.5" cy="21" r="1.8" fill="#8a3f16" />
-                  <path d="M24 25.5 q4 3.5 8 0" stroke="#8a3f16" strokeWidth="1.6" strokeLinecap="round" fill="none" />
-                </>
-              )}
-            </svg>
-          )}
-          <span
-            aria-hidden
-            className="pointer-events-none absolute inset-x-3 top-1.5 h-2.5 rounded-full bg-white/40 blur-[1.5px]"
-          />
-        </div>
-        {active && (
-          <motion.span
-            animate={{ scale: [1, 1.3, 1], opacity: [1, 0.7, 1] }}
-            transition={{ duration: 1.4, repeat: Infinity }}
-            className="absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full bg-emerald-400 ring-2 ring-white"
-          />
-        )}
+        <ProfileAvatar
+          cosmetic={cosmetic ?? undefined}
+          fallbackPhotoURL={fallbackPhotoURL}
+          displayName={name}
+          size={isLg ? "lg" : "md"}
+          active={active}
+          idle
+          showPulseDot={active}
+        />
       </div>
       <p
         className={
@@ -385,7 +353,7 @@ function RandomInner() {
   const [phase, setPhase] = useState<Phase>("idle");
   const [err, setErr] = useState<string | null>(null);
   const [opponentName, setOpponentName] = useState<string>("خصم جديد");
-  const [opponentPhotoURL, setOpponentPhotoURL] = useState<string | null>(null);
+  const [opponentCosmetic, setOpponentCosmetic] = useState<PlayerCosmetic | null>(null);
   const [countdown, setCountdown] = useState<number>(0);
 
   const cleanupListen = useCallback(() => {
@@ -425,26 +393,28 @@ function RandomInner() {
   }, [cleanupListen, cleanupNav]);
 
   const displayName = user?.displayName || user?.email || "زائر";
+  const myUid = user?.uid ?? null;
+  const liveCosmetics = usePlayerCosmetics(myUid ? [myUid] : []);
+  const myCosmetic = myUid ? liveCosmetics[myUid] : undefined;
 
   /* Resolve opponent profile from the freshly-created room + users collection. */
   const fetchOpponentProfile = useCallback(
-    async (roomId: string, myUid: string): Promise<{ name: string; photoURL: string | null }> => {
+    async (roomId: string, myUid: string): Promise<{ name: string; cosmetic: PlayerCosmetic }> => {
       try {
         const db = getFirebaseDb();
         const snap = await getDoc(doc(db, col.rooms, roomId));
-        if (!snap.exists()) return { name: "خصم جديد", photoURL: null };
+        if (!snap.exists()) return { name: "خصم جديد", cosmetic: normalizeCosmetic(undefined) };
         const data = snap.data() as { players?: Array<{ uid?: string; displayName?: string }> };
         const other = (data.players ?? []).find((p) => p?.uid && p.uid !== myUid);
         const name = (other?.displayName ?? "").toString().trim() || "خصم جديد";
         const ouid = other?.uid;
-        if (!ouid) return { name, photoURL: null };
+        if (!ouid) return { name, cosmetic: normalizeCosmetic(undefined) };
         const uSnap = await getDoc(doc(db, col.users, ouid));
-        if (!uSnap.exists()) return { name, photoURL: null };
-        const ph = uSnap.data() as { photoURL?: unknown };
-        const url = typeof ph.photoURL === "string" && ph.photoURL.length > 0 ? ph.photoURL : null;
-        return { name, photoURL: url };
+        if (!uSnap.exists()) return { name, cosmetic: normalizeCosmetic(undefined) };
+        const raw = uSnap.data() as Record<string, unknown>;
+        return { name, cosmetic: normalizeCosmetic(raw) };
       } catch {
-        return { name: "خصم جديد", photoURL: null };
+        return { name: "خصم جديد", cosmetic: normalizeCosmetic(undefined) };
       }
     },
     [],
@@ -457,13 +427,15 @@ function RandomInner() {
       if (handledRoomRef.current === roomId) return;
       handledRoomRef.current = roomId;
       cleanupListen();
+      resumeAudioContext();
+      playMatchFound();
       setPhase("found");
 
       // Best-effort fetch opponent name (parallel with the reveal animation).
       if (user?.uid) {
-        void fetchOpponentProfile(roomId, user.uid).then(({ name, photoURL }) => {
+        void fetchOpponentProfile(roomId, user.uid).then(({ name, cosmetic }) => {
           setOpponentName(name);
-          setOpponentPhotoURL(photoURL);
+          setOpponentCosmetic(cosmetic);
         });
       }
 
@@ -498,7 +470,7 @@ function RandomInner() {
     if (!user) return;
     setPhase("searching");
     setErr(null);
-    setOpponentPhotoURL(null);
+    setOpponentCosmetic(null);
     cleanupListen();
     cleanupNav();
     handledRoomRef.current = null;
@@ -644,12 +616,11 @@ function RandomInner() {
                   transition={{ type: "spring", stiffness: 240, damping: 22 }}
                   className="flex items-center justify-center gap-3 sm:gap-5"
                 >
-                  <PlayerAvatar name={displayName} active size="lg" />
+                  <MatchProfileFace name={displayName} active cosmetic={myCosmetic} fallbackPhotoURL={user?.photoURL} size="lg" />
                   <ConnectionLine active />
                   <CenterMystery active found />
                   <ConnectionLine active />
-                  {/* Real opponent avatar revealed */}
-                  <PlayerAvatar name={opponentName} active revealed size="lg" photoURL={opponentPhotoURL} />
+                  <MatchProfileFace name={opponentName} active cosmetic={opponentCosmetic} size="lg" />
                 </motion.div>
               ) : (
                 /* ── Idle / searching: mystery opponent ── */
@@ -661,7 +632,7 @@ function RandomInner() {
                   transition={{ type: "spring", stiffness: 220, damping: 22 }}
                   className="flex items-center justify-center gap-3 sm:gap-5"
                 >
-                  <PlayerAvatar name={displayName} active={isActive} />
+                  <MatchProfileFace name={displayName} active={isActive} cosmetic={myCosmetic} fallbackPhotoURL={user?.photoURL} />
                   <ConnectionLine active={isActive} />
                   <CenterMystery active={isActive} />
                   <ConnectionLine active={isActive} />

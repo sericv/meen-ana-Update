@@ -96,6 +96,7 @@ function NewRoomInner() {
   const [answerTimerSec, setAnswerTimerSec] = useState(ANSWER_PHASE_SECONDS);
   const [voiceMode, setVoiceMode] = useState(false);
   const [customCardsEnabled, setCustomCardsEnabled] = useState(false);
+  const [vsBot, setVsBot] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -128,8 +129,9 @@ function NewRoomInner() {
         categoryId: catId,
         questionTimerSec: clamp(questionTimerSec),
         answerTimerSec: clamp(answerTimerSec),
-        voiceMode,
+        voiceMode: vsBot ? false : voiceMode,
         customCardsEnabled,
+        vsBot,
       });
       router.push(`/room/${roomId}`);
     } catch (e) {
@@ -250,8 +252,13 @@ function NewRoomInner() {
               )}
             </section>
 
-            {/* ── Voice mode ── */}
-            <VoiceModeSection voiceMode={voiceMode} onToggle={() => setVoiceMode((v) => !v)} />
+            {/* ── Play vs bot ── */}
+            <BotModeSection enabled={vsBot} onToggle={() => setVsBot((v) => !v)} />
+
+            {/* ── Voice mode (disabled vs bot) ── */}
+            {!vsBot ? (
+              <VoiceModeSection voiceMode={voiceMode} onToggle={() => setVoiceMode((v) => !v)} />
+            ) : null}
 
             <CustomOpponentCardsLobbyToggle
               enabled={customCardsEnabled}
@@ -556,6 +563,105 @@ function CustomOpponentCardsLobbyToggle({
               </motion.p>
             )}
           </AnimatePresence>
+        </div>
+      </motion.div>
+    </section>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   BOT MODE SECTION — play solo against an automated opponent
+   ════════════════════════════════════════════════════════════════════ */
+function BotModeSection({
+  enabled,
+  onToggle,
+}: {
+  enabled: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <section className="pt-6">
+      <motion.div
+        animate={
+          enabled
+            ? {
+                boxShadow:
+                  "0 0 0 2px rgba(56,189,248,0.55), 0 0 24px rgba(99,102,241,0.18), 0 12px 28px rgba(99,102,241,0.18)",
+              }
+            : { boxShadow: "0 0 0 1.5px rgba(244,196,141,0.55), 0 6px 16px rgba(196,134,82,0.1)" }
+        }
+        transition={{ duration: 0.3 }}
+        className="relative overflow-hidden rounded-2xl p-4"
+        style={{
+          background: enabled
+            ? "linear-gradient(135deg,#EFF6FF 0%,#FFF5E8 100%)"
+            : "#FFF8EE",
+        }}
+      >
+        {enabled && (
+          <div
+            aria-hidden
+            className="pointer-events-none absolute -right-6 -top-10 h-28 w-28 rounded-full blur-3xl"
+            style={{ background: "rgba(56,189,248,0.32)" }}
+          />
+        )}
+
+        <div className="flex items-start gap-4">
+          <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl"
+            style={{ background: enabled ? "linear-gradient(135deg,#38bdf8,#6366f1)" : "rgba(255,159,10,0.18)" }}
+          >
+            <svg viewBox="0 0 24 24" fill="none" className="h-8 w-8" aria-hidden>
+              <rect x="4" y="7" width="16" height="12" rx="3" stroke={enabled ? "#fff" : "#FF9500"} strokeWidth="2" />
+              <path d="M12 3v4" stroke={enabled ? "#fff" : "#FF9500"} strokeWidth="2" strokeLinecap="round" />
+              <circle cx="9" cy="13" r="1.5" fill={enabled ? "#fff" : "#FF9500"} />
+              <circle cx="15" cy="13" r="1.5" fill={enabled ? "#fff" : "#FF9500"} />
+              <path d="M9 17h6" stroke={enabled ? "#fff" : "#FF9500"} strokeWidth="2" strokeLinecap="round" />
+            </svg>
+          </div>
+
+          <div className="flex flex-1 flex-col gap-1 pt-1">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[15px] font-extrabold text-[#8a3f16]">اللعب مع بوت</p>
+                <p className="mt-0.5 text-xs font-semibold text-[#bc7a45]">
+                  العب ضد لاعب آلي بدون انتظار خصم
+                </p>
+              </div>
+              <motion.button
+                type="button"
+                role="switch"
+                aria-checked={enabled}
+                onClick={onToggle}
+                className="relative h-8 w-14 shrink-0 rounded-full"
+                animate={{ background: enabled ? "#6366f1" : "#E2CAB0" }}
+                transition={{ duration: 0.22 }}
+                style={{
+                  boxShadow: enabled
+                    ? "inset 0 2px 0 rgba(255,255,255,0.3), 0 4px 10px rgba(99,102,241,0.45)"
+                    : "inset 0 2px 4px rgba(0,0,0,0.1)",
+                }}
+              >
+                <motion.span
+                  className="absolute top-1 h-6 w-6 rounded-full bg-white shadow-[0_2px_6px_rgba(0,0,0,0.22)]"
+                  animate={{ left: enabled ? "calc(100% - 28px)" : "4px" }}
+                  transition={{ type: "spring", stiffness: 380, damping: 28 }}
+                />
+              </motion.button>
+            </div>
+
+            <AnimatePresence>
+              {enabled && (
+                <motion.p
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="overflow-hidden text-[11px] font-semibold text-[#6366f1]"
+                >
+                  لو فعّلت «بطاقة للخصم» يختار البوت بطاقته عشوائياً من قاعدة البطاقات.
+                </motion.p>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
       </motion.div>
     </section>

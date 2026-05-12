@@ -10,6 +10,11 @@ type ServiceAccountShape = {
   private_key: string;
 };
 
+type ParseResult = {
+  account: ServiceAccountShape;
+  format: "raw-json" | "double-quoted-json" | "base64-json" | "unescaped-json";
+};
+
 export class AdminConfigError extends Error {
   constructor(message: string) {
     super(message);
@@ -18,61 +23,157 @@ export class AdminConfigError extends Error {
 }
 
 /**
- * Parse FIREBASE_SERVICE_ACCOUNT_JSON, which may be stored as:
- *   1. Plain minified JSON      {"project_id":"...","private_key":"..."}
- *   2. Outer-quoted JSON string '"{ ... }"'  (some CI/CD systems wrap with quotes)
- *   3. Base64-encoded JSON      (Vercel / Railway secret encoding)
+ * Restore a private_key string to the literal PEM that firebase-admin requires.
  *
- * The private_key may arrive with:
- *   a. Actual newline characters  (JSON.parse already decoded them)
- *   b. Literal "\n" two-char sequences (double-escaped by some env handlers)
- * Both are normalised to actual newlines before being passed to firebase-admin.
+ * Handles three real-world deformations:
+ *   a. Real newlines already in place (JSON.parse decoded a proper "\n" escape).
+ *   b. Literal two-char "\n" sequences left over from env handlers that
+ *      double-escape (Vercel / shell envs).
+ *   c. Surrounding whitespace / CR characters from Windows clipboard pastes.
  */
-function parseServiceAccount(raw: string): ServiceAccountShape {
+function normalisePrivateKey(pk: string): string {
+  let out = pk;
+  if (out.includes("\\n")) out = out.replace(/\\n/g, "\n");
+  if (out.includes("\\r")) out = out.replace(/\\r/g, "\r");
+  out = out.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  return out.trim() + "\n";
+}
+
+function asServiceAccount(obj: unknown): ServiceAccountShape | null {
+  if (!obj || typeof obj !== "object") return null;
+  const o = obj as Partial<ServiceAccountShape>;
+  if (!o.project_id || !o.client_email || !o.private_key) return null;
+  return {
+    project_id: String(o.project_id),
+    client_email: String(o.client_email),
+    private_key: normalisePrivateKey(String(o.private_key)),
+  };
+}
+
+/**
+ * Looks dotenv-like with backslash-escaped quotes outside of an opening quote.
+ * E.g. `{\"type\":\"service_account\",...}` — happens when an editor strips the
+ * surrounding double-quotes from a properly-formatted env line but leaves the
+ * inner escapes intact.
+ */
+function unescapeDotenvLeftovers(raw: string): string | null {
+  if (!raw.includes('\\"')) return null;
+  // Convert `\"` → `"`, `\\` → `\`, `\n` literal → real newline, `\t` likewise.
+  // The result should be valid JSON if this was the actual deformation.
+  return raw
+    .replace(/\\\\/g, "\u0000")
+    .replace(/\\"/g, '"')
+    .replace(/\\n/g, "\n")
+    .replace(/\\r/g, "\r")
+    .replace(/\\t/g, "\t")
+    .replace(/\u0000/g, "\\");
+}
+
+/**
+ * Parse FIREBASE_SERVICE_ACCOUNT_JSON. Supports — and auto-detects — these forms:
+ *   1. Raw minified JSON              {"project_id":"...","private_key":"-----BEGIN..."}
+ *   2. Double/single quoted JSON      "{ ...}"      ('CI / some shells wrap with quotes)
+ *   3. Base64 of the JSON file        eyJ0eXBlIjogInNlcnZpY2VfYWNjb3VudCIsLi4ufQ==
+ *   4. dotenv-mangled JSON            {\"type\":\"service_account\",...}
+ *      (happens when an editor strips the outer quotes but keeps inner \" escapes)
+ *
+ * Private keys may arrive as real "\n" newlines or literal "\\n" two-char escapes;
+ * both are normalised. Returns the detected format so callers can log it.
+ */
+export function parseServiceAccount(raw: string): ParseResult {
   const trimmed = raw.trim();
+  if (!trimmed) {
+    throw new AdminConfigError("FIREBASE_SERVICE_ACCOUNT_JSON قيمة فارغة.");
+  }
 
-  const candidates: string[] = [trimmed];
+  // 1. Raw JSON
+  if (trimmed.startsWith("{")) {
+    try {
+      const obj = JSON.parse(trimmed);
+      const sa = asServiceAccount(obj);
+      if (sa) return { account: sa, format: "raw-json" };
+    } catch {
+      // fall through — could be dotenv-mangled JSON (case 4)
+    }
 
-  // Strip wrapping quotes added by some deployment platforms
+    const unescaped = unescapeDotenvLeftovers(trimmed);
+    if (unescaped) {
+      try {
+        const obj = JSON.parse(unescaped);
+        const sa = asServiceAccount(obj);
+        if (sa) return { account: sa, format: "unescaped-json" };
+      } catch {
+        // continue
+      }
+    }
+  }
+
+  // 2. Outer-quoted JSON (parser kept the outer quotes as part of the value)
   if (
     (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
     (trimmed.startsWith("'") && trimmed.endsWith("'"))
   ) {
-    candidates.push(trimmed.slice(1, -1));
-  }
+    const inner = trimmed.slice(1, -1);
 
-  // Base64 variant
-  try {
-    const decoded = Buffer.from(trimmed, "base64").toString("utf8");
-    if (decoded.trimStart().startsWith("{")) candidates.push(decoded);
-  } catch {
-    // ignore
-  }
-
-  for (const candidate of candidates) {
+    // 2a. After stripping outer quotes, inner is plain JSON.
     try {
-      const parsed = JSON.parse(candidate) as Partial<ServiceAccountShape>;
-      if (parsed?.project_id && parsed?.client_email && parsed?.private_key) {
-        // Normalise private_key: replace literal \n sequences with real newlines.
-        // JSON.parse already converts proper JSON escape sequences, but some env
-        // handlers double-escape them (\\n → \n → needs one more pass).
-        const privateKey = parsed.private_key.includes("\\n")
-          ? parsed.private_key.replace(/\\n/g, "\n")
-          : parsed.private_key;
+      const obj = JSON.parse(inner);
+      const sa = asServiceAccount(obj);
+      if (sa) return { account: sa, format: "double-quoted-json" };
+    } catch {
+      // try further fallbacks
+    }
 
-        return {
-          project_id: parsed.project_id,
-          client_email: parsed.client_email,
-          private_key: privateKey,
-        };
+    // 2b. Inner uses \"...\" escapes (dotenv-style content). Decode and parse.
+    const unescaped = unescapeDotenvLeftovers(inner);
+    if (unescaped) {
+      try {
+        const obj = JSON.parse(unescaped);
+        const sa = asServiceAccount(obj);
+        if (sa) return { account: sa, format: "double-quoted-json" };
+      } catch {
+        // continue
+      }
+    }
+
+    // 2c. Some parsers (e.g. Turbopack in certain setups) deliver the FULL
+    //     quoted-and-escaped form as a single literal, so the WHOLE trimmed
+    //     value still contains backslash-escapes. Try unescaping the whole thing.
+    const fullUnescaped = unescapeDotenvLeftovers(trimmed);
+    if (fullUnescaped) {
+      // Strip an extra outer quote pair if the unescape produced one.
+      const candidate =
+        fullUnescaped.startsWith('"') && fullUnescaped.endsWith('"')
+          ? fullUnescaped.slice(1, -1)
+          : fullUnescaped;
+      try {
+        const obj = JSON.parse(candidate);
+        const sa = asServiceAccount(obj);
+        if (sa) return { account: sa, format: "double-quoted-json" };
+      } catch {
+        // continue
+      }
+    }
+  }
+
+  // 3. Base64 JSON
+  if (/^[A-Za-z0-9+/=\s]+$/.test(trimmed)) {
+    try {
+      const decoded = Buffer.from(trimmed.replace(/\s+/g, ""), "base64").toString("utf8");
+      if (decoded.trimStart().startsWith("{")) {
+        const obj = JSON.parse(decoded);
+        const sa = asServiceAccount(obj);
+        if (sa) return { account: sa, format: "base64-json" };
       }
     } catch {
-      // try next candidate
+      // continue
     }
   }
 
   throw new AdminConfigError(
-    "تعذر قراءة FIREBASE_SERVICE_ACCOUNT_JSON. تأكد أن المتغير يحتوي على JSON صحيح أو Base64 صالح.",
+    "تعذر قراءة FIREBASE_SERVICE_ACCOUNT_JSON. " +
+      "تأكد أن المتغير يحتوي على JSON صحيح (سطر واحد) أو Base64 صالح. " +
+      "تلميح: لو القيمة تبدأ بـ `{\\\"type\\\":...` فأنت تحتاج إلى وضعها بين علامتي تنصيص في .env.local.",
   );
 }
 
@@ -83,7 +184,6 @@ function parseServiceAccount(raw: string): ServiceAccountShape {
 export function getAdminApp(): App {
   if (adminApp) return adminApp;
 
-  // Reuse if another module already initialised Firebase Admin
   const existing = getApps();
   if (existing.length) {
     adminApp = existing[0]!;
@@ -94,19 +194,30 @@ export function getAdminApp(): App {
   if (!raw?.trim()) {
     const msg =
       "FIREBASE_SERVICE_ACCOUNT_JSON غير موجود في متغيرات البيئة. " +
-      "أضفه في .env.local (للتطوير) أو في إعدادات النشر.";
+      "أضفه في .env.local (للتطوير) أو في إعدادات النشر، ثم أعد تشغيل الخادم.";
     console.error("[firebase/admin] ✗", msg);
     throw new AdminConfigError(msg);
   }
 
-  let sa: ServiceAccountShape;
+  let parsed: ParseResult;
   try {
-    sa = parseServiceAccount(raw);
+    parsed = parseServiceAccount(raw);
   } catch (err) {
+    const lengthInfo = `طول القيمة=${raw.length}, يبدأ بـ=${JSON.stringify(raw.slice(0, 24))}`;
     const msg =
       err instanceof AdminConfigError
-        ? err.message
-        : "FIREBASE_SERVICE_ACCOUNT_JSON تعذر تحليله: " + String(err);
+        ? `${err.message}  (${lengthInfo})`
+        : `FIREBASE_SERVICE_ACCOUNT_JSON تعذر تحليله: ${String(err)}  (${lengthInfo})`;
+    console.error("[firebase/admin] ✗", msg);
+    throw new AdminConfigError(msg);
+  }
+
+  const { account: sa, format } = parsed;
+
+  if (!/^-----BEGIN [A-Z ]*PRIVATE KEY-----/.test(sa.private_key)) {
+    const msg =
+      "private_key لا يبدأ بـ '-----BEGIN PRIVATE KEY-----'. " +
+      "تحقق من تنسيق الـ JSON (لا تستبدل الأسطر الجديدة يدوياً).";
     console.error("[firebase/admin] ✗", msg);
     throw new AdminConfigError(msg);
   }
@@ -120,7 +231,7 @@ export function getAdminApp(): App {
       }),
     });
     console.log(
-      `[firebase/admin] ✓ initialised — project: ${sa.project_id}, account: ${sa.client_email}`,
+      `[firebase/admin] ✓ initialised (format: ${format}) — project: ${sa.project_id}, account: ${sa.client_email}`,
     );
   } catch (err) {
     const msg = "فشل تهيئة Firebase Admin SDK: " + String(err);

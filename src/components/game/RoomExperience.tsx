@@ -3,18 +3,24 @@
 import { AnimatePresence, motion } from "framer-motion";
 import Image from "next/image";
 import type { CSSProperties, MouseEvent } from "react";
-import { useCallback, useEffect, useRef, useState, type ChangeEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, memo, type ChangeEvent } from "react";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Panel } from "@/components/ui/Panel";
 import {
+  playCorrectGuess,
   playCountdownTick,
   playDefeatTone,
   playGuessChime,
   playMessagePop,
+  playMessageSend,
+  playReadyTap,
+  playRoomJoin,
+  playRoomReady,
   playTurnCue,
   playWinSparkle,
+  playWrongGuess,
   resumeAudioContext,
 } from "@/lib/audio/game-sounds";
 import { postGame } from "@/lib/api/game-client";
@@ -27,16 +33,20 @@ import {
 import { getCategoryById } from "@/lib/game/categories";
 import { generateGuessAliases } from "@/lib/game/guess-alias-generator";
 import { setPlayerReady } from "@/lib/firestore/rooms.client";
+import { ProfileAvatar } from "@/components/profile/ProfileAvatar";
+import { usePlayerCosmetics } from "@/hooks/usePlayerCosmetics";
 import { useRoomWire } from "@/hooks/useRoomWire";
 import { useRouter } from "next/navigation";
 import { ConfettiBurst } from "@/components/game/ConfettiBurst";
+import type { PlayerCosmetic } from "@/lib/profile/cosmetics";
+import { normalizeCosmetic } from "@/lib/profile/cosmetics";
 import type { GameCard, ChatMessage } from "@/types";
 
 type Props = { roomId: string };
 
 const CARD_PLACEHOLDER = "/cards/_placeholder.svg";
 
-function CardImage({
+const CardImage = memo(function CardImage({
   src,
   alt,
   fit = "cover",
@@ -58,7 +68,7 @@ function CardImage({
       onError={() => setErrored(true)}
     />
   );
-}
+});
 
 function CircularTimer({
   secLeft,
@@ -136,20 +146,24 @@ function VoicePlayerChip({
   name,
   active,
   host,
+  cosmetic,
+  fallbackPhotoURL,
 }: {
   name: string;
   active: boolean;
   host?: boolean;
+  cosmetic?: PlayerCosmetic | null;
+  fallbackPhotoURL?: string | null;
 }) {
   return (
     <div className={`flex min-w-0 flex-col items-center gap-1.5 ${active ? "" : "opacity-[0.72]"}`}>
-      <div className="relative">
+      <div className="relative flex flex-col items-center">
         {active ? (
           <motion.div
             aria-hidden
             animate={{ opacity: [0.45, 0.85, 0.45], scale: [0.92, 1.08, 0.92] }}
             transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
-            className="absolute -inset-1.5 rounded-full blur-xl"
+            className="absolute -inset-2 rounded-full blur-xl"
             style={{ background: "rgba(255,149,0,0.55)" }}
           />
         ) : (
@@ -159,40 +173,20 @@ function VoicePlayerChip({
             style={{ background: "rgba(196,134,82,0.25)" }}
           />
         )}
-        <div
-          className="relative flex h-[52px] w-[52px] items-center justify-center overflow-hidden rounded-full sm:h-[58px] sm:w-[58px]"
-          style={{
-            background: active
-              ? "linear-gradient(145deg,#fff8e8 0%,#ffc978 100%)"
-              : "linear-gradient(145deg,#FFF8EE 0%,#ffe4c4 100%)",
-            boxShadow: active
-              ? "0 0 0 3px rgba(255,200,80,0.85), 0 8px 22px rgba(255,130,0,0.38)"
-              : "0 0 0 2.5px rgba(244,196,141,0.45), 0 6px 14px rgba(196,134,82,0.18)",
-          }}
-        >
-          <svg viewBox="0 0 48 48" fill="none" className="h-8 w-8 sm:h-9 sm:w-9" aria-hidden>
-            <circle cx="24" cy="18" r="9" fill={active ? "rgba(255,130,0,0.92)" : "rgba(200,150,100,0.35)"} />
-            <ellipse cx="24" cy="38" rx="12" ry="8" fill={active ? "rgba(255,130,0,0.92)" : "rgba(200,150,100,0.30)"} />
-            {active && (
-              <>
-                <circle cx="21" cy="17.5" r="1.5" fill="#fff" />
-                <circle cx="27" cy="17.5" r="1.5" fill="#fff" />
-                <path d="M21 22 q3 2.8 6 0" stroke="#fff" strokeWidth="1.4" strokeLinecap="round" fill="none" />
-              </>
-            )}
-          </svg>
-          <span aria-hidden className="pointer-events-none absolute inset-x-2 top-1 h-1.5 rounded-full bg-white/45 blur-[1px]" />
-        </div>
-        {host ? (
-          <span className="absolute -top-2 left-1/2 -translate-x-1/2 text-base leading-none">👑</span>
-        ) : null}
-        {active ? (
-          <motion.span
-            animate={{ scale: [1, 1.25, 1], opacity: [1, 0.75, 1] }}
-            transition={{ duration: 1.5, repeat: Infinity }}
-            className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-emerald-400 ring-2 ring-white"
+        <div className="relative">
+          <ProfileAvatar
+            cosmetic={cosmetic}
+            fallbackPhotoURL={fallbackPhotoURL}
+            displayName={name}
+            size="md"
+            active={active}
+            idle={!active}
+            showPulseDot={active}
           />
-        ) : null}
+          {host ? (
+            <span className="absolute -top-2 left-1/2 -translate-x-1/2 text-base leading-none">👑</span>
+          ) : null}
+        </div>
       </div>
       <p className="max-w-[104px] truncate text-center text-[11px] font-extrabold text-[#8a3f16] sm:text-xs">
         {name}
@@ -222,6 +216,9 @@ function VoiceModePlayingPanel({
   busy,
   sendVoiceAck,
   openGuessFlow,
+  myCosmetic,
+  opponentCosmetic,
+  myPhotoURL,
 }: {
   banner: string | null;
   displayName: string;
@@ -242,12 +239,26 @@ function VoiceModePlayingPanel({
   busy: boolean;
   sendVoiceAck: () => void | Promise<void>;
   openGuessFlow: () => void;
+  myCosmetic?: PlayerCosmetic | null;
+  opponentCosmetic?: PlayerCosmetic | null;
+  myPhotoURL?: string | null;
 }) {
   const qPhase = phase === "question";
-  const aPhase = phase === "answer";
 
+  // ─── Voice-mode layout (mobile-first, immersive)
+  //
+  // Hierarchy from top → bottom, ordered by gameplay importance:
+  //   1. Slim status strip (turn + phase + timer chip) — single row.
+  //   2. THE CARD — the hero. Fills all remaining height.
+  //   3. Action row — "✓ done" + "🎯 guess", thumb-reach friendly.
+  //
+  // Compared to the previous layout we removed: oversized VS row, redundant
+  // phase pills, dual instruction panels, and the giant turn box. All the
+  // information they conveyed is now condensed into a single status strip
+  // and the action buttons themselves.
+  const statusColor = myTurn ? "#FF6B00" : "#bc7a45";
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden pt-1">
+    <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden pt-1">
       <AnimatePresence>
         {banner ? (
           <motion.div
@@ -261,136 +272,61 @@ function VoiceModePlayingPanel({
         ) : null}
       </AnimatePresence>
 
-      <div className="flex shrink-0 items-start justify-between gap-3 px-0.5">
-        <VoicePlayerChip name={displayName} active={Boolean(uid && activeActorUid === uid)} host={isHost} />
-        <div className="flex flex-col items-center justify-center pt-7">
-          <span className="rounded-full bg-white/85 px-2.5 py-1 text-[10px] font-black text-[#d97706] shadow-sm ring-1 ring-[#fcd34d]/65">
-            VS
-          </span>
-        </div>
+      {/* ── 1. Compact status strip — single row, everything important. ── */}
+      <div
+        className="flex flex-shrink-0 items-center gap-3 rounded-2xl px-3 py-2.5"
+        style={{
+          background: "linear-gradient(135deg,#FFFFFF 0%,#FFF8EC 100%)",
+          boxShadow:
+            "0 0 0 1.5px rgba(244,196,141,0.45), 0 6px 18px rgba(196,134,82,0.14), inset 0 1.5px 0 rgba(255,255,255,0.85)",
+        }}
+      >
         <VoicePlayerChip
-          name={opponentName}
-          active={Boolean(opponent && activeActorUid === opponent.uid)}
-          host={Boolean(opponent && hostUid === opponent.uid)}
+          name={displayName}
+          active={Boolean(uid && activeActorUid === uid)}
+          host={isHost}
+          cosmetic={myCosmetic}
+          fallbackPhotoURL={myPhotoURL}
         />
-      </div>
-
-      <div className="flex shrink-0 flex-wrap items-center justify-center gap-2 px-1">
-        <span
-          className={`rounded-full px-3 py-1.5 text-[11px] font-black sm:text-xs ${
-            qPhase ? "bg-[#ede9fe] text-[#5b21b6] ring-2 ring-[#c4b5fd]" : "bg-[#fff8ee] text-[#bc7a45] ring-1 ring-[#f4d4af]"
-          }`}
-        >
-          مرحلة السؤال
-        </span>
-        <span
-          className={`rounded-full px-3 py-1.5 text-[11px] font-black sm:text-xs ${
-            aPhase ? "bg-[#dcfce7] text-[#166534] ring-2 ring-[#86efac]" : "bg-[#fff8ee] text-[#bc7a45] ring-1 ring-[#f4d4af]"
-          }`}
-        >
-          مرحلة الإجابة
-        </span>
-        <span className="rounded-full bg-gradient-to-l from-[#fff7ed] to-[#ffedd5] px-3 py-1.5 text-[11px] font-extrabold text-[#c2410c] ring-1 ring-[#fdba74]/70">
-          جولة التخمين
-        </span>
-      </div>
-
-      <div className="rounded-2xl bg-white/55 px-3 py-2 text-center shadow-[inset_0_0_0_1px_rgba(244,196,141,0.45)] backdrop-blur-[2px]">
-        <p className="text-[11px] font-bold text-[#bc7a45] sm:text-xs">
-          الحالة:{" "}
-          <span className="font-black text-[#8a3f16]">
-            {qPhase ? "وقت الأسئلة الصوتية" : "وقت الإجابات الصوتية"}
-            {myTurn ? " · دورك" : ` · دور ${activeActorName}`}
-          </span>
-        </p>
-        <p className="mt-0.5 text-[10px] font-semibold leading-snug text-[#b45309]">
-          {myTurn
-            ? qPhase
-              ? "بعد أن تنهي سؤالك بالصوت مع الخصم، اضغط «تم السؤال»."
-              : "بعد أن تجيب بالصوت، اضغط «تمت الإجابة»."
-            : qPhase
-              ? `انتظر حتى يطرح ${opponentName} سؤاله بالصوت.`
-              : `انتظر إجابة ${opponentName} بالصوت.`}
-        </p>
-      </div>
-
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={`vp-${myTurn}-${phase}`}
-          initial={{ opacity: 0, scale: 0.96, y: 10 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.96, y: -10 }}
-          transition={{ type: "spring", stiffness: 280, damping: 24 }}
-          className={`relative shrink-0 overflow-hidden rounded-[2rem] ${myTurn ? "shadow-[0_0_42px_rgba(255,150,40,.38)]" : ""}`}
-          style={
-            myTurn
-              ? {
-                  background: "linear-gradient(145deg,#FF9F0A 0%,#FF5500 100%)",
-                  boxShadow:
-                    "inset 0 3px 0 rgba(255,255,255,0.38), 0 0 0 3px rgba(255,200,80,0.32), 0 14px 40px rgba(255,100,0,0.32)",
-                }
-              : {
-                  background: "linear-gradient(145deg,#FFFDF9 0%,#FFF1DE 100%)",
-                  boxShadow:
-                    "inset 0 2px 0 rgba(255,255,255,0.88), 0 0 0 2px rgba(244,196,141,0.48), 0 10px 26px rgba(196,134,82,0.12)",
-                }
-          }
-        >
-          {myTurn ? (
-            <motion.div
-              aria-hidden
-              animate={{ opacity: [0.22, 0.52, 0.22] }}
-              transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
-              className="pointer-events-none absolute inset-0"
-              style={{
-                background:
-                  "radial-gradient(ellipse 120% 80% at 50% -20%,rgba(255,235,120,0.52),transparent 55%)",
-              }}
-            />
-          ) : null}
-          <span
-            aria-hidden
-            className="pointer-events-none absolute inset-x-10 top-3 h-2 rounded-full bg-white/30 blur-[2px]"
-          />
-
-          <div className="relative flex flex-col items-stretch gap-4 px-4 py-4 sm:flex-row sm:items-center sm:gap-5 sm:px-6 sm:py-5">
-            <div className="min-w-0 flex-1 text-center sm:text-right">
-              <p
-                className={`text-[11px] font-black uppercase tracking-[0.14em] ${myTurn ? "text-orange-100/95" : "text-[#bc7a45]"}`}
-              >
-                دور {activeActorName}
-              </p>
-              <p
-                className={`mt-1 text-2xl font-black leading-tight sm:text-3xl ${myTurn ? "text-white" : "text-[#8a3f16]"}`}
-                style={myTurn ? { textShadow: "0 2px 0 rgba(0,0,0,0.18)" } : undefined}
-              >
-                {voiceTurnHeadline ?? "—"}
-              </p>
-              <p className={`mt-1 text-sm font-semibold ${myTurn ? "text-orange-50/95" : "text-[#a16231]"}`}>
-                {voiceTurnSub ?? ""}
-              </p>
-            </div>
-            <div className="flex justify-center sm:mr-auto">
-              {secLeft !== null ? (
-                <CircularTimer secLeft={secLeft} maxSec={maxPhaseSec} active={myTurn} size="large" />
-              ) : null}
-            </div>
+        <div className="min-w-0 flex-1 text-center">
+          <p
+            className="text-[10px] font-black uppercase tracking-[0.14em]"
+            style={{ color: statusColor }}
+          >
+            {myTurn ? "دورك" : `دور ${activeActorName}`} · {qPhase ? "سؤال" : "إجابة"}
+          </p>
+          <p className="mt-0.5 line-clamp-1 text-sm font-extrabold leading-tight text-[#8a3f16]">
+            {voiceTurnHeadline ?? "—"}
+          </p>
+        </div>
+        {secLeft !== null ? (
+          <div className="shrink-0">
+            <CircularTimer secLeft={secLeft} maxSec={maxPhaseSec} active={myTurn} />
           </div>
-        </motion.div>
-      </AnimatePresence>
+        ) : (
+          <VoicePlayerChip
+            name={opponentName}
+            active={Boolean(opponent && activeActorUid === opponent.uid)}
+            host={Boolean(opponent && hostUid === opponent.uid)}
+            cosmetic={opponent ? opponentCosmetic : null}
+          />
+        )}
+      </div>
 
-      <div className="flex min-h-0 flex-1 items-center justify-center py-1">
+      {/* ── 2. THE CARD — hero element. Fills remaining height. ── */}
+      <div className="relative flex min-h-0 flex-1 items-center justify-center">
         <motion.div
           animate={{ y: [0, -4, 0] }}
           transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
-          className="w-[min(40vw,160px)] shrink-0 sm:w-[180px] lg:w-[192px]"
+          className="flex w-full max-w-[min(78vw,360px)] flex-col"
+          style={{ maxHeight: "100%" }}
         >
-          <div className="mb-1.5 flex justify-center">
+          <div className="mb-2 flex justify-center">
             <span
-              className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold sm:text-[11px]"
+              className="inline-flex items-center gap-1 rounded-full px-3 py-1 text-[11px] font-bold sm:text-xs"
               style={{
                 background: "linear-gradient(135deg,#FFF8EE,#FFEDD8)",
-                boxShadow: "inset 0 0 0 1px rgba(244,196,141,0.45)",
+                boxShadow: "inset 0 0 0 1px rgba(244,196,141,0.45), 0 3px 10px rgba(196,134,82,0.14)",
                 color: "#9a4f1d",
               }}
             >
@@ -403,31 +339,39 @@ function VoiceModePlayingPanel({
             </span>
           </div>
           <div
-            className="relative overflow-hidden rounded-[1.1rem] sm:rounded-[1.2rem]"
+            className="relative mx-auto w-full overflow-hidden rounded-[1.5rem]"
             style={{
               background: "linear-gradient(180deg,#FFFCF8 0%,#FFF4E6 100%)",
               boxShadow:
-                "0 0 0 2px rgba(244,196,141,0.48), 0 11px 26px rgba(196,120,40,0.16), inset 0 2px 0 rgba(255,255,255,0.78)",
+                "0 0 0 2.5px rgba(244,196,141,0.55), 0 16px 36px rgba(196,120,40,0.22), inset 0 2px 0 rgba(255,255,255,0.85)",
             }}
           >
-            <div className="pointer-events-none absolute -left-2 -top-2 h-10 w-10 rounded-full bg-[#ffd080]/28 blur-xl" />
+            <div className="pointer-events-none absolute -left-3 -top-3 h-14 w-14 rounded-full bg-[#ffd080]/30 blur-2xl" />
+            <div className="pointer-events-none absolute -right-3 -bottom-3 h-16 w-16 rounded-full bg-[#ffb060]/22 blur-2xl" />
             {opponentCard?.imageUrl ? (
               <>
                 <div
-                  className="relative w-full overflow-hidden rounded-t-[1rem]"
-                  style={{ aspectRatio: "3 / 4", maxHeight: "min(30vh, 188px)" }}
+                  className="relative w-full overflow-hidden rounded-t-[1.4rem]"
+                  style={{
+                    // 4:5 portrait everywhere; the dvh cap stops the card
+                    // from eating the screen on tall phones (Pixel 8 Pro etc).
+                    aspectRatio: "4 / 5",
+                    maxHeight: "min(52svh, 440px)",
+                  }}
                 >
                   <CardImage src={opponentCard.imageUrl} alt={opponentCard.nameAr} />
-                  <div className="pointer-events-none absolute inset-0 rounded-t-[1rem] ring-1 ring-inset ring-white/26" />
+                  <div className="pointer-events-none absolute inset-0 rounded-t-[1.4rem] ring-1 ring-inset ring-white/30" />
                 </div>
-                <div className="px-2 pb-2 pt-1 text-center">
-                  <p className="truncate text-xs font-black text-[#8a3f16] sm:text-sm">{opponentCard.nameAr}</p>
+                <div className="px-3 pb-3 pt-2 text-center">
+                  <p className="truncate text-lg font-black text-[#8a3f16] sm:text-xl">
+                    {opponentCard.nameAr}
+                  </p>
                 </div>
               </>
             ) : (
               <div
-                className="flex items-center justify-center text-[11px] font-semibold text-[#bc7a45]"
-                style={{ aspectRatio: "3 / 4", maxHeight: "min(30vh, 188px)" }}
+                className="flex items-center justify-center text-sm font-semibold text-[#bc7a45]"
+                style={{ aspectRatio: "4 / 5", maxHeight: "min(52svh, 440px)" }}
               >
                 جاري التحميل…
               </div>
@@ -436,7 +380,15 @@ function VoiceModePlayingPanel({
         </motion.div>
       </div>
 
-      <div className="flex shrink-0 flex-col gap-2 pb-1 pt-1">
+      {/* ── 3. Action row — thumb-reach friendly bottom band. ── */}
+      <div
+        className="flex flex-shrink-0 flex-col gap-2 pb-1 pt-1"
+        style={{
+          // Float above the iOS home indicator. No keyboard variable here:
+          // voice mode never opens a text composer.
+          paddingBottom: "max(env(safe-area-inset-bottom, 0px), 4px)",
+        }}
+      >
         {myTurn ? (
           <motion.button
             type="button"
@@ -444,25 +396,25 @@ function VoiceModePlayingPanel({
             whileHover={{ y: -2, scale: 1.01 }}
             whileTap={{ scale: 0.97, y: 3 }}
             onClick={() => void sendVoiceAck()}
-            className="relative w-full overflow-hidden rounded-[1.35rem] py-[15px] text-base font-black text-white disabled:opacity-55 sm:py-[17px] sm:text-lg"
+            className="relative w-full overflow-hidden rounded-[1.35rem] py-[14px] text-base font-black text-white disabled:opacity-55 sm:py-4 sm:text-lg"
             style={{
               background: "linear-gradient(180deg,#FF9F0A 0%,#FF6B00 100%)",
               boxShadow:
-                "inset 0 2.5px 0 rgba(255,255,255,0.42), 0 11px 0 #be5200, 0 18px 34px rgba(255,107,0,0.38)",
+                "inset 0 2.5px 0 rgba(255,255,255,0.42), 0 10px 0 #be5200, 0 16px 30px rgba(255,107,0,0.36)",
             }}
           >
             <span
               aria-hidden
-              className="pointer-events-none absolute inset-x-14 top-2 h-2.5 rounded-full bg-white/34 blur-sm"
+              className="pointer-events-none absolute inset-x-14 top-2 h-2 rounded-full bg-white/32 blur-sm"
             />
             {qPhase ? "✓ تم السؤال" : "✓ تمت الإجابة"}
           </motion.button>
         ) : (
           <div
-            className="rounded-[1.35rem] px-4 py-[14px] text-center text-sm font-bold leading-relaxed text-[#a16231] sm:py-4 sm:text-base"
+            className="rounded-[1.35rem] px-4 py-[12px] text-center text-sm font-bold leading-relaxed text-[#a16231]"
             style={{
               background: "linear-gradient(135deg,#FFF8EE,#FFEDD8)",
-              boxShadow: "inset 0 0 0 2px rgba(244,196,141,0.42), 0 8px 18px rgba(196,134,82,0.10)",
+              boxShadow: "inset 0 0 0 1.5px rgba(244,196,141,0.42), 0 6px 14px rgba(196,134,82,0.10)",
             }}
           >
             {qPhase ? `بانتظار سؤال ${opponentName}…` : `بانتظار إجابة ${opponentName}…`}
@@ -477,33 +429,33 @@ function VoiceModePlayingPanel({
             myTurn
               ? {
                   boxShadow: [
-                    "inset 0 2px 0 rgba(255,255,255,0.38), 0 9px 0 #be5200, 0 14px 28px rgba(255,100,0,0.36)",
-                    "inset 0 2px 0 rgba(255,255,255,0.38), 0 9px 0 #be5200, 0 18px 38px rgba(255,100,0,0.48)",
-                    "inset 0 2px 0 rgba(255,255,255,0.38), 0 9px 0 #be5200, 0 14px 28px rgba(255,100,0,0.36)",
+                    "inset 0 2px 0 rgba(255,255,255,0.38), 0 8px 0 #be5200, 0 12px 24px rgba(255,100,0,0.32)",
+                    "inset 0 2px 0 rgba(255,255,255,0.38), 0 8px 0 #be5200, 0 16px 32px rgba(255,100,0,0.46)",
+                    "inset 0 2px 0 rgba(255,255,255,0.38), 0 8px 0 #be5200, 0 12px 24px rgba(255,100,0,0.32)",
                   ],
                 }
               : {}
           }
           transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
-          className="relative w-full overflow-hidden rounded-[1.35rem] py-[14px] text-base font-black sm:py-4 sm:text-lg"
+          className="relative w-full overflow-hidden rounded-[1.35rem] py-[13px] text-base font-black sm:py-[15px] sm:text-lg"
           style={
             myTurn
               ? {
                   background: "linear-gradient(145deg,#FFB020 0%,#FF5500 100%)",
                   color: "#fff",
                   boxShadow:
-                    "inset 0 2px 0 rgba(255,255,255,0.38), 0 9px 0 #be5200, 0 14px 28px rgba(255,100,0,0.36)",
+                    "inset 0 2px 0 rgba(255,255,255,0.38), 0 8px 0 #be5200, 0 12px 24px rgba(255,100,0,0.32)",
                 }
               : {
                   background: "linear-gradient(145deg,#FFFFFF 0%,#FFF4E4 100%)",
                   color: "#b45309",
-                  boxShadow: "inset 0 0 0 2px rgba(244,196,141,0.48), 0 7px 0 rgba(196,134,82,0.18)",
+                  boxShadow: "inset 0 0 0 1.5px rgba(244,196,141,0.48), 0 6px 0 rgba(196,134,82,0.18)",
                 }
           }
         >
           <span
             aria-hidden
-            className="pointer-events-none absolute inset-x-12 top-2 h-2 rounded-full bg-white/28 blur-[2px]"
+            className="pointer-events-none absolute inset-x-12 top-2 h-1.5 rounded-full bg-white/28 blur-[2px]"
           />
           🎯 تخمين
         </motion.button>
@@ -527,49 +479,70 @@ type ResultProps = {
   replayBusy?: boolean;
   onReplay: () => void;
   onHome: () => void;
+  myCosmetic?: PlayerCosmetic | null;
+  opponentCosmetic?: PlayerCosmetic | null;
+  myPhotoURL?: string | null;
 };
 
 // Client-side read of the local player's own card from the existing
 // rooms/{roomId}/playerCards/{uid} document. Does not modify backend.
-function useMyOwnCard(roomId: string, myUid: string): GameCard | null {
-  const [card, setCard] = useState<GameCard | null>(null);
+/**
+ * Fetch BOTH cards (mine + opponent's) from the server after the match ends.
+ * Firestore rules forbid clients from reading their own `playerCards/{uid}`
+ * doc during play, so we expose them via /api/game/reveal-cards which gates
+ * on `match.status === "ended"`.
+ */
+function useRevealedCards(roomId: string, myUid: string): {
+  myCard: GameCard | null;
+  opponentCard: GameCard | null;
+} {
+  const [myCard, setMyCard] = useState<GameCard | null>(null);
+  const [oppCard, setOppCard] = useState<GameCard | null>(null);
 
   useEffect(() => {
-    if (!roomId || !myUid) { setCard(null); return; }
-    let unsub: (() => void) | null = null;
+    if (!roomId || !myUid) {
+      setMyCard(null);
+      setOppCard(null);
+      return;
+    }
     let cancelled = false;
-    void (async () => {
+    let attempts = 0;
+    const tick = async () => {
+      if (cancelled) return;
+      attempts += 1;
       try {
-        const [{ getFirebaseDb }, { doc, onSnapshot }] = await Promise.all([
-          import("@/lib/firebase/client"),
-          import("firebase/firestore"),
-        ]);
+        const res = await postGame("/api/game/reveal-cards", { roomId });
+        const data = res as {
+          ok?: boolean;
+          myCard?: { cardId: string; name: string; nameAr: string; imageUrl: string; categoryId: string } | null;
+          opponentCard?: { cardId: string; name: string; nameAr: string; imageUrl: string; categoryId: string } | null;
+        };
         if (cancelled) return;
-        const db = getFirebaseDb();
-        const ref = doc(db, "rooms", roomId, "playerCards", myUid);
-        unsub = onSnapshot(ref, (snap) => {
-          if (!snap.exists()) { setCard(null); return; }
-          const c = snap.data();
-          setCard({
-            id: String(c.cardId ?? ""),
-            name: String(c.name ?? ""),
-            nameAr: String(c.nameAr ?? ""),
-            imageUrl: String(c.imageUrl ?? ""),
-            categoryId: String(c.categoryId ?? ""),
-            tags: [],
-          });
+        const mapCard = (c: NonNullable<typeof data.myCard>): GameCard => ({
+          id: String(c.cardId ?? ""),
+          name: String(c.name ?? ""),
+          nameAr: String(c.nameAr ?? ""),
+          imageUrl: String(c.imageUrl ?? ""),
+          categoryId: String(c.categoryId ?? ""),
+          tags: [],
         });
+        if (data.myCard) setMyCard(mapCard(data.myCard));
+        if (data.opponentCard) setOppCard(mapCard(data.opponentCard));
       } catch {
-        // silent — the result screen still works without my card
+        // The match may not be marked ended on the server yet (race with
+        // forfeit/guess writes). Retry a few times with backoff.
+        if (!cancelled && attempts < 5) {
+          setTimeout(() => void tick(), 400 * attempts);
+        }
       }
-    })();
+    };
+    void tick();
     return () => {
       cancelled = true;
-      if (unsub) unsub();
     };
   }, [roomId, myUid]);
 
-  return card;
+  return { myCard, opponentCard: oppCard };
 }
 
 function MatchResultScreen({
@@ -585,11 +558,18 @@ function MatchResultScreen({
   replayBusy = false,
   onReplay,
   onHome,
+  myCosmetic,
+  opponentCosmetic,
+  myPhotoURL,
 }: ResultProps) {
-  const myCard = useMyOwnCard(roomId, myUid);
+  const { myCard, opponentCard: revealedOpponentCard } = useRevealedCards(roomId, myUid);
+  // Prefer the freshly revealed opponent card (server-authoritative once the
+  // match ends) over the in-game wire copy, but fall back to the wire when
+  // the reveal endpoint hasn't returned yet so the UI never flashes empty.
+  const effectiveOpponentCard = revealedOpponentCard ?? opponentCard;
 
-  const categoryLabel = opponentCard?.categoryId
-    ? (getCategoryById(opponentCard.categoryId)?.nameAr ?? null)
+  const categoryLabel = effectiveOpponentCard?.categoryId
+    ? (getCategoryById(effectiveOpponentCard.categoryId)?.nameAr ?? null)
     : (myCard?.categoryId ? (getCategoryById(myCard.categoryId)?.nameAr ?? null) : null);
 
   const winMsg = messages.find((m) => m.type === "guess" && m.correct === true);
@@ -776,6 +756,30 @@ function MatchResultScreen({
           <p className="mt-1.5 text-sm font-bold text-[#9a5020] sm:text-base">
             {headlineSub}
           </p>
+
+          <motion.div variants={item} className="mt-4 flex items-center justify-center gap-5 sm:gap-8">
+            <div className="flex flex-col items-center gap-1.5">
+              <ProfileAvatar
+                cosmetic={myCosmetic ?? normalizeCosmetic(undefined)}
+                fallbackPhotoURL={myPhotoURL}
+                displayName={myName}
+                size="lg"
+                active={iWon}
+                idle
+              />
+              <span className="max-w-[100px] truncate text-[11px] font-extrabold text-[#bc7a45]">{myName}</span>
+            </div>
+            <div className="flex flex-col items-center gap-1.5">
+              <ProfileAvatar
+                cosmetic={opponentCosmetic ?? normalizeCosmetic(undefined)}
+                displayName={opponentName}
+                size="lg"
+                active={!iWon && Boolean(winnerUid)}
+                idle
+              />
+              <span className="max-w-[100px] truncate text-[11px] font-extrabold text-[#bc7a45]">{opponentName}</span>
+            </div>
+          </motion.div>
         </motion.div>
 
         {/* ── CARDS SHOWDOWN — flex-1, fills remaining space ──── */}
@@ -825,7 +829,7 @@ function MatchResultScreen({
             {/* OPPONENT CARD */}
             <CardShowdown
               side="opponent"
-              card={opponentCard}
+              card={effectiveOpponentCard}
               fallbackLabel="بطاقة الخصم"
               ownerLabel="بطاقة الخصم"
               playerLabel={opponentName}
@@ -1047,6 +1051,12 @@ export function RoomExperience({ roomId }: Props) {
 
   const { room, match, messages, opponentCard, wireError } = useRoomWire(roomId, uid);
 
+  const cosmeticUids = useMemo(
+    () => (room?.players ?? []).map((p) => p.uid).filter(Boolean) as string[],
+    [room?.players],
+  );
+  const cosmeticsMap = usePlayerCosmetics(cosmeticUids);
+
   const [draft, setDraft] = useState("");
   const [guessSureOpen, setGuessSureOpen] = useState(false);
   const [guessInputOpen, setGuessInputOpen] = useState(false);
@@ -1066,6 +1076,10 @@ export function RoomExperience({ roomId }: Props) {
   const defeatPlayed = useRef(false);
   const turnPopupTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const prevRoomStatusRef = useRef<string | null>(null);
+  const prevLobbyPlayerCount = useRef<number | null>(null);
+  const prevLobbyAllReady = useRef<boolean | null>(null);
+  const seenGuessMessageIds = useRef(new Set<string>());
+  const guessSoundBootstrapped = useRef(false);
   const lobbyCustomFileRef = useRef<HTMLInputElement>(null);
   const [lobbyCustomName, setLobbyCustomName] = useState("");
   const [lobbyCustomPreview, setLobbyCustomPreview] = useState<string | null>(null);
@@ -1139,6 +1153,25 @@ export function RoomExperience({ roomId }: Props) {
     })();
   }, [room, isHost]);
 
+  // Bot tick: when playing against a bot and it's the bot's turn, poll the
+  // server to advance the bot's move. Only the host drives this loop so the
+  // server doesn't get spammed from multiple clients (there's only one human
+  // in a bot room anyway, but we guard defensively).
+  useEffect(() => {
+    if (!room?.vsBot || !isHost) return;
+    if (match?.status !== "active") return;
+    const botUid = room.botUid;
+    if (!botUid) return;
+    if (match.actorUid !== botUid) return;
+
+    // Humanize: wait 900-1800ms before the bot moves so it feels natural.
+    const delay = 900 + Math.floor(Math.random() * 900);
+    const t = window.setTimeout(() => {
+      void postGame("/api/game/bot-tick", { roomId: room.id }).catch(() => undefined);
+    }, delay);
+    return () => window.clearTimeout(t);
+  }, [room?.vsBot, room?.botUid, room?.id, isHost, match?.status, match?.actorUid]);
+
   useEffect(() => {
     resumeAudioContext();
   }, []);
@@ -1165,6 +1198,66 @@ export function RoomExperience({ roomId }: Props) {
     }
     prevMsgCount.current = n;
   }, [messages, uid]);
+
+  useEffect(() => {
+    seenGuessMessageIds.current.clear();
+    guessSoundBootstrapped.current = false;
+  }, [roomId]);
+
+  useEffect(() => {
+    if (!guessSoundBootstrapped.current) {
+      for (const m of messages) {
+        if (m.type === "guess") seenGuessMessageIds.current.add(m.id);
+      }
+      guessSoundBootstrapped.current = true;
+      return;
+    }
+    for (const m of messages) {
+      if (m.type !== "guess") continue;
+      if (seenGuessMessageIds.current.has(m.id)) continue;
+      seenGuessMessageIds.current.add(m.id);
+      resumeAudioContext();
+      if (m.correct) playCorrectGuess();
+      else playWrongGuess();
+    }
+  }, [messages]);
+
+  useEffect(() => {
+    if (room?.status !== "lobby") {
+      prevLobbyPlayerCount.current = null;
+      return;
+    }
+    const n = room.players.length;
+    if (prevLobbyPlayerCount.current === null) {
+      prevLobbyPlayerCount.current = n;
+      return;
+    }
+    if (n > prevLobbyPlayerCount.current) {
+      resumeAudioContext();
+      playRoomJoin();
+    }
+    prevLobbyPlayerCount.current = n;
+  }, [room?.status, room?.players]);
+
+  useEffect(() => {
+    if (room?.status !== "lobby") {
+      prevLobbyAllReady.current = null;
+      return;
+    }
+    const allReady = Boolean(
+      room.playerUids?.length === 2 &&
+        room.playerUids.every((pid) => room.players.some((p) => p.uid === pid && p.ready)),
+    );
+    if (prevLobbyAllReady.current === null) {
+      prevLobbyAllReady.current = allReady;
+      return;
+    }
+    if (allReady && !prevLobbyAllReady.current) {
+      resumeAudioContext();
+      playRoomReady();
+    }
+    prevLobbyAllReady.current = allReady;
+  }, [room?.status, room?.players, room?.playerUids]);
 
   useEffect(() => {
     if (!myTurn || secLeft === null || match?.status !== "active") {
@@ -1314,6 +1407,8 @@ export function RoomExperience({ roomId }: Props) {
 
   const toggleReady = useCallback(async () => {
     if (!room || !uid || !me) return;
+    resumeAudioContext();
+    playReadyTap();
     setBusy(true);
     try {
       await setPlayerReady(room.id, uid, !me.ready);
@@ -1338,6 +1433,8 @@ export function RoomExperience({ roomId }: Props) {
         displayName,
       });
       setDraft("");
+      resumeAudioContext();
+      playMessageSend();
     } catch (e) {
       setBanner(e instanceof Error ? e.message : "تعذر الإرسال");
     } finally {
@@ -1460,13 +1557,18 @@ export function RoomExperience({ roomId }: Props) {
     const assigned = room.customOpponentCardAssigned ?? {};
     const puids = room.playerUids;
     const customModeActive = room.customCardsEnabled === true;
+    const isBot = (pid: string) => pid.startsWith("bot:");
+    // Bot opponents auto-pick a random card from the catalog when the match
+    // starts, so we treat their slot as already completed in the lobby UI.
     const uidCardComplete = (pid: string) =>
-      assigned[pid] === true || isOpponentCustomCardComplete(sel[pid]);
+      isBot(pid) || assigned[pid] === true || isOpponentCustomCardComplete(sel[pid]);
     const bothPickedCustom =
       !customModeActive ||
       randomLobby ||
       (puids.length === 2 && puids.every((pid) => uidCardComplete(pid)));
-    const customLobby = Boolean(customModeActive && !randomLobby && opponent);
+    // Allow uploading the opponent card even before the opponent has joined —
+    // the server stores it keyed by the giver's uid and applies it when the match starts.
+    const customLobby = Boolean(customModeActive && !randomLobby);
 
     const mePickDone = uid ? uidCardComplete(uid) : false;
     const oppPickDone = opponent ? uidCardComplete(opponent.uid) : false;
@@ -1657,21 +1759,15 @@ export function RoomExperience({ roomId }: Props) {
                       className="absolute inset-0 -z-10 rounded-full blur-xl"
                       style={{ background: "rgba(255,149,0,0.5)" }}
                     />
-                    <div
-                      className="relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-full sm:h-20 sm:w-20"
-                      style={{
-                        background: "linear-gradient(135deg,#FF9F0A 0%,#FF6B00 100%)",
-                        boxShadow: "0 0 0 3px #FFB300, 0 0 0 6px rgba(255,179,0,0.22), 0 8px 24px rgba(255,122,0,0.4)",
-                      }}
-                    >
-                      <svg viewBox="0 0 56 56" fill="none" className="h-10 w-10 sm:h-12 sm:w-12" aria-hidden>
-                        <circle cx="28" cy="22" r="10" fill="rgba(255,255,255,0.9)" />
-                        <ellipse cx="28" cy="44" rx="14" ry="9" fill="rgba(255,255,255,0.9)" />
-                        <circle cx="24.5" cy="21" r="1.8" fill="#8a3f16" />
-                        <circle cx="31.5" cy="21" r="1.8" fill="#8a3f16" />
-                        <path d="M24 25.5 q4 3.5 8 0" stroke="#8a3f16" strokeWidth="1.6" strokeLinecap="round" fill="none" />
-                      </svg>
-                      <span aria-hidden className="pointer-events-none absolute inset-x-3 top-1.5 h-2.5 rounded-full bg-white/40 blur-[1.5px]" />
+                    <div className="relative flex items-center justify-center">
+                      <ProfileAvatar
+                        cosmetic={uid ? cosmeticsMap[uid] : undefined}
+                        fallbackPhotoURL={user?.photoURL}
+                        displayName={displayName}
+                        size="lg"
+                        idle
+                        active={Boolean(mePlayer?.ready)}
+                      />
                     </div>
                     {/* crown for host */}
                     {isHost && (
@@ -1760,21 +1856,14 @@ export function RoomExperience({ roomId }: Props) {
                           className="absolute inset-0 -z-10 rounded-full blur-xl"
                           style={{ background: "rgba(255,149,0,0.4)" }}
                         />
-                        <div
-                          className="relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-full sm:h-20 sm:w-20"
-                          style={{
-                            background: "linear-gradient(135deg,#FF9F0A 0%,#FF6B00 100%)",
-                            boxShadow: "0 0 0 3px #FFB300, 0 0 0 6px rgba(255,179,0,0.2), 0 8px 24px rgba(255,122,0,0.38)",
-                          }}
-                        >
-                          <svg viewBox="0 0 56 56" fill="none" className="h-10 w-10 sm:h-12 sm:w-12" aria-hidden>
-                            <circle cx="28" cy="22" r="10" fill="rgba(255,255,255,0.9)" />
-                            <ellipse cx="28" cy="44" rx="14" ry="9" fill="rgba(255,255,255,0.9)" />
-                            <circle cx="24.5" cy="21" r="1.8" fill="#8a3f16" />
-                            <circle cx="31.5" cy="21" r="1.8" fill="#8a3f16" />
-                            <path d="M24 25.5 q4 3.5 8 0" stroke="#8a3f16" strokeWidth="1.6" strokeLinecap="round" fill="none" />
-                          </svg>
-                          <span aria-hidden className="pointer-events-none absolute inset-x-3 top-1.5 h-2.5 rounded-full bg-white/40 blur-[1.5px]" />
+                        <div className="relative flex items-center justify-center">
+                          <ProfileAvatar
+                            cosmetic={cosmeticsMap[opponent.uid]}
+                            displayName={opponent.displayName}
+                            size="lg"
+                            idle
+                            active={opponent.ready}
+                          />
                         </div>
                         {opponent.uid === room.hostUid && (
                           <span className="absolute -top-3 left-1/2 -translate-x-1/2 text-lg leading-none">👑</span>
@@ -1900,7 +1989,7 @@ export function RoomExperience({ roomId }: Props) {
                 )}
               </div>
 
-              {customModeActive && !randomLobby && opponent ? (
+              {customModeActive && !randomLobby ? (
                 <div
                   className="mt-5 rounded-2xl border border-[#f5dcc8] bg-[#FFFBF6]/95 px-4 py-3 shadow-[0_8px_22px_rgba(196,134,82,0.12)]"
                   dir="rtl"
@@ -1945,12 +2034,18 @@ export function RoomExperience({ roomId }: Props) {
                           ✓
                         </span>
                       ) : null}
-                      <p className="truncate text-[#bc7a45]">{opponent.displayName}</p>
-                      <p className={`mt-1 ${opponent.ready ? "text-emerald-700" : "text-amber-700"}`}>
-                        {opponent.ready ? "✓ جاهز" : "⋯ بانتظار الجاهز"}
+                      <p className="truncate text-[#bc7a45]">
+                        {opponent ? opponent.displayName : "بانتظار خصم"}
+                      </p>
+                      <p className={`mt-1 ${opponent?.ready ? "text-emerald-700" : "text-amber-700"}`}>
+                        {opponent
+                          ? opponent.ready
+                            ? "✓ جاهز"
+                            : "⋯ بانتظار الجاهز"
+                          : "⋯ لم ينضم بعد"}
                       </p>
                       <p className={`mt-0.5 ${oppPickDone ? "text-emerald-700" : "text-amber-700"}`}>
-                        {oppPickDone ? "✓ تم اختيار البطاقة" : "⋯ بانتظار اختيار بطاقة الخصم"}
+                        {oppPickDone ? "✓ اختار بطاقتك" : "⋯ ينتظر أن يختار بطاقتك"}
                       </p>
                     </div>
                   </div>
@@ -2212,18 +2307,30 @@ export function RoomExperience({ roomId }: Props) {
                   </div>
                 )}
 
-                {/* Start match — host only, both ready, non-random */}
-                {!randomLobby && isHost && (
-                  <AnimatePresence mode="wait">
-                    {bothReady && bothPickedCustom ? (
-                      <motion.div
-                        key="start-match-cta"
-                        initial={{ opacity: 0, scale: 0.92, y: 12 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.94, y: 8 }}
-                        transition={{ type: "spring", stiffness: 340, damping: 26 }}
-                        className="relative"
-                      >
+                {/* Start match — host only, non-random.
+                    Always visible so the host knows the path to start. The button
+                    is disabled until every precondition holds; missing pieces are
+                    listed underneath. The server re-validates everything anyway. */}
+                {!randomLobby && isHost && (() => {
+                  const missing: string[] = [];
+                  if (!opponent) missing.push("انضمام اللاعب الثاني");
+                  if (customModeActive) {
+                    if (uid && !uidCardComplete(uid)) missing.push("حفظ بطاقتك للخصم");
+                    if (opponent && !uidCardComplete(opponent.uid))
+                      missing.push("اختيار الخصم لبطاقتك");
+                  }
+                  if (!mePlayer?.ready) missing.push("تضغط أنت «جاهز»");
+                  if (opponent && !opponent.ready) missing.push("الخصم يضغط «جاهز»");
+                  const canStart = missing.length === 0;
+                  return (
+                    <motion.div
+                      key="start-match-cta"
+                      initial={{ opacity: 0, scale: 0.92, y: 12 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      transition={{ type: "spring", stiffness: 340, damping: 26 }}
+                      className="relative"
+                    >
+                      {canStart ? (
                         <motion.div
                           aria-hidden
                           animate={{ opacity: [0.55, 1, 0.55], scale: [0.96, 1.08, 0.96] }}
@@ -2234,31 +2341,36 @@ export function RoomExperience({ roomId }: Props) {
                               "radial-gradient(closest-side,rgba(255,159,40,0.85),rgba(255,122,0,0.35),transparent 72%)",
                           }}
                         />
-                        <motion.button
-                          type="button"
-                          disabled={busy}
-                          onClick={() => void startMatch()}
-                          whileHover={{ y: -4, scale: 1.03 }}
-                          whileTap={{ y: 6, scale: 0.97 }}
-                          className="relative flex w-full items-center justify-center gap-3 overflow-hidden rounded-[24px] py-[18px] text-2xl font-black text-white disabled:opacity-60 sm:text-3xl"
-                          style={{
-                            background: "linear-gradient(180deg,#FFC933 0%,#FF7A00 100%)",
-                            boxShadow:
-                              "inset 0 3px 0 rgba(255,255,255,0.55), inset 0 -8px 18px rgba(180,70,0,0.35), 0 14px 0 #b45300, 0 26px 48px rgba(255,122,0,0.55)",
-                          }}
-                        >
-                          <span aria-hidden className="pointer-events-none absolute inset-x-8 top-2 h-3 rounded-full bg-white/45 blur-[2px]" />
-                          <svg viewBox="0 0 24 24" fill="none" className="h-6 w-6" aria-hidden>
-                            <polygon points="5,3 19,12 5,21" fill="white" />
-                          </svg>
-                          <span style={{ textShadow: "0 2px 0 rgba(0,0,0,0.22)" }}>
-                            ابدأ المباراة
-                          </span>
-                        </motion.button>
-                      </motion.div>
-                    ) : null}
-                  </AnimatePresence>
-                )}
+                      ) : null}
+                      <motion.button
+                        type="button"
+                        disabled={busy || !canStart}
+                        onClick={() => void startMatch()}
+                        whileHover={canStart && !busy ? { y: -4, scale: 1.03 } : undefined}
+                        whileTap={canStart && !busy ? { y: 6, scale: 0.97 } : undefined}
+                        className="relative flex w-full items-center justify-center gap-3 overflow-hidden rounded-[24px] py-[18px] text-2xl font-black text-white disabled:cursor-not-allowed disabled:opacity-55 sm:text-3xl"
+                        style={{
+                          background: "linear-gradient(180deg,#FFC933 0%,#FF7A00 100%)",
+                          boxShadow:
+                            "inset 0 3px 0 rgba(255,255,255,0.55), inset 0 -8px 18px rgba(180,70,0,0.35), 0 14px 0 #b45300, 0 26px 48px rgba(255,122,0,0.55)",
+                        }}
+                      >
+                        <span aria-hidden className="pointer-events-none absolute inset-x-8 top-2 h-3 rounded-full bg-white/45 blur-[2px]" />
+                        <svg viewBox="0 0 24 24" fill="none" className="h-6 w-6" aria-hidden>
+                          <polygon points="5,3 19,12 5,21" fill="white" />
+                        </svg>
+                        <span style={{ textShadow: "0 2px 0 rgba(0,0,0,0.22)" }}>
+                          ابدأ المباراة
+                        </span>
+                      </motion.button>
+                      {!canStart ? (
+                        <p className="mt-2 text-center text-[11px] font-bold leading-relaxed text-[#c2530c]">
+                          ينقص: {missing.join(" • ")}
+                        </p>
+                      ) : null}
+                    </motion.div>
+                  );
+                })()}
 
                 {/* Guest waiting messages */}
                 {!randomLobby && !isHost && !mePlayer?.ready && (
@@ -2457,11 +2569,14 @@ export function RoomExperience({ roomId }: Props) {
           ? { background: "#ffd7a8", border: "1.5px solid #f0bf8a", color: "#6f3714" }
           : { background: "#ffffff", border: "1.5px solid #e8d5b5", color: "#6f3714" };
 
-    const avatarBg = isMe
-      ? "linear-gradient(135deg,#FF9F0A,#FF6B00)"
-      : "linear-gradient(135deg,#a78bfa,#7c3aed)";
-
     const typeTag = isQuestion ? "سؤال" : isAnswer ? "إجابة" : null;
+
+    const senderCosmetic =
+      isMe && uid
+        ? cosmeticsMap[uid]
+        : !isMe && m.senderUid && m.senderUid !== "system"
+          ? cosmeticsMap[m.senderUid]
+          : undefined;
 
     return (
       <motion.div
@@ -2473,11 +2588,15 @@ export function RoomExperience({ roomId }: Props) {
         className={`flex items-end gap-2 ${isMe ? "flex-row-reverse" : "flex-row"}`}
       >
         {/* mini avatar */}
-        <div
-          className="mb-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[9px] font-black text-white shadow-sm"
-          style={{ background: avatarBg }}
-        >
-          {isMe ? "أنا" : (m.senderName?.[0] ?? "؟")}
+        <div className="mb-0.5 shrink-0">
+          <ProfileAvatar
+            cosmetic={senderCosmetic}
+            fallbackPhotoURL={isMe ? user?.photoURL : undefined}
+            displayName={isMe ? displayName : m.senderName ?? undefined}
+            size="xs"
+            idle
+            active={isMe}
+          />
         </div>
 
         {/* bubble */}
@@ -2502,11 +2621,20 @@ export function RoomExperience({ roomId }: Props) {
   return (
     <div
       dir="rtl"
-      className="relative flex min-h-[100dvh] w-full flex-col overflow-hidden select-none"
+      className="relative flex w-full flex-col overflow-hidden select-none"
       style={{
+        // Always fill the *actual* visible viewport — VisualViewport hook
+        // keeps --app-vh in sync with the soft keyboard so the game never
+        // gets pushed off-screen on iOS / Android.
+        height: "var(--app-vh, 100dvh)",
+        paddingTop: "env(safe-area-inset-top, 0px)",
+        paddingLeft: "env(safe-area-inset-left, 0px)",
+        paddingRight: "env(safe-area-inset-right, 0px)",
         background: voiceFocusPlaying
           ? "radial-gradient(135% 82% at 50% 0%, #FFF1DD 0%, #FFECD7 52%, #FDE7CD 100%)"
           : "radial-gradient(130% 75% at 50% 0%, #FFF1DE 0%, #FFEBD3 55%, #FCE6CD 100%)",
+        touchAction: "manipulation",
+        overscrollBehavior: "contain",
       }}
     >
       <ConfettiBurst active={ended && iWon && Boolean(winnerUid)} />
@@ -2578,7 +2706,7 @@ export function RoomExperience({ roomId }: Props) {
       {/* ════════════════════════════════════════════════════════
           TOP HUD
       ════════════════════════════════════════════════════════ */}
-      <div className="relative z-10 mx-auto w-full max-w-3xl flex-shrink-0 px-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:px-5 lg:px-6">
+      <div className="relative z-10 mx-auto w-full max-w-3xl flex-shrink-0 px-3 pt-3 sm:px-5 lg:px-6">
         <div className="flex items-center justify-between gap-2">
           {/* X button — left */}
           <motion.button
@@ -2660,8 +2788,13 @@ export function RoomExperience({ roomId }: Props) {
       <div
         className={
           voiceFocusPlaying
-            ? "relative z-10 mx-auto flex w-full max-w-4xl flex-1 min-h-0 flex-col overflow-hidden px-3 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-1 sm:px-6 lg:px-8"
-            : "relative z-10 mx-auto flex w-full max-w-3xl flex-1 flex-col gap-3 overflow-y-auto overscroll-contain px-3 pb-[max(5.5rem,env(safe-area-inset-bottom))] pt-3 sm:px-5 lg:px-6 [-webkit-overflow-scrolling:touch]"
+            ? "relative z-10 mx-auto flex w-full max-w-4xl flex-1 min-h-0 flex-col overflow-hidden px-3 pt-1 sm:px-6 lg:px-8"
+            : "relative z-10 mx-auto flex w-full max-w-3xl flex-1 min-h-0 flex-col gap-3 overflow-hidden px-3 pt-3 sm:px-5 lg:px-6"
+        }
+        style={
+          voiceFocusPlaying
+            ? { paddingBottom: "max(env(safe-area-inset-bottom, 0px), 0.5rem)" }
+            : undefined
         }
       >
 
@@ -2703,6 +2836,9 @@ export function RoomExperience({ roomId }: Props) {
             busy={busy}
             sendVoiceAck={sendVoiceAck}
             openGuessFlow={openGuessFlow}
+            myCosmetic={uid ? cosmeticsMap[uid] : undefined}
+            opponentCosmetic={opponent ? cosmeticsMap[opponent.uid] : undefined}
+            myPhotoURL={user?.photoURL}
           />
         ) : (
           <>
@@ -2765,27 +2901,18 @@ export function RoomExperience({ roomId }: Props) {
 
               <div className="relative flex items-center gap-4 px-5 py-4 sm:px-6 sm:py-5">
                 {/* Player avatar */}
-                <div
-                  className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full sm:h-16 sm:w-16"
-                  style={
-                    myTurn
-                      ? {
-                          background: "linear-gradient(145deg,#fff3c4 0%,#ffd060 100%)",
-                          boxShadow: "0 0 0 3px rgba(255,255,255,0.75), 0 0 20px rgba(255,200,50,0.55), 0 5px 16px rgba(0,0,0,0.12)",
-                        }
-                      : {
-                          background: "linear-gradient(145deg,#FF9F0A 0%,#FF6B00 100%)",
-                          boxShadow: "0 0 0 3px rgba(255,180,0,0.45), 0 5px 16px rgba(255,107,0,0.28)",
-                        }
-                  }
-                >
-                  <svg viewBox="0 0 48 48" fill="none" className="h-9 w-9 sm:h-10 sm:w-10" aria-hidden>
-                    <circle cx="24" cy="18" r="9" fill={myTurn ? "rgba(255,130,0,0.9)" : "rgba(255,255,255,0.92)"} />
-                    <ellipse cx="24" cy="38" rx="12" ry="8" fill={myTurn ? "rgba(255,130,0,0.9)" : "rgba(255,255,255,0.92)"} />
-                    <circle cx="21" cy="17.5" r="1.5" fill={myTurn ? "#fff" : "#8a3f16"} />
-                    <circle cx="27" cy="17.5" r="1.5" fill={myTurn ? "#fff" : "#8a3f16"} />
-                    <path d="M21 22 q3 2.8 6 0" stroke={myTurn ? "#fff" : "#8a3f16"} strokeWidth="1.4" strokeLinecap="round" fill="none" />
-                  </svg>
+                <div className="relative flex shrink-0 items-center justify-center">
+                  <ProfileAvatar
+                    cosmetic={
+                      myTurn ? (uid ? cosmeticsMap[uid] : null) : opponent ? cosmeticsMap[opponent.uid] : null
+                    }
+                    fallbackPhotoURL={myTurn ? user?.photoURL : undefined}
+                    displayName={myTurn ? displayName : opponentName}
+                    size="lg"
+                    active={myTurn}
+                    idle
+                    showPulseDot={myTurn}
+                  />
                 </div>
 
                 {/* Text block */}
@@ -2812,10 +2939,11 @@ export function RoomExperience({ roomId }: Props) {
 
         {/* ════════════════════════════════════════════
             DESKTOP SPLIT: card + chat side by side
+            MOBILE: card stays visible at top, chat fills the rest
         ════════════════════════════════════════════ */}
-        <div className="flex flex-1 flex-col gap-3 lg:flex-row lg:items-start">
+        <div className="flex flex-1 min-h-0 flex-col gap-3 lg:flex-row lg:items-stretch">
 
-          {/* ── OPPONENT CARD — left column on desktop ── */}
+          {/* ── OPPONENT CARD — top on mobile (compact), left on desktop ── */}
           <div className="flex-shrink-0 lg:w-[260px] xl:w-[280px]">
 
             {/* category pill */}
@@ -2856,7 +2984,15 @@ export function RoomExperience({ roomId }: Props) {
 
               {opponentCard?.imageUrl ? (
                 <>
-                  <div className="relative h-44 w-full overflow-hidden rounded-t-[1.4rem] sm:h-48 lg:h-44 xl:h-52">
+                  <div
+                    className="relative w-full overflow-hidden rounded-t-[1.4rem] mx-auto"
+                    style={{
+                      // Stable 4:5 aspect everywhere (portrait, fits a face nicely)
+                      // with a hard clamp so the card never eats the whole screen.
+                      aspectRatio: "4 / 5",
+                      maxHeight: "clamp(140px, 24svh, 240px)",
+                    }}
+                  >
                     <CardImage src={opponentCard.imageUrl} alt={opponentCard.nameAr} />
                     <div className="pointer-events-none absolute inset-0 rounded-t-[1.4rem] ring-1 ring-inset ring-white/25" />
                   </div>
@@ -2867,7 +3003,10 @@ export function RoomExperience({ roomId }: Props) {
                   </div>
                 </>
               ) : (
-                <div className="flex h-44 items-center justify-center text-sm text-[#bc7a45]">
+                <div
+                  className="flex items-center justify-center text-sm text-[#bc7a45]"
+                  style={{ aspectRatio: "4 / 5", maxHeight: "clamp(140px, 24svh, 240px)" }}
+                >
                   بعد بدء المباراة
                 </div>
               )}
@@ -2875,12 +3014,12 @@ export function RoomExperience({ roomId }: Props) {
           </div>
 
           {/* ── CHAT + INPUT — right column (flex-1 on desktop) ── */}
-          <div className="flex flex-1 flex-col gap-3 lg:min-h-0">
+          <div className="flex flex-1 min-h-0 flex-col gap-3">
 
             {/* CHAT FEED */}
             {!voiceMode && match?.status === "active" && !ended ? (
               <div
-                className="flex flex-col overflow-hidden rounded-[1.5rem]"
+                className="flex flex-1 min-h-0 flex-col overflow-hidden rounded-[1.5rem]"
                 style={{
                   background: "#FFFFFF",
                   boxShadow: "0 0 0 1.5px rgba(244,196,141,0.45), 0 16px 44px rgba(196,134,82,0.16), inset 0 2px 0 rgba(255,255,255,0.85)",
@@ -2919,8 +3058,9 @@ export function RoomExperience({ roomId }: Props) {
                   </span>
                 </div>
 
-                {/* Message list */}
-                <div className="min-h-[140px] flex-1 space-y-3 overflow-y-auto px-3 py-3 overscroll-contain lg:min-h-[180px] lg:max-h-[340px] [-webkit-overflow-scrolling:touch]">
+                {/* Message list — flex-1 so it fills the chat panel and
+                    becomes the only scroll surface (composer stays pinned). */}
+                <div className="scroll-y scroll-y-hidden flex-1 min-h-0 space-y-3 px-3 py-3">
                   {messages.length === 0 ? (
                     <div className="flex flex-col items-center justify-center gap-2 py-8 text-center">
                       <span className="text-3xl">💬</span>
@@ -2932,8 +3072,12 @@ export function RoomExperience({ roomId }: Props) {
                   <div ref={chatEndRef} />
                 </div>
 
-                {/* Input area */}
-                <div className="flex-shrink-0 p-3" style={{ borderTop: "1.5px solid #f8e8d4" }}>
+                {/* Composer — pinned to the bottom of the chat panel and
+                    floats above the soft keyboard via .kbd-safe. */}
+                <div
+                  className="kbd-safe flex-shrink-0 p-3"
+                  style={{ borderTop: "1.5px solid #f8e8d4" }}
+                >
                   {myTurn ? (
                     <div className="flex items-center gap-2">
                       <input
@@ -2943,8 +3087,17 @@ export function RoomExperience({ roomId }: Props) {
                         disabled={busy}
                         onKeyDown={(e) => { if (e.key === "Enter" && !busy) void sendDraft(); }}
                         dir="rtl"
-                        className="min-h-[48px] flex-1 rounded-2xl px-4 text-sm font-semibold text-[#6f3714] placeholder-[#c9955e] outline-none transition-shadow"
+                        // inputMode/enterKeyHint give us a proper Arabic keyboard
+                        // with a "send" key on mobile.
+                        inputMode="text"
+                        enterKeyHint="send"
+                        autoComplete="off"
+                        autoCorrect="off"
+                        spellCheck={false}
+                        className="min-h-[48px] flex-1 rounded-2xl px-4 font-semibold text-[#6f3714] placeholder-[#c9955e] outline-none transition-shadow"
                         style={{
+                          // 16px to defeat iOS Safari auto-zoom on focus.
+                          fontSize: "16px",
                           background: "#FFF9F0",
                           boxShadow: "inset 0 0 0 1.5px rgba(244,196,141,0.55), inset 0 2px 6px rgba(196,134,82,0.07)",
                         }}
@@ -2955,7 +3108,6 @@ export function RoomExperience({ roomId }: Props) {
                           e.currentTarget.style.boxShadow = "inset 0 0 0 1.5px rgba(244,196,141,0.55), inset 0 2px 6px rgba(196,134,82,0.07)";
                         }}
                       />
-                      {/* Send button */}
                       <motion.button
                         type="button"
                         disabled={busy || !draft.trim()}
@@ -2968,7 +3120,7 @@ export function RoomExperience({ roomId }: Props) {
                           boxShadow: "0 6px 0 #be5200, 0 10px 18px rgba(255,107,0,0.36)",
                         }}
                       >
-                        <svg viewBox="0 0 18 18" fill="none" className="h-4.5 w-4.5" aria-hidden>
+                        <svg viewBox="0 0 18 18" fill="none" className="h-4 w-4" aria-hidden>
                           <path d="M2.5 9L15.5 3l-4 6 4 6-13-6z" fill="white" />
                         </svg>
                       </motion.button>
@@ -3004,7 +3156,15 @@ export function RoomExperience({ roomId }: Props) {
           FIXED BOTTOM — GUESS BUTTON (hidden in voice mode — guess lives in panel)
       ════════════════════════════════════════════════════════ */}
       {match?.status === "active" && !ended && !voicePlayingUI ? (
-        <div className="pointer-events-none fixed bottom-0 left-0 right-0 z-40 flex justify-center px-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+        <div
+          className="pointer-events-none fixed bottom-0 left-0 right-0 z-40 flex justify-center px-4"
+          style={{
+            // Float above both the soft keyboard and the iOS home indicator.
+            paddingBottom:
+              "calc(max(env(safe-area-inset-bottom, 0px), 1rem) + var(--kbd-h, 0px))",
+            transition: "padding-bottom 180ms cubic-bezier(0.22, 1, 0.36, 1)",
+          }}
+        >
           <div className="pointer-events-auto w-full max-w-[min(24rem,92vw)]">
             <motion.button
               whileHover={{ y: -3, scale: 1.02 }}
@@ -3092,6 +3252,9 @@ export function RoomExperience({ roomId }: Props) {
             replayBusy={busy}
             onReplay={() => void handleReplay()}
             onHome={() => router.push("/")}
+            myCosmetic={uid ? cosmeticsMap[uid] : undefined}
+            opponentCosmetic={opponent ? cosmeticsMap[opponent.uid] : undefined}
+            myPhotoURL={user?.photoURL}
           />
         ) : null}
       </AnimatePresence>

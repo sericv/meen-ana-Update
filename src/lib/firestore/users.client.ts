@@ -4,6 +4,7 @@ import type { User } from "firebase/auth";
 import { doc, serverTimestamp, setDoc } from "firebase/firestore";
 import { getFirebaseDb } from "@/lib/firebase/client";
 import { col } from "@/lib/firestore/paths";
+import { DEFAULT_AVATAR_ID, DEFAULT_FRAME_ID, isValidAvatarId, isValidFrameId } from "@/lib/profile/cosmetics";
 
 export async function upsertUserDocument(user: User) {
   const db = getFirebaseDb();
@@ -14,6 +15,30 @@ export async function upsertUserDocument(user: User) {
       displayName: user.displayName || "زائر",
       photoURL: user.photoURL || null,
       isGuest: user.isAnonymous,
+      lastSeen: serverTimestamp(),
+    },
+    { merge: true },
+  );
+}
+
+/** Persist cosmetic choices (avatar glyph preset + animated frame). */
+export async function updateUserCosmetics(
+  uid: string,
+  patch: { avatarId?: string; avatarFrameId?: string },
+): Promise<void> {
+  const db = getFirebaseDb();
+  const ref = doc(db, col.users, uid);
+  const avatarId =
+    patch.avatarId && isValidAvatarId(patch.avatarId) ? patch.avatarId : DEFAULT_AVATAR_ID;
+  const avatarFrameId =
+    patch.avatarFrameId && isValidFrameId(patch.avatarFrameId)
+      ? patch.avatarFrameId
+      : DEFAULT_FRAME_ID;
+  await setDoc(
+    ref,
+    {
+      avatarId,
+      avatarFrameId,
       lastSeen: serverTimestamp(),
     },
     { merge: true },

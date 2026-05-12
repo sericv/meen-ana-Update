@@ -9,10 +9,22 @@ const tajawal = Tajawal({
   variable: "--font-tajawal",
 });
 
+// Mobile-first viewport. We intentionally:
+//   • lock initial-scale + maximum-scale to disable pinch/double-tap zoom
+//     while typing into inputs (iOS Safari auto-zooms when font-size < 16px
+//     and any of these is missing).
+//   • opt into edge-to-edge with `viewport-fit=cover` so safe-area-insets
+//     get real values on iPhones with home-indicators / notches.
+//   • set `interactiveWidget: "resizes-content"` so Android Chrome shrinks
+//     the layout instead of overlaying the keyboard on top of game UI.
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: "cover",
   themeColor: "#fff6ea",
+  interactiveWidget: "resizes-content",
 };
 
 export const metadata: Metadata = {
@@ -34,9 +46,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ar" dir="rtl" className={`${tajawal.variable} h-full antialiased`}>
-      <body className="min-h-[100dvh] min-h-full font-sans text-[#5e3011] antialiased">
+      <body className="app-shell font-sans text-[#5e3011] antialiased">
         <AuthProvider>
-          <div className="relative min-h-full overflow-x-hidden">
+          <div className="relative h-[100dvh] w-full overflow-x-hidden">
             {children}
           </div>
         </AuthProvider>
