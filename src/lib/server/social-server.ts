@@ -219,23 +219,25 @@ export async function respondFriendRequest(
   }
 
   await db.runTransaction(async (tx) => {
-    const inbox = await tx.get(inboxRef);
-    if (!inbox.exists) throw new HttpError(404, "الطلب غير موجود.");
     const aFriends = db.collection(col.users).doc(fromUid).collection(userSub.friends).doc(toUid);
+    const bFriends = db.collection(col.users).doc(toUid).collection(userSub.friends).doc(fromUid);
+    const reverseRef = db.collection(col.users).doc(fromUid).collection(userSub.friendInbox).doc(toUid);
+
+    // Firestore requires every read before any write in a transaction.
+    const inbox = await tx.get(inboxRef);
     const already = await tx.get(aFriends);
+    const rev = await tx.get(reverseRef);
+
+    if (!inbox.exists) throw new HttpError(404, "الطلب غير موجود.");
     if (already.exists) {
       tx.delete(inboxRef);
       return;
     }
 
-    const bFriends = db.collection(col.users).doc(toUid).collection(userSub.friends).doc(fromUid);
     const now = FieldValue.serverTimestamp();
     tx.set(aFriends, { friendUid: toUid, since: now });
     tx.set(bFriends, { friendUid: fromUid, since: now });
     tx.delete(inboxRef);
-
-    const reverseRef = db.collection(col.users).doc(fromUid).collection(userSub.friendInbox).doc(toUid);
-    const rev = await tx.get(reverseRef);
     if (rev.exists) tx.delete(reverseRef);
   });
 }

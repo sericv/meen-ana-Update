@@ -43,20 +43,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Finish redirect OAuth before subscribing — avoids racing redirect completion
     // against the first `onAuthStateChanged` emission on mobile WebKit.
-    void getRedirectResult(auth)
-      .catch(() => undefined)
-      .finally(() => {
-        if (cancelled) return;
-        unsub = onAuthStateChanged(auth, (u) => {
-          setUser(u);
-          setLoading(false);
-          if (u) {
-            void upsertUserDocument(u).catch(() => {
-              // offline / rules — non-fatal; auth user still valid
-            });
-          }
-        });
+    // Do not swallow errors silently: misconfigured OAuth shows up here.
+    void (async () => {
+      try {
+        await getRedirectResult(auth);
+      } catch (e) {
+        console.warn("[auth] getRedirectResult", e);
+      }
+      if (cancelled) return;
+      unsub = onAuthStateChanged(auth, (u) => {
+        setUser(u);
+        setLoading(false);
+        if (u) {
+          void upsertUserDocument(u).catch(() => {
+            // offline / rules — non-fatal; auth user still valid
+          });
+        }
       });
+    })();
 
     return () => {
       cancelled = true;
@@ -71,8 +75,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     provider.addScope("email");
     provider.setCustomParameters({ prompt: "select_account" });
 
+    // Redirect flow: do not pass `browserPopupRedirectResolver` — it is for popups and
+    // can interact poorly with full-page OAuth on mobile Safari / Samsung Internet.
     if (preferGoogleAuthRedirect()) {
-      await signInWithRedirect(auth, provider, browserPopupRedirectResolver);
+      await signInWithRedirect(auth, provider);
       return;
     }
 
@@ -87,7 +93,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         code === "auth/popup-closed-by-user" ||
         code === "auth/operation-not-supported-in-this-environment"
       ) {
-        await signInWithRedirect(auth, provider, browserPopupRedirectResolver);
+        await signInWithRedirect(auth, provider);
         return;
       }
       throw e;

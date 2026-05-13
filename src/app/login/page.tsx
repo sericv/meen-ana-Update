@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useMemo } from "react";
+import { Suspense, startTransition, useEffect, useMemo } from "react";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { Button } from "@/components/ui/Button";
 import { Panel } from "@/components/ui/Panel";
@@ -14,7 +14,15 @@ function LoginInner() {
   const next = useMemo(() => params.get("next") || "/", [params]);
 
   useEffect(() => {
-    if (!loading && user) router.replace(next);
+    if (loading || !user) return;
+    // Defer navigation one frame so redirect / account-picker auth state can settle on mobile
+    // before Next.js replaces the route (avoids races with OAuth return and in-app browsers).
+    const id = requestAnimationFrame(() => {
+      startTransition(() => {
+        router.replace(next);
+      });
+    });
+    return () => cancelAnimationFrame(id);
   }, [loading, user, router, next]);
 
   return (
