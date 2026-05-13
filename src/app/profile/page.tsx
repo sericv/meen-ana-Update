@@ -6,7 +6,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { AuthGate } from "@/components/auth/AuthGate";
 import { ProfileAvatar } from "@/components/profile/ProfileAvatar";
 import { useAuth } from "@/components/providers/AuthProvider";
+import { useDefaultOnlinePresence } from "@/hooks/useDefaultOnlinePresence";
 import { usePlayerCosmetics } from "@/hooks/usePlayerCosmetics";
+import { isGoogleLinkedUser } from "@/lib/auth/google-user";
 import { playUIButton, resumeAudioContext } from "@/lib/audio/game-sounds";
 import { updateUserCosmetics } from "@/lib/firestore/users.client";
 import {
@@ -28,6 +30,7 @@ function ProfileInner() {
   const router = useRouter();
   const { user } = useAuth();
   const uid = user?.uid ?? null;
+  useDefaultOnlinePresence(uid, isGoogleLinkedUser(user));
   const map = usePlayerCosmetics(uid ? [uid] : []);
   const live = uid ? map[uid] : undefined;
   const resolved = useMemo(() => normalizeCosmetic(live as Record<string, unknown> | undefined), [live]);
@@ -95,7 +98,18 @@ function ProfileInner() {
           >
             شخصيتك
           </h1>
-          <span className="w-16" />
+          {isGoogleLinkedUser(user) ? (
+            <motion.button
+              type="button"
+              whileTap={{ scale: 0.94 }}
+              onClick={() => router.push("/friends")}
+              className="rounded-2xl bg-gradient-to-b from-[#ede9fe] to-[#f5f3ff] px-3 py-2 text-xs font-extrabold text-[#5b21b6] shadow-[0_4px_12px_rgba(139,92,246,0.2)] ring-1 ring-[#c4b5fd]"
+            >
+              الأصدقاء
+            </motion.button>
+          ) : (
+            <span className="w-16" />
+          )}
         </header>
 
         <motion.section

@@ -7,6 +7,16 @@ export const col = {
   matchmakingPool: "matchmakingPool",
   matchmakingResults: "matchmakingResults",
   roomCodes: "roomCodes",
+  /** Doc id = usernameLower; fields: uid, usernameLower, usernameDisplay */
+  usernameClaims: "usernameClaims",
+} as const;
+
+/** Subcollections under `users/{uid}` — social graph (writes via Admin API). */
+export const userSub = {
+  friends: "friends",
+  friendInbox: "friendInbox",
+  roomInvites: "roomInvites",
+  socialInbox: "socialInbox",
 } as const;
 
 export function roomMessagesCol(roomId: string) {

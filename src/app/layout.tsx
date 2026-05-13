@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Tajawal } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/components/providers/AuthProvider";
+import { GlobalRoomInviteDock } from "@/components/social/GlobalRoomInviteDock";
 
 const tajawal = Tajawal({
   subsets: ["arabic", "latin"],
@@ -48,6 +49,7 @@ export default function RootLayout({
     <html lang="ar" dir="rtl" className={`${tajawal.variable} h-full antialiased`}>
       <body className="app-shell font-sans text-[#5e3011] antialiased">
         <AuthProvider>
+          <GlobalRoomInviteDock />
           <div className="relative h-[100dvh] w-full overflow-x-hidden">
             {children}
           </div>

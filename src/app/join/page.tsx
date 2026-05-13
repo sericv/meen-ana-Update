@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { AuthGate } from "@/components/auth/AuthGate";
 import { useAuth } from "@/components/providers/AuthProvider";
+import { useDefaultOnlinePresence } from "@/hooks/useDefaultOnlinePresence";
+import { isGoogleLinkedUser } from "@/lib/auth/google-user";
 import { joinRoomByCode } from "@/lib/firestore/rooms.client";
 
 /* ─── inline SVG icons ──────────────────────────────────────────── */
@@ -182,6 +184,7 @@ export default function JoinPage() {
 /* ─── main screen ───────────────────────────────────────────────── */
 function JoinInner() {
   const { user } = useAuth();
+  useDefaultOnlinePresence(user?.uid ?? null, isGoogleLinkedUser(user));
   const router = useRouter();
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);

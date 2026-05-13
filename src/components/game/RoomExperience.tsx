@@ -15,6 +15,7 @@ import {
   type ChangeEvent,
 } from "react";
 import { useAuth } from "@/components/providers/AuthProvider";
+import { isGoogleLinkedUser } from "@/lib/auth/google-user";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Panel } from "@/components/ui/Panel";
@@ -29,6 +30,7 @@ import {
   playRoomJoin,
   playRoomReady,
   playTurnCue,
+  playUIButton,
   playWinSparkle,
   playWrongGuess,
   resumeAudioContext,
@@ -45,10 +47,13 @@ import { generateGuessAliases } from "@/lib/game/guess-alias-generator";
 import { setPlayerReady } from "@/lib/firestore/rooms.client";
 import { ProfileAvatar } from "@/components/profile/ProfileAvatar";
 import { usePlayerCosmetics } from "@/hooks/usePlayerCosmetics";
+import { useGamePresenceReporter } from "@/hooks/useGamePresenceReporter";
+import { useSocialInboxDeclineToast } from "@/hooks/useSocialInboxDeclineToast";
 import { useRoomWire } from "@/hooks/useRoomWire";
 import { useRouter } from "next/navigation";
 import { ConfettiBurst } from "@/components/game/ConfettiBurst";
 import { MatchVsIntroOverlay } from "@/components/game/MatchVsIntroOverlay";
+import { RoomInviteFriendsPanel } from "@/components/social/RoomInviteFriendsPanel";
 import type { PlayerCosmetic } from "@/lib/profile/cosmetics";
 import { normalizeCosmetic } from "@/lib/profile/cosmetics";
 import type { GameCard, ChatMessage } from "@/types";
@@ -1202,6 +1207,7 @@ export function RoomExperience({ roomId }: Props) {
   const [lobbyCustomName, setLobbyCustomName] = useState("");
   const [lobbyCustomPreview, setLobbyCustomPreview] = useState<string | null>(null);
   const [lobbyCustomBusy, setLobbyCustomBusy] = useState(false);
+  const [friendInviteOpen, setFriendInviteOpen] = useState(false);
   const [customSavePulse, setCustomSavePulse] = useState(0);
 
   const [clock, setClock] = useState(() => Date.now());
@@ -1240,6 +1246,31 @@ export function RoomExperience({ roomId }: Props) {
     (_current: boolean, next: boolean) => next,
   );
   const isHost = Boolean(uid && room?.hostUid === uid);
+  const googleSoc = isGoogleLinkedUser(user);
+  useGamePresenceReporter({
+    uid: googleSoc ? uid : null,
+    enabled: Boolean(googleSoc && uid && room),
+    presence:
+      room?.status === "lobby" ? "in_lobby" : room?.status === "playing" ? "in_match" : "online",
+    roomId: room?.id ?? null,
+    resetOnUnmount: true,
+  });
+
+  const declineTimerRef = useRef<number | null>(null);
+  const toastDecline = useCallback((msg: string) => {
+    if (declineTimerRef.current) window.clearTimeout(declineTimerRef.current);
+    setBanner(msg);
+    declineTimerRef.current = window.setTimeout(() => {
+      setBanner(null);
+      declineTimerRef.current = null;
+    }, 5500);
+  }, []);
+  useSocialInboxDeclineToast(
+    uid,
+    Boolean(googleSoc && isHost && room?.status === "lobby"),
+    toastDecline,
+  );
+
   const bothReady = Boolean(
     room?.playerUids?.length === 2 &&
       room.playerUids.every((pid) =>
@@ -1921,6 +1952,35 @@ export function RoomExperience({ roomId }: Props) {
                 </div>
               )}
 
+              {!randomLobby && isHost && googleSoc ? (
+                <motion.button
+                  type="button"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.96 }}
+                  onClick={() => {
+                    resumeAudioContext();
+                    playUIButton();
+                    setFriendInviteOpen(true);
+                  }}
+                  className="mb-6 flex w-full items-center justify-center gap-2 rounded-2xl py-3.5 text-sm font-black text-white sm:text-base"
+                  style={{
+                    background: "linear-gradient(180deg,#B05CFF 0%,#7A3CFF 100%)",
+                    boxShadow:
+                      "inset 0 2px 0 rgba(255,255,255,0.38), 0 8px 0 #5B22D6, 0 14px 28px rgba(122,60,255,0.38)",
+                  }}
+                >
+                  <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5 shrink-0" aria-hidden>
+                    <path
+                      d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.48 0-2.75.81-3.45 2H8c-.55 0-1 .45-1 1v5.09c0 .05.01.1.02.15C7.72 15.4 8.85 16 10 16h5v-1h-3.45c1.18-.69 2-1.95 2-3.44 0-1.48-.81-2.75-2-3.45V11h5z"
+                      fill="white"
+                      fillOpacity=".92"
+                    />
+                    <circle cx="8.5" cy="8.5" r="1.5" fill="white" />
+                  </svg>
+                  دعوة الأصدقاء
+                </motion.button>
+              ) : null}
+
               {/* ── Player visual row ── */}
               <div className="flex items-center justify-center gap-2 sm:gap-4">
 
@@ -2593,6 +2653,17 @@ export function RoomExperience({ roomId }: Props) {
             </div>
           </motion.div>
         </div>
+
+        <AnimatePresence>
+          {friendInviteOpen && uid ? (
+            <RoomInviteFriendsPanel
+              key="friend-invite"
+              myUid={uid}
+              roomId={room.id}
+              onClose={() => setFriendInviteOpen(false)}
+            />
+          ) : null}
+        </AnimatePresence>
 
         {/* ── Leave confirm modal ── */}
         <AnimatePresence>

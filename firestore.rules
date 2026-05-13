@@ -24,6 +24,32 @@ service cloud.firestore {
       allow create: if signedIn() && request.auth.uid == userId;
       allow update: if signedIn() && request.auth.uid == userId;
       allow delete: if false;
+
+      match /friends/{friendId} {
+        allow read: if signedIn() && request.auth.uid == userId;
+        allow write: if false;
+      }
+
+      match /friendInbox/{senderId} {
+        allow read: if signedIn() && request.auth.uid == userId;
+        allow write: if false;
+      }
+
+      match /roomInvites/{inviteId} {
+        allow read: if signedIn() && request.auth.uid == userId;
+        allow write: if false;
+      }
+
+      match /socialInbox/{id} {
+        allow read: if signedIn() && request.auth.uid == userId;
+        allow write: if false;
+      }
+    }
+
+    // Username uniqueness ledger — server-only writes (Next.js Admin SDK).
+    match /usernameClaims/{claimId} {
+      allow read: if signedIn();
+      allow write: if false;
     }
 
     match /categories/{id} {
