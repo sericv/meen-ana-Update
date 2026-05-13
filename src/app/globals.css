@@ -150,6 +150,20 @@ label {
   scrollbar-width: none;
 }
 
+/* Chat message list: no smooth scroll (reduces jank with mobile keyboard). */
+.scroll-y-chat {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: auto;
+  overflow-anchor: none;
+  scrollbar-width: none;
+}
+.scroll-y-chat::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
 /* In-room opponent card: height follows VisualViewport (`--app-vh`) so the
    chat column keeps usable space when the soft keyboard is open (svh/dvh
    alone can stay “full screen” on some mobile browsers). */
@@ -170,6 +184,15 @@ html.kbd-open .gameplay-opponent-card-visual {
 
 html.kbd-open .gameplay-card-compact {
   max-height: min(120px, calc(var(--app-vh, 100dvh) * 0.14));
+}
+
+/* Fixed-size opponent thumb in chat header (no aspect-ratio flex fights). */
+.gameplay-card-thumb {
+  height: 3.5rem;
+  width: 2.75rem;
+  flex-shrink: 0;
+  border-radius: 0.65rem;
+  overflow: hidden;
 }
 
 /* ─── Keyboard-safe footer: use ONLY on pages whose root height is still
