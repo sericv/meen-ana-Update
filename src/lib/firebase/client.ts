@@ -8,7 +8,7 @@ import {
   indexedDBLocalPersistence,
   initializeAuth,
 } from "firebase/auth";
-import { getFirestore, type Firestore } from "firebase/firestore";
+import { type Firestore, getFirestore } from "firebase/firestore";
 import { getStorage, type FirebaseStorage } from "firebase/storage";
 import { firebaseConfig } from "./config";
 
@@ -49,6 +49,14 @@ export function getFirebaseAuth(): Auth {
   return auth;
 }
 
+/**
+ * Single Firestore instance (default in-memory local cache).
+ * We intentionally avoid `persistentLocalCache` + multi-tab IndexedDB here:
+ * that stack has been linked to rare INTERNAL ASSERTION failures and odd
+ * watch-pipeline state when combined with dev HMR, mobile WebViews, and rapid
+ * listener churn during gameplay. Default memory cache keeps watches stable;
+ * realtime sync is server-driven via snapshots anyway.
+ */
 export function getFirebaseDb(): Firestore {
   if (!db) db = getFirestore(getFirebaseApp());
   return db;

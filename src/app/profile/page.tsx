@@ -144,7 +144,7 @@ function ProfileInner() {
 
         <section className="mb-8 rounded-[1.75rem] border border-[#f4d4af] bg-[#fffaf5] p-4 shadow-inner">
           <p className="mb-3 text-sm font-black text-[#8a3f16]">إطار متحرك</p>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          <div className="grid max-h-[min(52vh,420px)] grid-cols-2 gap-2 overflow-y-auto overscroll-contain pr-0.5 sm:grid-cols-3 lg:grid-cols-4">
             {FRAME_OPTIONS.map((f) => (
               <motion.button
                 key={f.id}

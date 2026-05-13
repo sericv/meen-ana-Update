@@ -22,6 +22,19 @@ export const FRAME_OPTIONS = [
   { id: "cat", labelAr: "آذان قطّ" },
   { id: "orbit", labelAr: "حلقة طاقة" },
   { id: "crystal", labelAr: "كريستال" },
+  { id: "flame", labelAr: "لهيب" },
+  { id: "pulse", labelAr: "نبض كهربائي" },
+  { id: "galaxy", labelAr: "مجرة" },
+  { id: "hearts", labelAr: "قلوب طائرة" },
+  { id: "royal", labelAr: "ملكي" },
+  { id: "neonShard", labelAr: "نيون بلوري" },
+  { id: "goldSpark", labelAr: "ذهبي لامع" },
+  { id: "wave", labelAr: "موجة طاقة" },
+  { id: "ghostFlame", labelAr: "لهب أشباح" },
+  { id: "rainbow", labelAr: "قوس قزح" },
+  { id: "bolt", labelAr: "برق" },
+  { id: "softAura", labelAr: "هالة ناعمة" },
+  { id: "stars", labelAr: "نجوم" },
 ] as const;
 
 export type FrameId = (typeof FRAME_OPTIONS)[number]["id"];

@@ -387,16 +387,20 @@ export async function handleTurnTimeout(args: {
 
     const dl = m.turnDeadline as Timestamp | undefined;
     const dlMs = dl?.toMillis?.() ?? 0;
+    // Server-authoritative: once the deadline has passed, either player may
+    // invoke this. That way the opponent's client can advance the match when
+    // the actor's tab is backgrounded and timers are throttled (previously
+    // only the actor could call, which caused stuck turns and frozen timers).
     if (!dlMs || Date.now() < dlMs - 500) return { advanced: false };
 
     const phase = (m.chatPhase as string) === "answer" ? "answer" : "question";
     const actorUid = String(m.actorUid ?? "");
-    if (actorUid !== args.uid) return { advanced: false };
+    if (!actorUid) return { advanced: false };
 
     const sysRef = messagesRef(db, args.roomId).doc();
 
     if (phase === "question") {
-      const opp = opponentOf(order, args.uid);
+      const opp = opponentOf(order, actorUid);
       if (!opp) throw new Error("BAD_MATCH");
       tx.set(sysRef, {
         senderUid: "system",
@@ -415,7 +419,7 @@ export async function handleTurnTimeout(args: {
         { merge: true },
       );
     } else {
-      const opp = opponentOf(order, args.uid);
+      const opp = opponentOf(order, actorUid);
       if (!opp) throw new Error("BAD_MATCH");
       tx.set(sysRef, {
         senderUid: "system",

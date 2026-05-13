@@ -94,6 +94,8 @@ function roomWireSignature(r: Room): string {
     tutorial: r.tutorial,
     openJoin: r.openJoin,
     randomMatch: r.randomMatch,
+    vsBot: r.vsBot,
+    botUid: r.botUid,
     questionTimerSec: r.questionTimerSec,
     answerTimerSec: r.answerTimerSec,
     leftByUid: r.leftByUid,
@@ -182,13 +184,15 @@ export function useRoomWire(roomId: string | null, myUid: string | null) {
   useEffect(() => {
     if (!roomId) {
       roomSigRef.current = null;
-      queueMicrotask(() => setRoom(null));
+      setRoom(null);
       return;
     }
+    let cancelled = false;
     const db = getFirebaseDb();
-    return onSnapshot(
+    const unsub = onSnapshot(
       doc(db, col.rooms, roomId),
       (snap) => {
+        if (cancelled) return;
         if (!snap.exists()) {
           roomSigRef.current = null;
           setRoom(null);
@@ -208,6 +212,8 @@ export function useRoomWire(roomId: string | null, myUid: string | null) {
           tutorial: Boolean(d.tutorial),
           openJoin: Boolean(d.openJoin),
           randomMatch: Boolean(d.randomMatch),
+          vsBot: d.vsBot !== undefined ? Boolean(d.vsBot) : undefined,
+          botUid: d.botUid != null ? String(d.botUid) : undefined,
           questionTimerSec: d.questionTimerSec !== undefined ? Number(d.questionTimerSec) : undefined,
           answerTimerSec: d.answerTimerSec !== undefined ? Number(d.answerTimerSec) : undefined,
           leftByUid: d.leftByUid !== undefined ? String(d.leftByUid) : undefined,
@@ -226,22 +232,30 @@ export function useRoomWire(roomId: string | null, myUid: string | null) {
         roomSigRef.current = sig;
         setRoom(next);
       },
-      (e) => setWireError(e.message),
+      (e) => {
+        if (!cancelled) setWireError(e.message);
+      },
     );
+    return () => {
+      cancelled = true;
+      unsub();
+    };
   }, [roomId]);
 
   // Match snapshot (simplified — no turn fields)
   useEffect(() => {
     if (!room?.matchId) {
       matchSigRef.current = null;
-      queueMicrotask(() => setMatch(null));
+      setMatch(null);
       return;
     }
+    let cancelled = false;
     const db = getFirebaseDb();
     const mid = room.matchId;
-    return onSnapshot(
+    const unsub = onSnapshot(
       doc(db, col.matches, mid),
       (snap) => {
+        if (cancelled) return;
         if (!snap.exists()) {
           matchSigRef.current = null;
           setMatch(null);
@@ -270,8 +284,14 @@ export function useRoomWire(roomId: string | null, myUid: string | null) {
         matchSigRef.current = sig;
         setMatch(next);
       },
-      (e) => setWireError(e.message),
+      (e) => {
+        if (!cancelled) setWireError(e.message);
+      },
     );
+    return () => {
+      cancelled = true;
+      unsub();
+    };
   }, [room?.matchId]);
 
   // Opponent card — read directly from `playerCards/{opponentUid}` via a
@@ -281,13 +301,14 @@ export function useRoomWire(roomId: string | null, myUid: string | null) {
   useEffect(() => {
     if (!roomId || !opponentUid) {
       opponentCardSigRef.current = null;
-      queueMicrotask(() => setOpponentCard(null));
+      setOpponentCard(null);
       return;
     }
     const db = getFirebaseDb();
     const ouid = opponentUid;
     let fallbackTimer: ReturnType<typeof setInterval> | null = null;
     let cancelled = false;
+    let snapCancelled = false;
 
     const applyCard = (c: {
       cardId?: unknown; name?: unknown; nameAr?: unknown;
@@ -331,6 +352,7 @@ export function useRoomWire(roomId: string | null, myUid: string | null) {
     const unsub = onSnapshot(
       doc(db, col.rooms, roomId, "playerCards", ouid),
       (snap) => {
+        if (snapCancelled) return;
         if (!snap.exists()) {
           opponentCardSigRef.current = null;
           setOpponentCard(null);
@@ -339,6 +361,7 @@ export function useRoomWire(roomId: string | null, myUid: string | null) {
         applyCard(snap.data());
       },
       () => {
+        if (snapCancelled) return;
         // Permission denied (rules drift) or transient error: switch to
         // server-driven polling until the match ends.
         setWireError(null);
@@ -349,6 +372,7 @@ export function useRoomWire(roomId: string | null, myUid: string | null) {
     );
 
     return () => {
+      snapCancelled = true;
       cancelled = true;
       if (fallbackTimer) clearInterval(fallbackTimer);
       unsub();
@@ -359,9 +383,10 @@ export function useRoomWire(roomId: string | null, myUid: string | null) {
   useEffect(() => {
     if (!roomId) {
       messagesSigRef.current = null;
-      queueMicrotask(() => setMessages([]));
+      setMessages([]);
       return;
     }
+    let cancelled = false;
     const db = getFirebaseDb();
     const rid = roomId;
     const q = query(
@@ -369,9 +394,10 @@ export function useRoomWire(roomId: string | null, myUid: string | null) {
       orderBy("createdAt", "asc"),
       limit(150),
     );
-    return onSnapshot(
+    const unsub = onSnapshot(
       q,
       (snap) => {
+        if (cancelled) return;
         const next: ChatMessage[] = snap.docs.map((d) => {
           const x = d.data();
           return {
@@ -390,8 +416,14 @@ export function useRoomWire(roomId: string | null, myUid: string | null) {
         messagesSigRef.current = sig;
         setMessages(next);
       },
-      (e) => setWireError(e.message),
+      (e) => {
+        if (!cancelled) setWireError(e.message);
+      },
     );
+    return () => {
+      cancelled = true;
+      unsub();
+    };
   }, [roomId]);
 
   // Presence heartbeat
@@ -403,7 +435,7 @@ export function useRoomWire(roomId: string | null, myUid: string | null) {
     void tick();
     const id = window.setInterval(() => void tick(), 15000);
     return () => window.clearInterval(id);
-  }, [roomId, opponentUid]);
+  }, [roomId, myUid]);
 
   return { room, match, messages, opponentCard, opponentUid, wireError };
 }

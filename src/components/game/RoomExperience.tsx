@@ -1,9 +1,19 @@
 "use client";
 
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import Image from "next/image";
 import type { CSSProperties, MouseEvent } from "react";
-import { useCallback, useEffect, useMemo, useRef, useState, memo, type ChangeEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useOptimistic,
+  useRef,
+  useState,
+  startTransition,
+  memo,
+  type ChangeEvent,
+} from "react";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -38,6 +48,7 @@ import { usePlayerCosmetics } from "@/hooks/usePlayerCosmetics";
 import { useRoomWire } from "@/hooks/useRoomWire";
 import { useRouter } from "next/navigation";
 import { ConfettiBurst } from "@/components/game/ConfettiBurst";
+import { MatchVsIntroOverlay } from "@/components/game/MatchVsIntroOverlay";
 import type { PlayerCosmetic } from "@/lib/profile/cosmetics";
 import { normalizeCosmetic } from "@/lib/profile/cosmetics";
 import type { GameCard, ChatMessage } from "@/types";
@@ -940,14 +951,37 @@ function CardShowdown({
   isWinner: boolean;
   tilt: number;
 }) {
+  const reduceMotion = useReducedMotion();
+  const [shineKey, setShineKey] = useState(0);
+
+  useEffect(() => {
+    if (reduceMotion) return;
+    const t = window.setTimeout(() => setShineKey((k) => k + 1), 520 + (side === "me" ? 0 : 140));
+    return () => window.clearTimeout(t);
+  }, [reduceMotion, side, card?.imageUrl]);
+
+  const flipInitial = reduceMotion ? { rotateY: 0, opacity: 1, scale: 1 } : { rotateY: 82, opacity: 0.15, scale: 0.94 };
+  const flipAnimate = { rotateY: 0, opacity: 1, scale: 1 };
+
+  const burstSpecs = useMemo(
+    () =>
+      [0, 1, 2, 3, 4, 5, 6, 7].map((i) => ({
+        i,
+        angle: (i / 8) * Math.PI * 2,
+        dist: 36 + (i % 3) * 10,
+        delay: (side === "me" ? 0.18 : 0.32) + i * 0.02,
+      })),
+    [side],
+  );
+
   return (
     <motion.div
-      initial={{ opacity: 0, y: 24, rotate: tilt * 2 }}
+      initial={reduceMotion ? { opacity: 1, y: 0, rotate: tilt } : { opacity: 0, y: 28, rotate: tilt * 2 }}
       animate={{ opacity: 1, y: 0, rotate: tilt }}
-      transition={{ type: "spring", stiffness: 260, damping: 22, delay: side === "me" ? 0.15 : 0.30 }}
+      transition={{ type: "spring", stiffness: 260, damping: 22, delay: side === "me" ? 0.06 : 0.14 }}
       className="relative flex min-w-0 flex-1 flex-col items-center"
+      style={{ perspective: reduceMotion ? undefined : 1100 }}
     >
-      {/* Owner label ribbon — clearly identifies which side */}
       <div
         className="z-10 mb-1.5 inline-flex items-center gap-1 rounded-full px-3 py-1 text-[10px] font-black sm:text-xs"
         style={
@@ -968,74 +1002,150 @@ function CardShowdown({
         {ownerLabel}
       </div>
 
-      {/* card wrapper — keeps fixed aspect ratio so image never crops */}
       <motion.div
-        animate={{ y: [0, -4, 0] }}
+        animate={reduceMotion ? undefined : { y: [0, -4, 0] }}
         transition={{ duration: 4 + (side === "me" ? 0 : 0.5), repeat: Infinity, ease: "easeInOut" }}
         className="relative w-full max-w-[160px] sm:max-w-[200px] lg:max-w-[240px] xl:max-w-[260px]"
       >
-        {/* the actual card */}
-        <div
-          className="relative overflow-hidden rounded-[1.1rem] sm:rounded-[1.4rem]"
-          style={{
-            background: "linear-gradient(180deg,#FFFCF4 0%,#FFF1DE 100%)",
-            boxShadow: isWinner
-              ? "0 0 0 2.5px rgba(255,208,96,0.7), 0 0 32px rgba(255,190,50,0.50), 0 16px 36px rgba(196,120,40,0.30), inset 0 2px 0 rgba(255,255,255,0.85)"
-              : "0 0 0 2px rgba(244,196,141,0.55), 0 12px 28px rgba(196,120,40,0.20), inset 0 2px 0 rgba(255,255,255,0.75)",
-          }}
-        >
-          {/* corner glows */}
-          <div className="pointer-events-none absolute -left-3 -top-3 h-14 w-14 rounded-full bg-[#ffd080]/30 blur-2xl" />
-          <div className="pointer-events-none absolute -right-3 bottom-0 h-14 w-14 rounded-full bg-[#ffb060]/22 blur-2xl" />
+        {!reduceMotion && card?.imageUrl ? (
+          <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center overflow-visible">
+            {burstSpecs.map(({ i, angle, dist, delay }) => (
+              <motion.span
+                key={`b-${side}-${i}`}
+                aria-hidden
+                className="absolute h-2 w-2 rounded-full bg-[#ffd060]"
+                style={{
+                  boxShadow: "0 0 10px rgba(255,200,80,0.9)",
+                  left: "50%",
+                  top: "42%",
+                  marginLeft: -4,
+                  marginTop: -4,
+                }}
+                initial={{ opacity: 0, scale: 0.2, x: 0, y: 0 }}
+                animate={{
+                  opacity: [0, 1, 0],
+                  scale: [0.2, 1.1, 0.4],
+                  x: Math.cos(angle) * dist,
+                  y: Math.sin(angle) * dist * -1,
+                }}
+                transition={{ duration: 0.65, delay, ease: "easeOut" }}
+              />
+            ))}
+          </div>
+        ) : null}
 
-          {/* Image area — FIXED 3:4 aspect ratio with creamy backdrop.
-              object-contain ensures the entire image is always visible. */}
+        <motion.div
+          initial={flipInitial}
+          animate={flipAnimate}
+          transition={{
+            type: "spring",
+            stiffness: reduceMotion ? 400 : 200,
+            damping: reduceMotion ? 40 : 19,
+            delay: side === "me" ? 0.08 : 0.22,
+          }}
+          style={{ transformStyle: "preserve-3d" }}
+          className="relative"
+        >
+          {!reduceMotion && card?.imageUrl ? (
+            <motion.div
+              aria-hidden
+              key={shineKey}
+              initial={{ opacity: 0, x: "-40%" }}
+              animate={{ opacity: [0, 0.55, 0], x: ["-40%", "120%"] }}
+              transition={{ duration: 0.85, ease: "easeInOut" }}
+              className="pointer-events-none absolute inset-0 z-10 rounded-[1.1rem] sm:rounded-[1.4rem]"
+              style={{
+                background: "linear-gradient(115deg, transparent 0%, rgba(255,255,255,0.55) 45%, transparent 72%)",
+              }}
+            />
+          ) : null}
+
           <div
-            className="relative w-full overflow-hidden rounded-t-[1rem] sm:rounded-t-[1.3rem]"
+            className="relative overflow-hidden rounded-[1.1rem] sm:rounded-[1.4rem]"
             style={{
-              aspectRatio: "3 / 4",
-              background: "linear-gradient(135deg,#FFF6E5 0%,#FFEBC9 100%)",
+              background: "linear-gradient(180deg,#FFFCF4 0%,#FFF1DE 100%)",
+              boxShadow: isWinner
+                ? "0 0 0 2.5px rgba(255,208,96,0.7), 0 0 32px rgba(255,190,50,0.50), 0 16px 36px rgba(196,120,40,0.30), inset 0 2px 0 rgba(255,255,255,0.85)"
+                : "0 0 0 2px rgba(244,196,141,0.55), 0 12px 28px rgba(196,120,40,0.20), inset 0 2px 0 rgba(255,255,255,0.75)",
             }}
           >
-            {card?.imageUrl ? (
-              <>
-                <CardImage src={card.imageUrl} alt={card.nameAr || fallbackLabel} fit="contain" />
-                {/* very subtle inner ring */}
-                <div className="pointer-events-none absolute inset-0 rounded-t-[1rem] ring-1 ring-inset ring-white/30 sm:rounded-t-[1.3rem]" />
-                {/* winner shimmer */}
-                {isWinner && (
-                  <motion.div
-                    aria-hidden
-                    animate={{ opacity: [0.0, 0.45, 0.0], x: ["-110%", "120%"] }}
-                    transition={{ duration: 2.6, repeat: Infinity, ease: "easeInOut" }}
-                    className="pointer-events-none absolute inset-y-0 left-0 w-1/3"
-                    style={{
-                      background: "linear-gradient(120deg, transparent 0%, rgba(255,255,255,0.45) 50%, transparent 100%)",
-                    }}
-                  />
-                )}
-              </>
-            ) : (
-              <div className="flex h-full w-full items-center justify-center text-4xl">❓</div>
-            )}
-          </div>
+            <motion.div
+              aria-hidden
+              className="pointer-events-none absolute -left-3 -top-3 z-[1] h-14 w-14 rounded-full bg-[#ffd080]/35 blur-2xl"
+              animate={reduceMotion ? undefined : { scale: [1, 1.15, 1], opacity: [0.35, 0.6, 0.35] }}
+              transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
+            />
+            <motion.div
+              aria-hidden
+              className="pointer-events-none absolute -right-3 bottom-0 z-[1] h-14 w-14 rounded-full bg-[#ffb060]/28 blur-2xl"
+              animate={reduceMotion ? undefined : { scale: [1, 1.12, 1], opacity: [0.28, 0.5, 0.28] }}
+              transition={{ duration: 2.6, repeat: Infinity, ease: "easeInOut", delay: 0.4 }}
+            />
 
-          {/* Footer — card name + tiny player tag */}
-          <div className="px-2 pb-2 pt-1.5 text-center sm:px-3 sm:pb-3 sm:pt-2">
-            <p
-              className="truncate font-black text-[#8a3f16]"
-              style={{ fontSize: "clamp(0.78rem, 1.6vw, 1.05rem)" }}
+            {!reduceMotion && card?.imageUrl ? (
+              <div className="pointer-events-none absolute inset-0 z-[2] overflow-hidden rounded-t-[1rem] sm:rounded-t-[1.3rem]">
+                {[0, 1, 2, 3].map((i) => (
+                  <motion.span
+                    key={`sp-${side}-${i}`}
+                    aria-hidden
+                    className="absolute rounded-full bg-white/70"
+                    style={{
+                      width: 3 + (i % 2),
+                      height: 3 + (i % 2),
+                      left: `${18 + i * 22}%`,
+                      top: `${12 + (i % 3) * 18}%`,
+                    }}
+                    animate={{ y: [0, -10, 0], opacity: [0.2, 0.85, 0.2], scale: [0.8, 1.1, 0.8] }}
+                    transition={{ duration: 2.4 + i * 0.2, repeat: Infinity, delay: i * 0.35, ease: "easeInOut" }}
+                  />
+                ))}
+              </div>
+            ) : null}
+
+            <div
+              className="relative z-[3] w-full overflow-hidden rounded-t-[1rem] sm:rounded-t-[1.3rem]"
+              style={{
+                aspectRatio: "3 / 4",
+                background: "linear-gradient(135deg,#FFF6E5 0%,#FFEBC9 100%)",
+              }}
             >
-              {card?.nameAr || fallbackLabel}
-            </p>
-            <p
-              className={`mt-0.5 truncate font-bold ${isWinner ? "text-[#a35200]" : "text-[#bc7a45]"}`}
-              style={{ fontSize: "clamp(0.6rem, 1.1vw, 0.75rem)" }}
-            >
-              {playerLabel}
-            </p>
+              {card?.imageUrl ? (
+                <>
+                  <CardImage src={card.imageUrl} alt={card.nameAr || fallbackLabel} fit="contain" />
+                  <div className="pointer-events-none absolute inset-0 rounded-t-[1rem] ring-1 ring-inset ring-white/30 sm:rounded-t-[1.3rem]" />
+                  {isWinner && (
+                    <motion.div
+                      aria-hidden
+                      animate={{ opacity: [0.0, 0.4, 0.0], x: ["-110%", "120%"] }}
+                      transition={{ duration: 2.6, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
+                      className="pointer-events-none absolute inset-y-0 left-0 z-[4] w-1/3"
+                      style={{
+                        background: "linear-gradient(120deg, transparent 0%, rgba(255,255,255,0.45) 50%, transparent 100%)",
+                      }}
+                    />
+                  )}
+                </>
+              ) : (
+                <div className="flex h-full w-full items-center justify-center text-4xl">❓</div>
+              )}
+            </div>
+
+            <div className="relative z-[3] px-2 pb-2 pt-1.5 text-center sm:px-3 sm:pb-3 sm:pt-2">
+              <p
+                className="truncate font-black text-[#8a3f16]"
+                style={{ fontSize: "clamp(0.78rem, 1.6vw, 1.05rem)" }}
+              >
+                {card?.nameAr || fallbackLabel}
+              </p>
+              <p
+                className={`mt-0.5 truncate font-bold ${isWinner ? "text-[#a35200]" : "text-[#bc7a45]"}`}
+                style={{ fontSize: "clamp(0.6rem, 1.1vw, 0.75rem)" }}
+              >
+                {playerLabel}
+              </p>
+            </div>
           </div>
-        </div>
+        </motion.div>
       </motion.div>
     </motion.div>
   );
@@ -1057,6 +1167,12 @@ export function RoomExperience({ roomId }: Props) {
   );
   const cosmeticsMap = usePlayerCosmetics(cosmeticUids);
 
+  const opponentPlayer = useMemo(
+    () => (room && uid ? room.players.find((p) => p.uid !== uid) : undefined),
+    [room, uid],
+  );
+  const opponentNameForVs = opponentPlayer?.displayName ?? "الخصم";
+
   const [draft, setDraft] = useState("");
   const [guessSureOpen, setGuessSureOpen] = useState(false);
   const [guessInputOpen, setGuessInputOpen] = useState(false);
@@ -1065,6 +1181,8 @@ export function RoomExperience({ roomId }: Props) {
   const [banner, setBanner] = useState<string | null>(null);
   const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false);
   const [turnPopup, setTurnPopup] = useState<string | null>(null);
+  const [vsIntroOpen, setVsIntroOpen] = useState(false);
+  const vsIntroGen = useRef(0);
 
   const chatEndRef = useRef<HTMLDivElement>(null);
   const autoStartRef = useRef(false);
@@ -1087,24 +1205,78 @@ export function RoomExperience({ roomId }: Props) {
   const [customSavePulse, setCustomSavePulse] = useState(0);
 
   const [clock, setClock] = useState(() => Date.now());
+  const needLiveClock = Boolean(match?.status === "active" && room?.status === "playing");
   useEffect(() => {
-    const id = window.setInterval(() => setClock(Date.now()), 200);
+    if (needLiveClock) {
+      let rafId = 0;
+      const loop = () => {
+        setClock(Date.now());
+        rafId = window.requestAnimationFrame(loop);
+      };
+      rafId = window.requestAnimationFrame(loop);
+      const bump = () => setClock(Date.now());
+      const onVis = () => {
+        if (document.visibilityState === "visible") bump();
+      };
+      window.addEventListener("focus", bump);
+      document.addEventListener("visibilitychange", onVis);
+      return () => {
+        window.cancelAnimationFrame(rafId);
+        window.removeEventListener("focus", bump);
+        document.removeEventListener("visibilitychange", onVis);
+      };
+    }
+    const id = window.setInterval(() => setClock(Date.now()), 1000);
     return () => window.clearInterval(id);
-  }, []);
+  }, [needLiveClock, match?.status, room?.status]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages.length]);
 
   const me = room?.players.find((p) => p.uid === uid);
+  const [myReadyOptimistic, addMyReadyOptimistic] = useOptimistic(
+    Boolean(me?.ready),
+    (_current: boolean, next: boolean) => next,
+  );
   const isHost = Boolean(uid && room?.hostUid === uid);
   const bothReady = Boolean(
     room?.playerUids?.length === 2 &&
-      room.playerUids.every((pid) => room.players.some((p) => p.uid === pid && p.ready)),
+      room.playerUids.every((pid) =>
+        pid === uid
+          ? myReadyOptimistic
+          : room.players.some((p) => p.uid === pid && p.ready),
+      ),
   );
   const voiceMode = Boolean(room?.voiceMode && !room?.randomMatch);
 
   const ended = room?.status === "ended" || match?.status === "ended";
+
+  useEffect(() => {
+    if (!room || room.status !== "playing" || !match || match.status !== "active" || ended) return;
+    const startedMs = match.startedAt?.toMillis?.() ?? 0;
+    if (startedMs > 0 && Date.now() - startedMs > 12000) return;
+
+    vsIntroGen.current += 1;
+    const gen = vsIntroGen.current;
+    setVsIntroOpen(true);
+    const t = window.setTimeout(() => {
+      if (vsIntroGen.current === gen) setVsIntroOpen(false);
+    }, 2600);
+    return () => {
+      vsIntroGen.current += 1;
+      window.clearTimeout(t);
+    };
+  }, [room?.status, match?.id, match?.status, ended]);
+
+  useEffect(() => {
+    if (ended) setVsIntroOpen(false);
+  }, [ended]);
+
+  useEffect(() => {
+    if (!room || room.status !== "playing") setVsIntroOpen(false);
+  }, [room?.id, room?.status]);
+
   const winnerUid = match?.winnerUid ?? null;
   const iWon = Boolean(winnerUid && winnerUid === uid);
   const forfeitWin = Boolean(iWon && match?.winReason === "forfeit");
@@ -1129,7 +1301,6 @@ export function RoomExperience({ roomId }: Props) {
     if (!match || match.status !== "active" || ended || !uid) return;
     const dl = match.turnDeadline?.toMillis?.();
     if (!dl) return;
-    if (match.actorUid !== uid) return;
     if (clock <= dl + 400) return;
     if (firedTimeoutForDeadline.current === dl) return;
     firedTimeoutForDeadline.current = dl;
@@ -1410,12 +1581,16 @@ export function RoomExperience({ roomId }: Props) {
     resumeAudioContext();
     playReadyTap();
     setBusy(true);
-    try {
-      await setPlayerReady(room.id, uid, !me.ready);
-    } finally {
-      setBusy(false);
-    }
-  }, [room, uid, me]);
+    const next = !me.ready;
+    startTransition(async () => {
+      addMyReadyOptimistic(next);
+      try {
+        await setPlayerReady(room.id, uid, next);
+      } finally {
+        setBusy(false);
+      }
+    });
+  }, [room, uid, me, addMyReadyOptimistic]);
 
   const sendDraft = useCallback(async () => {
     if (!room || !match || !draft.trim()) return;
@@ -1766,7 +1941,7 @@ export function RoomExperience({ roomId }: Props) {
                         displayName={displayName}
                         size="lg"
                         idle
-                        active={Boolean(mePlayer?.ready)}
+                        active={myReadyOptimistic}
                       />
                     </div>
                     {/* crown for host */}
@@ -1777,19 +1952,19 @@ export function RoomExperience({ roomId }: Props) {
                     )}
                     {/* ready dot */}
                     <motion.span
-                      animate={mePlayer?.ready
+                      animate={myReadyOptimistic
                         ? { scale: [1, 1.3, 1], opacity: [1, 0.7, 1] }
                         : { scale: [1, 1.2, 1], opacity: [0.7, 1, 0.7] }}
                       transition={{ duration: 1.4, repeat: Infinity }}
-                      className={`absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full ring-2 ring-white ${mePlayer?.ready ? "bg-emerald-400" : "bg-amber-400"}`}
+                      className={`absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full ring-2 ring-white ${myReadyOptimistic ? "bg-emerald-400" : "bg-amber-400"}`}
                     />
                   </div>
                   <div className="text-center">
                     <p className="max-w-[72px] truncate text-xs font-extrabold text-[#8a3f16] sm:max-w-[88px] sm:text-sm">
                       {displayName}
                     </p>
-                    <p className={`mt-0.5 text-[10px] font-bold sm:text-xs ${mePlayer?.ready ? "text-emerald-600" : "text-amber-600"}`}>
-                      {mePlayer?.ready ? "جاهز" : "بانتظار"}
+                    <p className={`mt-0.5 text-[10px] font-bold sm:text-xs ${myReadyOptimistic ? "text-emerald-600" : "text-amber-600"}`}>
+                      {myReadyOptimistic ? "جاهز" : "بانتظار"}
                     </p>
                   </div>
                 </div>
@@ -2012,8 +2187,8 @@ export function RoomExperience({ roomId }: Props) {
                         </span>
                       ) : null}
                       <p className="truncate text-[#bc7a45]">أنت</p>
-                      <p className={`mt-1 ${mePlayer?.ready ? "text-emerald-700" : "text-amber-700"}`}>
-                        {mePlayer?.ready ? "✓ جاهز" : "⋯ لم يُعلَن الجاهز بعد"}
+                      <p className={`mt-1 ${myReadyOptimistic ? "text-emerald-700" : "text-amber-700"}`}>
+                        {myReadyOptimistic ? "✓ جاهز" : "⋯ لم يُعلَن الجاهز بعد"}
                       </p>
                       <p className={`mt-0.5 ${mePickDone ? "text-emerald-700" : "text-amber-700"}`}>
                         {mePickDone ? "✓ تم اختيار بطاقة للخصم" : "⋯ بانتظار بطاقة للخصم"}
@@ -2268,7 +2443,7 @@ export function RoomExperience({ roomId }: Props) {
                       animate={{ opacity: [0.55, 1, 0.55], scale: [0.95, 1.06, 0.95] }}
                       transition={{ duration: 2.6, repeat: Infinity, ease: "easeInOut" }}
                       className="absolute inset-0 -z-10 rounded-[26px] blur-2xl"
-                      style={{ background: mePlayer?.ready
+                      style={{ background: myReadyOptimistic
                         ? "radial-gradient(closest-side,rgba(22,163,74,0.4),transparent 70%)"
                         : "radial-gradient(closest-side,rgba(255,138,30,0.6),transparent 70%)" }}
                     />
@@ -2279,7 +2454,7 @@ export function RoomExperience({ roomId }: Props) {
                       whileHover={{ y: -3, scale: 1.02 }}
                       whileTap={{ y: 5, scale: 0.97 }}
                       className="relative flex w-full items-center justify-center gap-3 overflow-hidden rounded-[24px] py-[18px] text-2xl font-black text-white disabled:opacity-60 sm:text-3xl"
-                      style={mePlayer?.ready
+                      style={myReadyOptimistic
                         ? {
                             background: "linear-gradient(180deg,#22c55e 0%,#16a34a 100%)",
                             boxShadow: "inset 0 2.5px 0 rgba(255,255,255,0.45), inset 0 -7px 14px rgba(0,100,40,0.3), 0 12px 0 #15803d, 0 22px 36px rgba(22,163,74,0.45)",
@@ -2291,7 +2466,7 @@ export function RoomExperience({ roomId }: Props) {
                       }
                     >
                       <span aria-hidden className="pointer-events-none absolute inset-x-8 top-2 h-3 rounded-full bg-white/35 blur-[2.5px]" />
-                      {mePlayer?.ready ? (
+                      {myReadyOptimistic ? (
                         <svg viewBox="0 0 24 24" fill="none" className="h-6 w-6" aria-hidden>
                           <path d="M5 13l4 4L19 7" stroke="white" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
@@ -2301,7 +2476,7 @@ export function RoomExperience({ roomId }: Props) {
                         </svg>
                       )}
                       <span style={{ textShadow: "0 2px 0 rgba(0,0,0,0.22)" }}>
-                        {mePlayer?.ready ? "جاهز ✓" : "جاهز"}
+                        {myReadyOptimistic ? "جاهز ✓" : "جاهز"}
                       </span>
                     </motion.button>
                   </div>
@@ -2319,7 +2494,7 @@ export function RoomExperience({ roomId }: Props) {
                     if (opponent && !uidCardComplete(opponent.uid))
                       missing.push("اختيار الخصم لبطاقتك");
                   }
-                  if (!mePlayer?.ready) missing.push("تضغط أنت «جاهز»");
+                  if (!myReadyOptimistic) missing.push("تضغط أنت «جاهز»");
                   if (opponent && !opponent.ready) missing.push("الخصم يضغط «جاهز»");
                   const canStart = missing.length === 0;
                   return (
@@ -2373,12 +2548,12 @@ export function RoomExperience({ roomId }: Props) {
                 })()}
 
                 {/* Guest waiting messages */}
-                {!randomLobby && !isHost && !mePlayer?.ready && (
+                {!randomLobby && !isHost && !myReadyOptimistic && (
                   <p className="text-center text-sm font-semibold text-[#bc7a45]">
                     اضغط جاهز، ثم انتظر المضيف ليبدأ اللعب.
                   </p>
                 )}
-                {!randomLobby && !isHost && mePlayer?.ready && !bothReady && (
+                {!randomLobby && !isHost && myReadyOptimistic && !bothReady && (
                   <p className="text-center text-sm font-semibold text-[#bc7a45]">
                     في انتظار جاهزية المضيف…
                   </p>
@@ -2524,6 +2699,13 @@ export function RoomExperience({ roomId }: Props) {
 
     // ── guess bubble ─────────────────────────────────────────
     if (isGuessMsg) {
+      const guessCosmetic =
+        isMe && uid
+          ? cosmeticsMap[uid]
+          : !isMe && m.senderUid && m.senderUid !== "system"
+            ? cosmeticsMap[m.senderUid]
+            : undefined;
+
       return (
         <motion.div
           key={m.id}
@@ -2531,30 +2713,44 @@ export function RoomExperience({ roomId }: Props) {
           initial={{ opacity: 0, scale: 0.84, y: 12 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           transition={{ type: "spring", stiffness: 340, damping: 22 }}
-          className={`mx-1 overflow-hidden rounded-[1.4rem] ${
-            m.correct
-              ? "bg-[#dcfce7]"
-              : "bg-[#fff0f0]"
-          }`}
-          style={
-            m.correct
-              ? {
-                  border: "2px solid #16a34a",
-                  boxShadow: "0 0 0 5px rgba(22,163,74,0.14), 0 10px 28px rgba(22,163,74,0.20)",
-                }
-              : {
-                  border: "2px solid #fca5a5",
-                  boxShadow: "0 0 0 3px rgba(252,165,165,0.22), 0 6px 18px rgba(220,80,80,0.10)",
-                }
-          }
+          className={`mx-1 flex items-end gap-2 overflow-visible ${isMe ? "flex-row-reverse" : "flex-row"}`}
         >
-          <div className={`flex items-center gap-2 px-4 py-1.5 text-xs font-bold ${m.correct ? "bg-[#bbf7d0] text-[#166534]" : "bg-[#fecaca] text-[#991b1b]"}`}>
-            <span>{m.correct ? "🎉 تخمين صحيح!" : "✗ تخمين خاطئ"}</span>
-            <span className="mr-auto opacity-70">{isMe ? "أنت" : m.senderName}</span>
+          <div className="mb-1 shrink-0">
+            <ProfileAvatar
+              cosmetic={guessCosmetic}
+              fallbackPhotoURL={isMe ? user?.photoURL : undefined}
+              displayName={isMe ? displayName : m.senderName ?? undefined}
+              size="xs"
+              idle
+              active={isMe}
+            />
           </div>
-          <div className={`px-4 py-2.5 text-sm font-black ${m.correct ? "text-[#14532d]" : "text-[#7f1d1d]"}`}>
-            {m.text}
-          </div>
+          <motion.div
+            className={`min-w-0 flex-1 overflow-hidden rounded-[1.4rem] ${
+              m.correct
+                ? "bg-[#dcfce7]"
+                : "bg-[#fff0f0]"
+            }`}
+            style={
+              m.correct
+                ? {
+                    border: "2px solid #16a34a",
+                    boxShadow: "0 0 0 5px rgba(22,163,74,0.14), 0 10px 28px rgba(22,163,74,0.20)",
+                  }
+                : {
+                    border: "2px solid #fca5a5",
+                    boxShadow: "0 0 0 3px rgba(252,165,165,0.22), 0 6px 18px rgba(220,80,80,0.10)",
+                  }
+            }
+          >
+            <div className={`flex items-center gap-2 px-4 py-1.5 text-xs font-bold ${m.correct ? "bg-[#bbf7d0] text-[#166534]" : "bg-[#fecaca] text-[#991b1b]"}`}>
+              <span>{m.correct ? "🎉 تخمين صحيح!" : "✗ تخمين خاطئ"}</span>
+              <span className="mr-auto opacity-70">{isMe ? "أنت" : m.senderName}</span>
+            </div>
+            <div className={`px-4 py-2.5 text-sm font-black ${m.correct ? "text-[#14532d]" : "text-[#7f1d1d]"}`}>
+              {m.text}
+            </div>
+          </motion.div>
         </motion.div>
       );
     }
@@ -2638,6 +2834,14 @@ export function RoomExperience({ roomId }: Props) {
       }}
     >
       <ConfettiBurst active={ended && iWon && Boolean(winnerUid)} />
+      <MatchVsIntroOverlay
+        open={vsIntroOpen && !ended}
+        meName={displayName}
+        opponentName={opponentNameForVs}
+        myCosmetic={uid ? cosmeticsMap[uid] : undefined}
+        opponentCosmetic={opponentPlayer ? cosmeticsMap[opponentPlayer.uid] : undefined}
+        myPhotoURL={user?.photoURL}
+      />
 
       {/* ── Fixed ambient background ── */}
       <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
@@ -3072,14 +3276,14 @@ export function RoomExperience({ roomId }: Props) {
                   <div ref={chatEndRef} />
                 </div>
 
-                {/* Composer — pinned to the bottom of the chat panel and
-                    floats above the soft keyboard via .kbd-safe. */}
+                {/* Composer + guess — same keyboard-safe footer so the guess
+                    CTA never floats over the input (fixed bar caused overlap). */}
                 <div
-                  className="kbd-safe flex-shrink-0 p-3"
+                  className="kbd-safe flex flex-shrink-0 flex-col gap-2.5 p-3 pt-2.5"
                   style={{ borderTop: "1.5px solid #f8e8d4" }}
                 >
                   {myTurn ? (
-                    <div className="flex items-center gap-2">
+                    <div className="flex min-h-0 items-center gap-2">
                       <input
                         value={draft}
                         onChange={(e) => setDraft(e.target.value)}
@@ -3094,7 +3298,7 @@ export function RoomExperience({ roomId }: Props) {
                         autoComplete="off"
                         autoCorrect="off"
                         spellCheck={false}
-                        className="min-h-[48px] flex-1 rounded-2xl px-4 font-semibold text-[#6f3714] placeholder-[#c9955e] outline-none transition-shadow"
+                        className="min-h-[46px] flex-1 rounded-2xl px-3.5 py-2.5 font-semibold text-[#6f3714] placeholder-[#c9955e] outline-none transition-shadow sm:min-h-[48px] sm:px-4"
                         style={{
                           // 16px to defeat iOS Safari auto-zoom on focus.
                           fontSize: "16px",
@@ -3114,10 +3318,10 @@ export function RoomExperience({ roomId }: Props) {
                         onClick={() => void sendDraft()}
                         whileTap={{ scale: 0.9, y: 2 }}
                         aria-label="إرسال"
-                        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-white disabled:opacity-50"
+                        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-white disabled:opacity-50 sm:h-12 sm:w-12"
                         style={{
                           background: "linear-gradient(135deg,#FF9F0A,#FF6B00)",
-                          boxShadow: "0 6px 0 #be5200, 0 10px 18px rgba(255,107,0,0.36)",
+                          boxShadow: "0 5px 0 #be5200, 0 8px 16px rgba(255,107,0,0.34)",
                         }}
                       >
                         <svg viewBox="0 0 18 18" fill="none" className="h-4 w-4" aria-hidden>
@@ -3127,7 +3331,7 @@ export function RoomExperience({ roomId }: Props) {
                     </div>
                   ) : (
                     <div
-                      className="flex items-center justify-center gap-3 rounded-2xl px-4 py-3.5"
+                      className="flex min-h-[46px] items-center justify-center gap-3 rounded-2xl px-4 py-2.5 sm:min-h-[48px] sm:py-3"
                       style={{ background: "#FFF9F0" }}
                     >
                       {[0, 1, 2].map((i) => (
@@ -3141,6 +3345,42 @@ export function RoomExperience({ roomId }: Props) {
                       <span className="text-sm font-semibold text-[#c48652]">بانتظار دورك…</span>
                     </div>
                   )}
+
+                  <motion.button
+                    type="button"
+                    whileHover={{ y: -2, scale: 1.01 }}
+                    whileTap={{ scale: 0.96, y: 2 }}
+                    onClick={openGuessFlow}
+                    animate={
+                      myTurn
+                        ? {
+                            boxShadow: [
+                              "inset 0 2px 0 rgba(255,255,255,0.40), 0 7px 0 #be5200, 0 12px 24px rgba(255,100,0,0.38)",
+                              "inset 0 2px 0 rgba(255,255,255,0.40), 0 7px 0 #be5200, 0 16px 32px rgba(255,100,0,0.52)",
+                              "inset 0 2px 0 rgba(255,255,255,0.40), 0 7px 0 #be5200, 0 12px 24px rgba(255,100,0,0.38)",
+                            ],
+                          }
+                        : {}
+                    }
+                    transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
+                    className="relative w-full overflow-hidden rounded-2xl py-3 text-base font-black sm:rounded-[1.35rem] sm:py-3.5 sm:text-lg"
+                    style={
+                      myTurn
+                        ? {
+                            background: "linear-gradient(140deg,#FF9F0A 0%,#FF5500 100%)",
+                            color: "#fff",
+                            boxShadow: "inset 0 2px 0 rgba(255,255,255,0.40), 0 7px 0 #be5200, 0 12px 24px rgba(255,100,0,0.38)",
+                          }
+                        : {
+                            background: "linear-gradient(140deg,#FFF4E4 0%,#FFE8C8 100%)",
+                            color: "#bc7a45",
+                            boxShadow: "0 0 0 1.5px rgba(244,196,141,0.45), 0 5px 0 rgba(196,134,82,0.18), 0 8px 16px rgba(196,134,82,0.10)",
+                          }
+                    }
+                  >
+                    <span aria-hidden className="pointer-events-none absolute inset-x-10 top-1.5 h-1.5 rounded-full bg-white/28 blur-[2px] sm:inset-x-14 sm:top-2" />
+                    🎯 تخمين
+                  </motion.button>
                 </div>
               </div>
             ) : null}
@@ -3152,57 +3392,9 @@ export function RoomExperience({ roomId }: Props) {
 
       </div>{/* end scrollable body */}
 
-      {/* ════════════════════════════════════════════════════════
-          FIXED BOTTOM — GUESS BUTTON (hidden in voice mode — guess lives in panel)
-      ════════════════════════════════════════════════════════ */}
-      {match?.status === "active" && !ended && !voicePlayingUI ? (
-        <div
-          className="pointer-events-none fixed bottom-0 left-0 right-0 z-40 flex justify-center px-4"
-          style={{
-            // Float above both the soft keyboard and the iOS home indicator.
-            paddingBottom:
-              "calc(max(env(safe-area-inset-bottom, 0px), 1rem) + var(--kbd-h, 0px))",
-            transition: "padding-bottom 180ms cubic-bezier(0.22, 1, 0.36, 1)",
-          }}
-        >
-          <div className="pointer-events-auto w-full max-w-[min(24rem,92vw)]">
-            <motion.button
-              whileHover={{ y: -3, scale: 1.02 }}
-              whileTap={{ scale: 0.93, y: 3 }}
-              onClick={openGuessFlow}
-              animate={
-                myTurn
-                  ? {
-                      boxShadow: [
-                        "inset 0 2px 0 rgba(255,255,255,0.40), 0 10px 0 #be5200, 0 16px 32px rgba(255,100,0,0.42)",
-                        "inset 0 2px 0 rgba(255,255,255,0.40), 0 10px 0 #be5200, 0 20px 44px rgba(255,100,0,0.60)",
-                        "inset 0 2px 0 rgba(255,255,255,0.40), 0 10px 0 #be5200, 0 16px 32px rgba(255,100,0,0.42)",
-                      ],
-                    }
-                  : {}
-              }
-              transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
-              className="relative w-full overflow-hidden rounded-[1.5rem] py-4 text-lg font-black"
-              style={
-                myTurn
-                  ? {
-                      background: "linear-gradient(140deg,#FF9F0A 0%,#FF5500 100%)",
-                      color: "#fff",
-                      boxShadow: "inset 0 2px 0 rgba(255,255,255,0.40), 0 10px 0 #be5200, 0 16px 32px rgba(255,100,0,0.42)",
-                    }
-                  : {
-                      background: "linear-gradient(140deg,#FFF4E4 0%,#FFE8C8 100%)",
-                      color: "#bc7a45",
-                      boxShadow: "0 0 0 1.5px rgba(244,196,141,0.45), 0 6px 0 rgba(196,134,82,0.20), 0 10px 20px rgba(196,134,82,0.12)",
-                    }
-              }
-            >
-              <span aria-hidden className="pointer-events-none absolute inset-x-14 top-2 h-1.5 rounded-full bg-white/28 blur-[2px]" />
-              🎯 تخمين
-            </motion.button>
-          </div>
-        </div>
-      ) : null}
+      {/* Guess CTA for text chat lives inside the chat panel footer (see composer
+          block) so it never covers the input on mobile. Voice mode keeps its
+          own guess control in VoiceModePlayingPanel. */}
 
       {/* ════════════════════════════════════════════════════════
           TURN TRANSITION POPUP

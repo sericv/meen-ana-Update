@@ -706,7 +706,7 @@ function VoiceModeSection({
               <div>
                 <p className="text-[15px] font-extrabold text-[#8a3f16]">وضع المكالمة</p>
                 <p className="mt-0.5 text-xs font-semibold text-[#bc7a45]">
-                  اللعب أثناء المكالمة أو الديسكورد
+                  اللعب أثناء المكالمة
                 </p>
               </div>
 
