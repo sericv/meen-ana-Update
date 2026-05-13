@@ -26,10 +26,9 @@
   --card-ratio-square: 1 / 1;
   --card-ratio-wide: 4 / 3;
 
-  /* Dynamic viewport height: starts at 100dvh and is overridden by the
-     VisualViewport hook to match the *actual* visible area when the soft
-     keyboard opens. Components should use height: var(--app-vh) for full
-     height regions. */
+  /* Static dynamic viewport token for max-heights (cards, etc.). Do **not**
+     shrink this from JS to visualViewport.height — that fought `html` height
+     and caused empty bands on iOS when the keyboard opened. */
   --app-vh: 100dvh;
   /* Visual viewport offset (iOS); updated by useVisualViewport. */
   --vv-top: 0px;
@@ -48,7 +47,6 @@
 html,
 body {
   min-height: 100dvh;
-  min-height: var(--app-vh, 100dvh);
 }
 
 .app-shell {
@@ -164,9 +162,7 @@ label {
   height: 0;
 }
 
-/* In-room opponent card: height follows VisualViewport (`--app-vh`) so the
-   chat column keeps usable space when the soft keyboard is open (svh/dvh
-   alone can stay “full screen” on some mobile browsers). */
+/* In-room opponent card max-heights use `--app-vh` (static 100dvh in :root). */
 .gameplay-opponent-card-visual {
   aspect-ratio: 4 / 5;
   max-height: min(240px, calc(var(--app-vh, 100dvh) * 0.26));

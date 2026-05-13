@@ -16,8 +16,9 @@ const tajawal = Tajawal({
 //     and any of these is missing).
 //   • opt into edge-to-edge with `viewport-fit=cover` so safe-area-insets
 //     get real values on iPhones with home-indicators / notches.
-//   • set `interactiveWidget: "resizes-content"` so Android Chrome shrinks
-//     the layout instead of overlaying the keyboard on top of game UI.
+//   • omit `interactiveWidget: "resizes-content"` — combining it with JS
+//     VisualViewport sizing caused inconsistent layout vs visible height on
+//     mobile Safari (empty bands when the keyboard opened).
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
@@ -25,7 +26,6 @@ export const viewport: Viewport = {
   userScalable: false,
   viewportFit: "cover",
   themeColor: "#fff6ea",
-  interactiveWidget: "resizes-content",
 };
 
 export const metadata: Metadata = {
@@ -46,12 +46,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ar" dir="rtl" className={`${tajawal.variable} h-full antialiased`}>
-      <body className="app-shell font-sans text-[#5e3011] antialiased">
+    <html lang="ar" dir="rtl" className={`${tajawal.variable} min-h-dvh antialiased`}>
+      <body className="app-shell flex min-h-dvh flex-col font-sans text-[#5e3011] antialiased">
         <AuthProvider>
-          <GlobalRoomInviteDock />
-          <div className="relative w-full min-h-[var(--app-vh,100dvh)] overflow-x-hidden">
-            {children}
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+            <GlobalRoomInviteDock />
+            <div className="relative flex min-h-0 w-full flex-1 flex-col overflow-x-hidden">
+              {children}
+            </div>
           </div>
         </AuthProvider>
       </body>

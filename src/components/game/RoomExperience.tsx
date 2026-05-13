@@ -50,6 +50,7 @@ import { usePlayerCosmetics } from "@/hooks/usePlayerCosmetics";
 import { useGamePresenceReporter } from "@/hooks/useGamePresenceReporter";
 import { useSocialInboxDeclineToast } from "@/hooks/useSocialInboxDeclineToast";
 import { useRoomWire } from "@/hooks/useRoomWire";
+import { useVisualKeyboardOverlapPx } from "@/hooks/useVisualViewport";
 import { useRouter } from "next/navigation";
 import { ConfettiBurst } from "@/components/game/ConfettiBurst";
 import { MatchVsIntroOverlay } from "@/components/game/MatchVsIntroOverlay";
@@ -1192,6 +1193,7 @@ export function RoomExperience({ roomId }: Props) {
   const chatEndRef = useRef<HTMLDivElement>(null);
   const chatScrollRef = useRef<HTMLDivElement>(null);
   const [composerFocused, setComposerFocused] = useState(false);
+  const keyboardOverlapPx = useVisualKeyboardOverlapPx(composerFocused);
   const autoStartRef = useRef(false);
   const firedTimeoutForDeadline = useRef<number | null>(null);
   const prevMyTurn = useRef(false);
@@ -1262,20 +1264,6 @@ export function RoomExperience({ roomId }: Props) {
       window.removeEventListener("resize", onVv);
     };
   }, [composerFocused, snapChatToBottom]);
-
-  /** Lock document scroll so fixed gameplay tracks VisualViewport on iOS. */
-  useEffect(() => {
-    const html = document.documentElement;
-    const body = document.body;
-    const prevHtml = html.style.overflow;
-    const prevBody = body.style.overflow;
-    html.style.overflow = "hidden";
-    body.style.overflow = "hidden";
-    return () => {
-      html.style.overflow = prevHtml;
-      body.style.overflow = prevBody;
-    };
-  }, []);
 
   const me = room?.players.find((p) => p.uid === uid);
   const [myReadyOptimistic, addMyReadyOptimistic] = useOptimistic(
@@ -3151,6 +3139,7 @@ export function RoomExperience({ roomId }: Props) {
         ) : (
           <GameplaySocialSurface
             banner={banner}
+            keyboardOverlapPx={keyboardOverlapPx}
             matchSyncWaiting={room.status === "playing" && !match}
             socialMatchLive={Boolean(match?.status === "active" && !ended)}
             myTurn={myTurn}

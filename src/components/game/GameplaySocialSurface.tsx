@@ -61,6 +61,8 @@ export type GameplaySocialSurfaceProps = {
   onGuessClick: () => void;
   onComposerFocus: (el: HTMLInputElement) => void;
   onComposerBlur: (el: HTMLInputElement) => void;
+  /** iOS overlay keyboard: layout viewport stays tall; pad footer by obscured px. */
+  keyboardOverlapPx?: number;
 };
 
 /**
@@ -95,6 +97,7 @@ export function GameplaySocialSurface({
   onGuessClick,
   onComposerFocus,
   onComposerBlur,
+  keyboardOverlapPx = 0,
 }: GameplaySocialSurfaceProps) {
   const catName = opponentCard?.categoryId ? getCategoryById(opponentCard.categoryId)?.nameAr : null;
 
@@ -263,7 +266,12 @@ export function GameplaySocialSurface({
                 <div ref={chatEndRef} />
               </div>
 
-              <footer className="relative z-20 shrink-0 space-y-1.5 border-t border-[#f5e6d6] bg-[#fffaf6] p-2 pt-1.5 kbd-safe-area-only">
+              <footer
+                className="relative z-20 shrink-0 space-y-1.5 border-t border-[#f5e6d6] bg-[#fffaf6] p-2 pt-1.5"
+                style={{
+                  paddingBottom: `calc(max(env(safe-area-inset-bottom, 0px), 8px) + ${keyboardOverlapPx}px)`,
+                }}
+              >
                 {myTurn ? (
                   <div className="flex items-center gap-2">
                     <input
