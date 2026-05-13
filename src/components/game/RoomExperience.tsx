@@ -615,8 +615,12 @@ function MatchResultScreen({
       exit={{ opacity: 0 }}
       transition={{ duration: 0.35 }}
       dir="rtl"
-      className="fixed inset-0 z-50 flex h-[100dvh] w-full flex-col overflow-hidden"
+      className="fixed inset-x-0 z-50 flex w-full flex-col overflow-hidden"
       style={{
+        top: "var(--vv-top, 0px)",
+        left: "var(--vv-left, 0px)",
+        width: "var(--vv-width, 100%)",
+        height: "var(--app-vh, 100dvh)",
         background: iWon
           ? "radial-gradient(140% 80% at 50% 0%, #FFF8E6 0%, #FFECC0 45%, #FFDDA0 100%)"
           : "radial-gradient(130% 75% at 50% 0%, #FFF1DD 0%, #FFECD7 55%, #FDE7CD 100%)",
@@ -1235,6 +1239,20 @@ export function RoomExperience({ roomId }: Props) {
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages.length]);
+
+  /** Lock document scroll so fixed gameplay tracks VisualViewport on iOS. */
+  useEffect(() => {
+    const html = document.documentElement;
+    const body = document.body;
+    const prevHtml = html.style.overflow;
+    const prevBody = body.style.overflow;
+    html.style.overflow = "hidden";
+    body.style.overflow = "hidden";
+    return () => {
+      html.style.overflow = prevHtml;
+      body.style.overflow = prevBody;
+    };
+  }, []);
 
   const me = room?.players.find((p) => p.uid === uid);
   const [myReadyOptimistic, addMyReadyOptimistic] = useOptimistic(
@@ -2884,11 +2902,13 @@ export function RoomExperience({ roomId }: Props) {
   return (
     <div
       dir="rtl"
-      className="relative flex w-full flex-col overflow-hidden select-none"
+      className="fixed inset-x-0 z-40 flex w-full flex-col overflow-hidden select-none"
       style={{
-        // Always fill the *actual* visible viewport — VisualViewport hook
-        // keeps --app-vh in sync with the soft keyboard so the game never
-        // gets pushed off-screen on iOS / Android.
+        top: "var(--vv-top, 0px)",
+        left: "var(--vv-left, 0px)",
+        width: "var(--vv-width, 100%)",
+        // Match the visible viewport rect; do not add inner `--kbd-h` padding
+        // on the chat composer — that double-counts when height already tracks VV.
         height: "var(--app-vh, 100dvh)",
         paddingTop: "env(safe-area-inset-top, 0px)",
         paddingLeft: "env(safe-area-inset-left, 0px)",
@@ -3343,10 +3363,10 @@ export function RoomExperience({ roomId }: Props) {
                   <div ref={chatEndRef} />
                 </div>
 
-                {/* Composer + guess — same keyboard-safe footer so the guess
-                    CTA never floats over the input (fixed bar caused overlap). */}
+                {/* Composer + guess — safe-area only: root is already `--app-vh`
+                    tall; extra `--kbd-h` padding would collapse the message list. */}
                 <div
-                  className="kbd-safe flex flex-shrink-0 flex-col gap-2.5 p-3 pt-2.5"
+                  className="kbd-safe-area-only flex flex-shrink-0 flex-col gap-2.5 p-3 pt-2.5"
                   style={{ borderTop: "1.5px solid #f8e8d4" }}
                 >
                   {myTurn ? (

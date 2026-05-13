@@ -3,7 +3,8 @@
 import { motion } from "framer-motion";
 import Image from "next/image";
 import { AvatarFrame } from "@/components/profile/AvatarFrame";
-import { DEFAULT_AVATAR_ID, glyphForAvatarId, type PlayerCosmetic } from "@/lib/profile/cosmetics";
+import { DefaultAvatarIllustration } from "@/components/profile/DefaultAvatarIllustration";
+import { DEFAULT_AVATAR_ID, type PlayerCosmetic } from "@/lib/profile/cosmetics";
 
 const SIZE_MAP = {
   xs: 28,
@@ -42,7 +43,7 @@ export function ProfileAvatar({
   const px = SIZE_MAP[size];
   const photo = cosmetic?.photoURL ?? fallbackPhotoURL ?? null;
   const frameId = cosmetic?.avatarFrameId ?? "none";
-  const glyph = glyphForAvatarId(cosmetic?.avatarId ?? DEFAULT_AVATAR_ID);
+  const avatarKey = cosmetic?.avatarId ?? DEFAULT_AVATAR_ID;
 
   const inner = (
     <div
@@ -58,12 +59,7 @@ export function ProfileAvatar({
       {photo ? (
         <Image src={photo} alt="" fill className="object-cover" sizes={`${px}px`} unoptimized />
       ) : (
-        <span
-          className="select-none font-black leading-none text-[#8a3f16]"
-          style={{ fontSize: Math.max(12, px * 0.42) }}
-        >
-          {glyph}
-        </span>
+        <DefaultAvatarIllustration avatarId={avatarKey} size={px} />
       )}
       {!photo && (
         <span className="pointer-events-none absolute inset-x-2 top-1 h-1.5 rounded-full bg-white/35 blur-[1px]" />

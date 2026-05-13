@@ -1,6 +1,7 @@
 import { cert, getApps, initializeApp, type App } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
+import { getStorage } from "firebase-admin/storage";
 
 let adminApp: App | undefined;
 
@@ -248,6 +249,19 @@ export function getAdminAuth() {
 
 export function getAdminDb() {
   return getFirestore(getAdminApp());
+}
+
+/** Default GCS bucket for profile uploads (must match Firebase Storage bucket). */
+export function getAdminStorageBucketName(): string {
+  return (
+    process.env.FIREBASE_STORAGE_BUCKET?.trim() ||
+    process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET?.trim() ||
+    "whoami-76238.firebasestorage.app"
+  );
+}
+
+export function getAdminBucket() {
+  return getStorage(getAdminApp()).bucket(getAdminStorageBucketName());
 }
 
 /** Returns true when Admin is (or can be) initialised — used for health checks. */

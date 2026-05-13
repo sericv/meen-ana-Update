@@ -121,9 +121,9 @@ export interface UserProfile {
   isGuest: boolean;
   createdAt: Timestamp | null;
   lastSeen: Timestamp | null;
-  /** Preset avatar key when `photoURL` is empty (see `AVATAR_PRESETS`). */
+  /** Preset illustrated avatar key when `photoURL` is empty (see `AVATAR_PRESETS`). */
   avatarId?: string;
-  /** Decorative frame id (`none`, `crown`, …). */
+  /** Animated GIF frame id (see `FRAME_REGISTRY`). */
   avatarFrameId?: string;
 }
 

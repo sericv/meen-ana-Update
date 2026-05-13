@@ -25,7 +25,7 @@ export async function upsertUserDocument(user: User) {
   );
 }
 
-/** Persist cosmetic choices (avatar glyph preset + animated frame). */
+/** Persist cosmetic choices (illustrated avatar preset + animated frame). */
 export async function updateUserCosmetics(
   uid: string,
   patch: { avatarId?: string; avatarFrameId?: string },
@@ -43,6 +43,20 @@ export async function updateUserCosmetics(
     {
       avatarId,
       avatarFrameId,
+      lastSeen: serverTimestamp(),
+    },
+    { merge: true },
+  );
+}
+
+/** Set profile photo URL from Google/email provider or clear to use illustrated preset. */
+export async function updateUserPhotoURL(uid: string, photoURL: string | null): Promise<void> {
+  const db = getFirebaseDb();
+  const ref = doc(db, col.users, uid);
+  await setDoc(
+    ref,
+    {
+      photoURL: photoURL ?? null,
       lastSeen: serverTimestamp(),
     },
     { merge: true },

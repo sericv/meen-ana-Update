@@ -15,7 +15,7 @@ import {
   signOut,
   updateProfile,
 } from "firebase/auth";
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
   buildEmailLinkContinueUrl,
   EMAIL_FOR_SIGN_IN_KEY,
@@ -93,6 +93,7 @@ function firebaseAuthMessage(e: unknown): string {
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   useVisualViewport();
 
+  const googleAuthLock = useRef(false);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [needsEmailLinkEmail, setNeedsEmailLinkEmail] = useState(false);
@@ -148,31 +149,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signInGoogle = useCallback(async () => {
     const auth = getFirebaseAuth();
-    const provider = new GoogleAuthProvider();
-    provider.addScope("profile");
-    provider.addScope("email");
-    provider.setCustomParameters({ prompt: "select_account" });
-
-    if (preferGoogleAuthRedirect()) {
-      await signInWithRedirect(auth, provider);
-      return;
-    }
-
+    if (googleAuthLock.current) return;
+    googleAuthLock.current = true;
     try {
-      await signInWithPopup(auth, provider, browserPopupRedirectResolver);
-    } catch (e: unknown) {
-      const code =
-        e && typeof e === "object" && "code" in e ? String((e as { code: unknown }).code) : "";
-      if (
-        code === "auth/popup-blocked" ||
-        code === "auth/cancelled-popup-request" ||
-        code === "auth/popup-closed-by-user" ||
-        code === "auth/operation-not-supported-in-this-environment"
-      ) {
+      const provider = new GoogleAuthProvider();
+      provider.addScope("profile");
+      provider.addScope("email");
+      provider.setCustomParameters({ prompt: "select_account" });
+
+      if (preferGoogleAuthRedirect()) {
         await signInWithRedirect(auth, provider);
         return;
       }
-      throw e;
+
+      try {
+        await signInWithPopup(auth, provider, browserPopupRedirectResolver);
+      } catch (e: unknown) {
+        const code =
+          e && typeof e === "object" && "code" in e ? String((e as { code: unknown }).code) : "";
+        if (
+          code === "auth/popup-blocked" ||
+          code === "auth/cancelled-popup-request" ||
+          code === "auth/popup-closed-by-user" ||
+          code === "auth/operation-not-supported-in-this-environment"
+        ) {
+          await signInWithRedirect(auth, provider);
+          return;
+        }
+        throw e;
+      }
+    } finally {
+      googleAuthLock.current = false;
     }
   }, []);
 

@@ -19,10 +19,13 @@ function LoginInner() {
     needsEmailLinkEmail,
     emailLinkBanner,
     clearEmailLinkBanner,
+    logout,
   } = useAuth();
   const router = useRouter();
   const params = useSearchParams();
   const next = useMemo(() => params.get("next") || "/", [params]);
+  /** Stay on this screen to pick another Google / full account (avoids instant redirect). */
+  const switchAccount = useMemo(() => params.get("switch") === "1", [params]);
 
   const [email, setEmail] = useState("");
   const [emailBusy, setEmailBusy] = useState(false);
@@ -31,16 +34,19 @@ function LoginInner() {
   const [completeEmail, setCompleteEmail] = useState("");
   const [completeBusy, setCompleteBusy] = useState(false);
   const [completeErr, setCompleteErr] = useState<string | null>(null);
+  const [googleBusy, setGoogleBusy] = useState(false);
 
   useEffect(() => {
     if (loading || !user) return;
+    // Guests must stay here to attach Google / email; full users may stay to switch account.
+    if (user.isAnonymous || switchAccount) return;
     const id = requestAnimationFrame(() => {
       startTransition(() => {
         router.replace(next);
       });
     });
     return () => cancelAnimationFrame(id);
-  }, [loading, user, router, next]);
+  }, [loading, user, router, next, switchAccount]);
 
   const onSendLink = async () => {
     setEmailErr(null);
@@ -91,7 +97,38 @@ function LoginInner() {
         <div className="absolute -left-20 bottom-24 h-72 w-72 rounded-full bg-[#FFB574]/35 blur-3xl" />
       </div>
 
-      <div className="relative z-10 mx-auto w-full max-w-md sm:max-w-lg">
+        <div className="relative z-10 mx-auto w-full max-w-md sm:max-w-lg">
+        {user && !user.isAnonymous && switchAccount ? (
+          <div
+            role="status"
+            className="mb-5 rounded-2xl border border-[#fde68a] bg-[#fffbeb] px-4 py-3 text-sm font-bold text-[#92400e] shadow-sm"
+          >
+            <p className="leading-relaxed">
+              أنت مسجّل الدخول حالياً. للمتابعة بنفس الحساب اضغط «متابعة»، أو سجّل الخروج ثم اختر حساباً
+              آخر.
+            </p>
+            <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+              <Button
+                type="button"
+                className="min-h-[48px] flex-1 font-black"
+                onClick={() => {
+                  startTransition(() => router.replace(next));
+                }}
+              >
+                متابعة
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                className="min-h-[48px] flex-1 font-black text-[#b45309] ring-1 ring-[#f4d4b0]"
+                onClick={() => void logout().then(() => router.replace("/login"))}
+              >
+                تسجيل الخروج
+              </Button>
+            </div>
+          </div>
+        ) : null}
+
         <div className="mb-6 text-center">
           <h1
             className="text-3xl font-black tracking-tight sm:text-4xl"
@@ -136,10 +173,18 @@ function LoginInner() {
           <Button
             type="button"
             className="min-h-[52px] w-full text-base font-black shadow-[0_8px_24px_rgba(234,140,47,0.35)]"
-            disabled={loading}
-            onClick={() => void signInGoogle()}
+            disabled={loading || googleBusy}
+            onClick={() => {
+              if (googleBusy) return;
+              setGoogleBusy(true);
+              void signInGoogle()
+                .catch(() => {
+                  /* errors surface via Firebase / UI */
+                })
+                .finally(() => setGoogleBusy(false));
+            }}
           >
-            المتابعة عبر Google
+            {googleBusy ? "جاري فتح Google…" : "المتابعة عبر Google"}
           </Button>
 
           <div className="relative py-1 text-center">

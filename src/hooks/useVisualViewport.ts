@@ -5,17 +5,22 @@ import { useEffect } from "react";
 /**
  * Mobile-keyboard-aware viewport sizing.
  *
- * Sets two CSS custom properties on <html> from the VisualViewport API:
- *   • --app-vh  → actual visible height (px). Use as `height: var(--app-vh)`
- *                 to make a region fill the visible area even while the
- *                 software keyboard is open.
- *   • --kbd-h   → number of px currently occupied by the keyboard (0 when
- *                 closed). Composers/footers use `.kbd-safe` (which reads
- *                 this var) to stay above the keyboard.
+ * Sets CSS custom properties on <html> from the VisualViewport API:
+ *   • --app-vh   → visible height (px) — use as `height: var(--app-vh)` for
+ *                  shells that should match the on-screen area (keyboard
+ *                  included in the shrink on Chrome `resizes-content`, or
+ *                  overlay keyboards on iOS).
+ *   • --vv-top / --vv-left → visual viewport offset inside the layout
+ *                  viewport (iOS Safari). Pair with `position: fixed;
+ *                  top: var(--vv-top); height: var(--app-vh)` so gameplay
+ *                  tracks the visible rectangle instead of the layout box.
+ *   • --kbd-h    → legacy estimate: max(0, innerHeight - visualViewport.height).
+ *                  **Do not add this inside a flex column that already uses
+ *                  `--app-vh` as its total height** — that double-counts the
+ *                  keyboard and collapses scroll areas (e.g. in-game chat).
+ *                  Reserved for fixed footers on full-layout pages only.
  *
- * The hook is idempotent — calling it from multiple components is fine
- * (the second installer just re-registers the same listeners against the
- * same global element).
+ * The hook is idempotent — calling it from multiple components is fine.
  */
 export function useVisualViewport(): void {
   useEffect(() => {
@@ -28,10 +33,16 @@ export function useVisualViewport(): void {
       raf = 0;
       const vh = vv?.height ?? window.innerHeight;
       const fullH = window.innerHeight;
+      const top = vv ? Math.round(vv.offsetTop) : 0;
+      const left = vv ? Math.round(vv.offsetLeft) : 0;
       // Keyboard height = (window inner height) - (visible viewport).
       // Clamp to 0 to avoid tiny negative values from rounding.
       const kbd = Math.max(0, Math.round(fullH - vh));
+      const vw = vv ? Math.round(vv.width) : Math.round(window.innerWidth);
       root.style.setProperty("--app-vh", `${Math.round(vh)}px`);
+      root.style.setProperty("--vv-top", `${top}px`);
+      root.style.setProperty("--vv-left", `${left}px`);
+      root.style.setProperty("--vv-width", `${vw}px`);
       root.style.setProperty("--kbd-h", `${kbd}px`);
       // Toggle a class so components can react to keyboard state with
       // pure CSS if they want (e.g. shrink decorative elements).

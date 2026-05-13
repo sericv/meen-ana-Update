@@ -195,7 +195,12 @@ export default function HomePage() {
                       >
                         تغيير الاسم الظاهر
                       </MenuItem>
-                      <MenuItem onClick={() => { setMenuOpen(false); router.push("/login"); }}>
+                      <MenuItem
+                        onClick={() => {
+                          setMenuOpen(false);
+                          router.push(isFullAccountUser(user) ? "/login?switch=1" : "/login");
+                        }}
+                      >
                         تبديل الحساب
                       </MenuItem>
                       <MenuItem
