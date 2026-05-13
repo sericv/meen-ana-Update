@@ -50,15 +50,7 @@ export default function RootLayout({
       <body className="app-shell font-sans text-[#5e3011] antialiased">
         <AuthProvider>
           <GlobalRoomInviteDock />
-          <div
-            className="relative w-full overflow-x-hidden"
-            style={{
-              // Match VisualViewport hook (`--app-vh`) so nested full-height
-              // gameplay is not clipped by a stale 100dvh shell on mobile.
-              minHeight: "var(--app-vh, 100dvh)",
-              height: "var(--app-vh, 100dvh)",
-            }}
-          >
+          <div className="relative w-full min-h-[var(--app-vh,100dvh)] overflow-x-hidden">
             {children}
           </div>
         </AuthProvider>

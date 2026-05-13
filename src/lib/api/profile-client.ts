@@ -22,7 +22,7 @@ export async function uploadProfileAvatarImage(
   const auth = getFirebaseAuth();
   const user = auth.currentUser;
   if (!user) throw new Error("يجب تسجيل الدخول.");
-  const token = await user.getIdToken();
+  const token = await user.getIdToken(true);
   const body = JSON.stringify({ imageBase64 });
 
   return new Promise((resolve, reject) => {

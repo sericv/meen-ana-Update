@@ -3,12 +3,14 @@
 import {
   collection,
   doc,
+  getDoc,
   limit,
   onSnapshot,
   orderBy,
   query,
   serverTimestamp,
   setDoc,
+  type DocumentSnapshot,
   type Timestamp,
 } from "firebase/firestore";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -287,40 +289,52 @@ export function useRoomWire(roomId: string | null, myUid: string | null) {
       amInRoomPlayerUids:
         myUid && room.playerUids ? room.playerUids.includes(myUid) : null,
     });
+    const matchRef = doc(db, col.matches, mid);
+
+    const applyMatchSnap = (snap: DocumentSnapshot) => {
+      if (cancelled) return;
+      if (!snap.exists()) {
+        matchSigRef.current = null;
+        lastMatchRef.current = null;
+        setMatch(null);
+        return;
+      }
+      const d = snap.data();
+      const qs = Number(d.questionSeconds ?? QUESTION_PHASE_SECONDS);
+      const as = Number(d.answerSeconds ?? ANSWER_PHASE_SECONDS);
+      const next: MatchState = {
+        id: snap.id,
+        roomId: String(d.roomId ?? ""),
+        status: d.status as MatchState["status"],
+        playerOrder: (d.playerOrder as string[]) ?? [],
+        actorUid: (d.actorUid as string | null) ?? null,
+        chatPhase: (d.chatPhase as MatchState["chatPhase"]) ?? "question",
+        turnDeadline: (d.turnDeadline as Timestamp | null) ?? null,
+        questionSeconds: Number.isFinite(qs) ? qs : QUESTION_PHASE_SECONDS,
+        answerSeconds: Number.isFinite(as) ? as : ANSWER_PHASE_SECONDS,
+        winnerUid: (d.winnerUid as string | null) ?? null,
+        winReason: (d.winReason as MatchState["winReason"]) ?? null,
+        startedAt: (d.startedAt as Timestamp | null) ?? null,
+        endedAt: (d.endedAt as Timestamp | null) ?? null,
+      };
+      const sig = matchWireSignature(next);
+      if (sig === matchSigRef.current) return;
+      matchSigRef.current = sig;
+      lastMatchRef.current = next;
+      setMatch(next);
+    };
+
+    void getDoc(matchRef)
+      .then((snap) => {
+        applyMatchSnap(snap);
+      })
+      .catch(() => {
+        /* cold read can fail transiently; listener still converges */
+      });
+
     const unsub = onSnapshot(
-      doc(db, col.matches, mid),
-      (snap) => {
-        if (cancelled) return;
-        if (!snap.exists()) {
-          matchSigRef.current = null;
-          lastMatchRef.current = null;
-          setMatch(null);
-          return;
-        }
-        const d = snap.data();
-        const qs = Number(d.questionSeconds ?? QUESTION_PHASE_SECONDS);
-        const as = Number(d.answerSeconds ?? ANSWER_PHASE_SECONDS);
-        const next: MatchState = {
-          id: snap.id,
-          roomId: String(d.roomId ?? ""),
-          status: d.status as MatchState["status"],
-          playerOrder: (d.playerOrder as string[]) ?? [],
-          actorUid: (d.actorUid as string | null) ?? null,
-          chatPhase: (d.chatPhase as MatchState["chatPhase"]) ?? "question",
-          turnDeadline: (d.turnDeadline as Timestamp | null) ?? null,
-          questionSeconds: Number.isFinite(qs) ? qs : QUESTION_PHASE_SECONDS,
-          answerSeconds: Number.isFinite(as) ? as : ANSWER_PHASE_SECONDS,
-          winnerUid: (d.winnerUid as string | null) ?? null,
-          winReason: (d.winReason as MatchState["winReason"]) ?? null,
-          startedAt: (d.startedAt as Timestamp | null) ?? null,
-          endedAt: (d.endedAt as Timestamp | null) ?? null,
-        };
-        const sig = matchWireSignature(next);
-        if (sig === matchSigRef.current) return;
-        matchSigRef.current = sig;
-        lastMatchRef.current = next;
-        setMatch(next);
-      },
+      matchRef,
+      applyMatchSnap,
       (e) => {
         if (cancelled) return;
         setWireError((e as Error).message);
@@ -351,7 +365,7 @@ export function useRoomWire(roomId: string | null, myUid: string | null) {
       cancelled = true;
       unsub();
     };
-  }, [room?.matchId]);
+  }, [roomId, room?.matchId, myUid]);
 
   // Opponent card — read directly from `playerCards/{opponentUid}` via a
   // realtime snapshot. If Firestore Rules block the read (e.g. deployed rules

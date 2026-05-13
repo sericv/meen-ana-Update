@@ -1,6 +1,15 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  /** Lets Firebase Auth popups observe `window.closed` without COOP breaking sign-in. */
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [{ key: "Cross-Origin-Opener-Policy", value: "same-origin-allow-popups" }],
+      },
+    ];
+  },
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "picsum.photos" },

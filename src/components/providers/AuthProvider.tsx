@@ -106,6 +106,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     void (async () => {
       try {
+        await (auth as { authStateReady?: () => Promise<void> }).authStateReady?.();
         await getRedirectResult(auth);
       } catch (e) {
         console.warn("[auth] getRedirectResult", e);
@@ -155,7 +156,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const provider = new GoogleAuthProvider();
       provider.addScope("profile");
       provider.addScope("email");
-      provider.setCustomParameters({ prompt: "select_account" });
+      // `prompt=select_account` breaks some mobile redirect / embedded WebView
+      // flows with auth/argument-error; keep it for desktop popup only.
+      if (!preferGoogleAuthRedirect()) {
+        provider.setCustomParameters({ prompt: "select_account" });
+      }
 
       if (preferGoogleAuthRedirect()) {
         await signInWithRedirect(auth, provider);

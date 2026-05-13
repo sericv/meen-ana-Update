@@ -52,7 +52,7 @@ export function MatchVsIntroOverlay({
           exit={{ opacity: 0 }}
           transition={{ duration: 0.35 }}
           dir="rtl"
-          className="pointer-events-auto fixed inset-0 z-[58] flex flex-col items-center justify-center overflow-hidden"
+          className="pointer-events-auto absolute inset-0 z-[58] flex flex-col items-center justify-center overflow-hidden"
           style={{
             background:
               "radial-gradient(120% 90% at 50% 40%, rgba(255,220,170,0.22) 0%, rgba(42,24,8,0.72) 55%, rgba(18,10,4,0.88) 100%)",

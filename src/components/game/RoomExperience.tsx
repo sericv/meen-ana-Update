@@ -700,12 +700,8 @@ function MatchResultScreen({
       exit={{ opacity: 0 }}
       transition={{ duration: 0.35 }}
       dir="rtl"
-      className="fixed inset-x-0 z-50 flex w-full min-h-0 flex-col overflow-hidden"
+      className="absolute inset-0 z-50 flex w-full min-h-0 flex-col overflow-hidden"
       style={{
-        top: "var(--vv-top, 0px)",
-        left: "var(--vv-left, 0px)",
-        width: "var(--vv-width, 100%)",
-        height: "var(--app-vh, 100dvh)",
         background: iWon
           ? "radial-gradient(140% 80% at 50% 0%, #FFF8E6 0%, #FFECC0 45%, #FFDDA0 100%)"
           : "radial-gradient(130% 75% at 50% 0%, #FFF1DD 0%, #FFECD7 55%, #FDE7CD 100%)",
@@ -1862,7 +1858,7 @@ export function RoomExperience({ roomId }: Props) {
 
   if (!room) {
     return (
-      <div className="mx-auto flex min-h-[50vh] w-full max-w-lg flex-col justify-center px-4 py-10 text-center">
+      <div className="mx-auto flex h-full min-h-0 w-full max-w-lg flex-1 flex-col justify-center px-4 py-10 text-center">
         <Panel>
           <p className="text-base text-[#a16231]">
             {wireError ? `خطأ: ${wireError}` : "جاري تحميل الغرفة أو لم تعد موجودة."}
@@ -1919,14 +1915,14 @@ export function RoomExperience({ roomId }: Props) {
     return (
       <div
         dir="rtl"
-        className="relative min-h-[100dvh] w-full overflow-x-hidden select-none"
+        className="relative flex h-full min-h-0 w-full flex-1 flex-col overflow-x-hidden overflow-y-auto select-none"
         style={{
           background:
             "radial-gradient(120% 70% at 50% 0%, #FFF1DD 0%, #FCE9D4 55%, #FFEED8 100%)",
         }}
       >
         {/* ── ambient decor ── */}
-        <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+        <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
           <motion.div
             animate={{ y: [0, -22, 0], x: [0, 12, 0] }}
             transition={{ duration: 14, repeat: Infinity, ease: "easeInOut" }}
@@ -2798,7 +2794,7 @@ export function RoomExperience({ roomId }: Props) {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-50 flex items-center justify-center bg-[#6a3f1b]/45 px-4 backdrop-blur-sm"
+              className="absolute inset-0 z-50 flex items-center justify-center bg-[#6a3f1b]/45 px-4 backdrop-blur-sm"
               onClick={() => setLeaveConfirmOpen(false)}
             >
               <motion.div
@@ -3014,14 +3010,8 @@ export function RoomExperience({ roomId }: Props) {
   return (
     <div
       dir="rtl"
-      className="fixed inset-x-0 z-40 flex w-full min-h-0 flex-col overflow-hidden select-none"
+      className="relative z-40 flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden select-none"
       style={{
-        top: "var(--vv-top, 0px)",
-        left: "var(--vv-left, 0px)",
-        width: "var(--vv-width, 100%)",
-        // Match the visible viewport rect; do not add inner `--kbd-h` padding
-        // on the chat composer — that double-counts when height already tracks VV.
-        height: "var(--app-vh, 100dvh)",
         paddingTop: "env(safe-area-inset-top, 0px)",
         paddingLeft: "env(safe-area-inset-left, 0px)",
         paddingRight: "env(safe-area-inset-right, 0px)",
@@ -3416,9 +3406,9 @@ export function RoomExperience({ roomId }: Props) {
                 >
                   {myTurn
                     ? phase === "question"
-                      ? "اسأل في الدردشة قبل انتهاء الوقت حول صورتك"
-                      : "أجِب في الدردشة قبل انتهاء الوقت حول صورتك"
-                    : `المؤقت يدور حول صورة ${opponentName}`}
+                      ? "اكتب سؤالك في الدردشة قبل انتهاء الوقت."
+                      : "اكتب إجابتك في الدردشة قبل انتهاء الوقت."
+                    : `ترقّب حركة ${opponentName}.`}
                 </p>
               </motion.div>
             </motion.div>
@@ -3429,10 +3419,8 @@ export function RoomExperience({ roomId }: Props) {
             DESKTOP SPLIT: card + chat side by side
             MOBILE: card stays visible at top, chat fills the rest
         ════════════════════════════════════════════ */}
-        <div className="flex flex-1 min-h-0 flex-col gap-3 lg:flex-row lg:items-stretch">
-
-          {/* ── OPPONENT CARD — top on mobile (compact), left on desktop ── */}
-          <div className="flex-shrink-0 lg:w-[260px] xl:w-[280px]">
+        <div className="flex flex-1 min-h-0 flex-col gap-2.5">
+          <div className="mx-auto w-full max-w-[300px] shrink-0 sm:max-w-[320px]">
 
             {/* category pill */}
             <div className="mb-2 flex items-center gap-2">
@@ -3699,7 +3687,7 @@ export function RoomExperience({ roomId }: Props) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="pointer-events-none fixed inset-0 z-[60] flex items-center justify-center"
+            className="pointer-events-none absolute inset-0 z-[60] flex items-center justify-center"
           >
             <motion.div
               initial={{ scale: 0.68, y: 32 }}
@@ -3754,7 +3742,7 @@ export function RoomExperience({ roomId }: Props) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[55] flex items-center justify-center bg-[#6a3f1b]/45 px-4 backdrop-blur-sm"
+            className="absolute inset-0 z-[55] flex items-center justify-center bg-[#6a3f1b]/45 px-4 backdrop-blur-sm"
             onClick={() => setGuessSureOpen(false)}
           >
             <motion.div
@@ -3786,7 +3774,7 @@ export function RoomExperience({ roomId }: Props) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[54] flex items-center justify-center bg-[#6a3f1b]/40 px-4 backdrop-blur-sm"
+            className="absolute inset-0 z-[54] flex items-center justify-center bg-[#6a3f1b]/40 px-4 backdrop-blur-sm"
             onClick={() => setGuessInputOpen(false)}
           >
             <motion.div
@@ -3834,7 +3822,7 @@ export function RoomExperience({ roomId }: Props) {
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="fixed inset-0 z-[56] flex items-center justify-center bg-[#6a3f1b]/45 px-4 backdrop-blur-sm"
+            className="absolute inset-0 z-[56] flex items-center justify-center bg-[#6a3f1b]/45 px-4 backdrop-blur-sm"
             onClick={() => setLeaveConfirmOpen(false)}
           >
             <motion.div

@@ -5,7 +5,9 @@ export default async function RoomPage({ params }: { params: Promise<{ roomId: s
   const { roomId } = await params;
   return (
     <AuthGate>
-      <RoomExperience roomId={roomId} />
+      <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
+        <RoomExperience roomId={roomId} />
+      </div>
     </AuthGate>
   );
 }
