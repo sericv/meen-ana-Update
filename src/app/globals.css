@@ -162,6 +162,16 @@ html.kbd-open .gameplay-opponent-card-visual {
   max-height: min(200px, calc(var(--app-vh, 100dvh) * 0.2));
 }
 
+/* Compact in-room card — social layout gives most height to chat. */
+.gameplay-card-compact {
+  aspect-ratio: 4 / 5;
+  max-height: min(150px, calc(var(--app-vh, 100dvh) * 0.19));
+}
+
+html.kbd-open .gameplay-card-compact {
+  max-height: min(120px, calc(var(--app-vh, 100dvh) * 0.14));
+}
+
 /* ─── Keyboard-safe footer: use ONLY on pages whose root height is still
        the *layout* viewport (e.g. min-h-100dvh) so padding lifts content above
        an overlay keyboard. Do NOT combine with an inner column already sized

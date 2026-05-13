@@ -53,6 +53,7 @@ import { useRoomWire } from "@/hooks/useRoomWire";
 import { useRouter } from "next/navigation";
 import { ConfettiBurst } from "@/components/game/ConfettiBurst";
 import { MatchVsIntroOverlay } from "@/components/game/MatchVsIntroOverlay";
+import { GameplaySocialSurface } from "@/components/game/GameplaySocialSurface";
 import { RoomInviteFriendsPanel } from "@/components/social/RoomInviteFriendsPanel";
 import type { PlayerCosmetic } from "@/lib/profile/cosmetics";
 import { normalizeCosmetic } from "@/lib/profile/cosmetics";
@@ -157,92 +158,6 @@ function CircularTimer({
   );
 }
 
-/** Countdown ring around an avatar — active player gets a live arc + glow. */
-function AvatarTurnRing({
-  showTimer,
-  emphasize,
-  secLeft,
-  maxSec,
-  children,
-}: {
-  showTimer: boolean;
-  emphasize: boolean;
-  secLeft: number | null;
-  maxSec: number;
-  children: React.ReactNode;
-}) {
-  const reduced = useReducedMotion();
-  const dim = 124;
-  const cx = dim / 2;
-  const r = 52;
-  const stroke = 5;
-  const circumference = 2 * Math.PI * r;
-  const safeSec = secLeft ?? 0;
-  const hasCountdown = showTimer && secLeft !== null && maxSec > 0;
-  const pct = hasCountdown ? Math.max(0, Math.min(1, safeSec / maxSec)) : 1;
-  const dash = circumference * pct;
-  const urgent = hasCountdown && safeSec <= 5;
-
-  const trackStroke = emphasize ? "rgba(255,255,255,0.55)" : "rgba(244,196,141,0.55)";
-  const glowStroke = urgent ? "#ef4444" : emphasize ? "#fff" : "rgba(200,150,100,0.55)";
-
-  const ring = (
-    <svg
-      className="pointer-events-none absolute inset-0 -rotate-90"
-      width={dim}
-      height={dim}
-      viewBox={`0 0 ${dim} ${dim}`}
-      aria-hidden
-    >
-      <circle
-        cx={cx}
-        cy={cx}
-        r={r}
-        fill="none"
-        stroke={trackStroke}
-        strokeWidth={stroke}
-      />
-      <circle
-        cx={cx}
-        cy={cx}
-        r={r}
-        fill="none"
-        stroke={glowStroke}
-        strokeWidth={stroke}
-        strokeDasharray={hasCountdown ? `${dash} ${circumference}` : `${circumference} 0`}
-        strokeLinecap="round"
-        style={{ transition: "stroke-dasharray 0.2s linear, stroke 0.35s" }}
-        opacity={hasCountdown || emphasize ? 1 : 0.55}
-      />
-    </svg>
-  );
-
-  return (
-    <div className="relative inline-flex shrink-0 items-center justify-center" style={{ width: dim, height: dim }}>
-      {emphasize && !reduced ? (
-        <motion.div
-          aria-hidden
-          animate={{ opacity: [0.35, 0.75, 0.35], scale: [0.92, 1.06, 0.92] }}
-          transition={{ duration: urgent ? 0.85 : 2.1, repeat: Infinity, ease: "easeInOut" }}
-          className="absolute -inset-2 rounded-full blur-xl"
-          style={{
-            background: urgent ? "rgba(248,113,113,0.55)" : "rgba(255,149,0,0.5)",
-          }}
-        />
-      ) : emphasize ? (
-        <div
-          aria-hidden
-          className="absolute -inset-2 rounded-full opacity-50 blur-xl"
-          style={{ background: urgent ? "rgba(248,113,113,0.45)" : "rgba(255,149,0,0.42)" }}
-        />
-      ) : null}
-      {ring}
-      <div className="relative z-[1] flex items-center justify-center">{children}</div>
-    </div>
-  );
-}
-
-/** Compact avatar chip for voice-mode player row (visual only). */
 function VoicePlayerChip({
   name,
   active,
@@ -3099,7 +3014,7 @@ export function RoomExperience({ roomId }: Props) {
       {/* ════════════════════════════════════════════════════════
           TOP HUD
       ════════════════════════════════════════════════════════ */}
-      <div className="relative z-10 mx-auto w-full max-w-3xl flex-shrink-0 px-3 pt-3 sm:px-5 lg:px-6">
+      <div className="relative z-10 mx-auto w-full max-w-lg flex-shrink-0 px-2 pt-2 sm:max-w-xl sm:px-3">
         <div className="flex items-center justify-between gap-2">
           {/* X button — left */}
           <motion.button
@@ -3182,7 +3097,7 @@ export function RoomExperience({ roomId }: Props) {
         className={
           voiceFocusPlaying
             ? "relative z-10 mx-auto flex w-full max-w-4xl flex-1 min-h-0 flex-col overflow-hidden px-3 pt-1 sm:px-6 lg:px-8"
-            : "relative z-10 mx-auto flex w-full max-w-3xl flex-1 min-h-0 flex-col gap-3 overflow-hidden px-3 pt-3 sm:px-5 lg:px-6"
+            : "relative z-10 mx-auto flex w-full max-w-lg flex-1 min-h-0 flex-col overflow-hidden px-1 pt-1 sm:max-w-xl sm:px-2"
         }
         style={
           voiceFocusPlaying
@@ -3234,442 +3149,43 @@ export function RoomExperience({ roomId }: Props) {
             myPhotoURL={user?.photoURL}
           />
         ) : (
-          <>
-        {/* ── banners ── */}
-        <AnimatePresence>
-          {banner ? (
-            <motion.div
-              initial={{ opacity: 0, y: -6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              className="flex-shrink-0 rounded-2xl border border-[#f4c48d] bg-[#fff2de] px-4 py-2.5 text-center text-sm font-bold text-[#9a5f2d]"
-            >
-              {banner}
-            </motion.div>
-          ) : null}
-        </AnimatePresence>
-
-        {room.status === "playing" && !match ? (
-          <div className="flex-shrink-0 rounded-2xl border border-[#f4d4af] bg-[#fff9ef] px-4 py-2.5 text-center text-sm text-[#a16231]">
-            جاري مزامنة حالة المباراة…
-          </div>
-        ) : null}
-
-        {/* ════════════════════════════════════════════
-            PLAYER STAGE — dual identity + orbital timer on active avatar
-        ════════════════════════════════════════════ */}
-        {match?.status === "active" && !ended ? (
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={`${myTurn ? "mine" : "theirs"}-${phase}`}
-              initial={{ opacity: 0, y: -12 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 10 }}
-              transition={{ type: "spring", stiffness: 320, damping: 26 }}
-              className="flex flex-shrink-0 flex-col gap-2.5"
-            >
-              <div
-                className="relative overflow-hidden rounded-[1.75rem] px-3 pb-3.5 pt-3 sm:px-5 sm:pb-4 sm:pt-3.5"
-                style={{
-                  background:
-                    "linear-gradient(155deg, rgba(255,253,250,0.98) 0%, rgba(255,244,232,0.98) 42%, rgba(255,234,216,0.99) 100%)",
-                  boxShadow:
-                    "0 0 0 2px rgba(255,200,170,0.42), 0 16px 44px rgba(170,85,45,0.11), inset 0 1px 0 rgba(255,255,255,0.92)",
-                }}
-              >
-                <div
-                  aria-hidden
-                  className="pointer-events-none absolute -right-24 -top-20 h-44 w-44 rounded-full bg-[#ffb366]/22 blur-3xl"
-                />
-                <div
-                  aria-hidden
-                  className="pointer-events-none absolute -left-16 bottom-0 h-32 w-32 rounded-full bg-[#ffd89e]/18 blur-3xl"
-                />
-
-                <div className="relative flex items-end justify-between gap-1.5 sm:gap-4">
-                  <div className="flex min-w-0 flex-1 flex-col items-center gap-1">
-                    <AvatarTurnRing
-                      showTimer={myTurn}
-                      emphasize={myTurn}
-                      secLeft={secLeft}
-                      maxSec={maxPhaseSec}
-                    >
-                      <ProfileAvatar
-                        cosmetic={uid ? cosmeticsMap[uid] : null}
-                        fallbackPhotoURL={user?.photoURL}
-                        displayName={displayName}
-                        size="lg"
-                        active={myTurn}
-                        idle={!myTurn}
-                        showPulseDot={myTurn}
-                      />
-                    </AvatarTurnRing>
-                    <span
-                      className={`max-w-[112px] truncate text-center text-[11px] font-black sm:max-w-[130px] sm:text-xs ${
-                        myTurn ? "text-[#c2410c]" : "text-[#a16231]"
-                      }`}
-                    >
-                      أنت
-                    </span>
-                  </div>
-
-                  <div className="flex shrink-0 flex-col items-center justify-end gap-1 pb-0.5 sm:pb-1">
-                    <div
-                      className="rounded-2xl px-2.5 py-1 text-[10px] font-black tracking-wide text-[#8a3f16] shadow-sm sm:px-3 sm:text-[11px]"
-                      style={{
-                        background: "linear-gradient(180deg,#ffffff 0%,#fff5e8 100%)",
-                        border: "1.5px solid rgba(244,196,141,0.55)",
-                        boxShadow: "0 4px 12px rgba(196,134,82,0.10)",
-                      }}
-                    >
-                      تحدي مباشر
-                    </div>
-                    <span className="text-base font-black text-[#e07a20]/75 sm:text-lg" aria-hidden>
-                      ⚔
-                    </span>
-                  </div>
-
-                  <div className="flex min-w-0 flex-1 flex-col items-center gap-1">
-                    <AvatarTurnRing
-                      showTimer={!myTurn}
-                      emphasize={!myTurn}
-                      secLeft={secLeft}
-                      maxSec={maxPhaseSec}
-                    >
-                      <ProfileAvatar
-                        cosmetic={opponent ? cosmeticsMap[opponent.uid] : null}
-                        displayName={opponentName}
-                        size="lg"
-                        active={!myTurn}
-                        idle={myTurn}
-                        showPulseDot={!myTurn}
-                      />
-                    </AvatarTurnRing>
-                    <span
-                      className={`max-w-[112px] truncate text-center text-[11px] font-black sm:max-w-[130px] sm:text-xs ${
-                        !myTurn ? "text-[#c2410c]" : "text-[#a16231]"
-                      }`}
-                    >
-                      {opponentName}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <motion.div
-                key={`turnline-${myTurn}-${phase}`}
-                initial={{ opacity: 0, scale: 0.97, y: 6 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                transition={{ type: "spring", stiffness: 380, damping: 24 }}
-                className="relative overflow-hidden rounded-[1.35rem] px-4 py-3.5 sm:rounded-[1.5rem] sm:px-5 sm:py-4"
-                style={
-                  myTurn
-                    ? {
-                        background: "linear-gradient(140deg,#FF9F0A 0%,#FF5A00 100%)",
-                        boxShadow:
-                          "0 0 0 3px rgba(255,190,90,0.35), 0 14px 40px rgba(255,100,0,0.32), inset 0 2px 0 rgba(255,255,255,0.38)",
-                      }
-                    : {
-                        background: "linear-gradient(140deg,#FFF9F1 0%,#FFEAD0 100%)",
-                        boxShadow:
-                          "0 0 0 2px rgba(244,196,141,0.48), 0 10px 28px rgba(196,134,82,0.14), inset 0 1.5px 0 rgba(255,255,255,0.75)",
-                      }
-                }
-              >
-                {myTurn ? (
-                  <motion.div
-                    aria-hidden
-                    animate={{ opacity: [0.25, 0.55, 0.25] }}
-                    transition={{ duration: 2.1, repeat: Infinity, ease: "easeInOut" }}
-                    className="pointer-events-none absolute inset-0"
-                    style={{
-                      background: "radial-gradient(ellipse at 50% -20%,rgba(255,240,160,0.55),transparent 58%)",
-                    }}
-                  />
-                ) : null}
-                <span
-                  aria-hidden
-                  className="pointer-events-none absolute inset-x-10 top-2 h-1.5 rounded-full bg-white/30 blur-[1.5px] sm:inset-x-14"
-                />
-                <p
-                  className={`relative text-center text-[15px] font-black leading-snug sm:text-lg ${
-                    myTurn ? "text-white" : "text-[#8a3f16]"
-                  }`}
-                  style={myTurn ? { textShadow: "0 2px 0 rgba(0,0,0,0.18)" } : undefined}
-                >
-                  {turnAction}
-                </p>
-                <p
-                  className={`relative mt-1 text-center text-[11px] font-bold sm:text-xs ${
-                    myTurn ? "text-orange-100/95" : "text-[#bc7a45]"
-                  }`}
-                >
-                  {myTurn
-                    ? phase === "question"
-                      ? "اكتب سؤالك في الدردشة قبل انتهاء الوقت."
-                      : "اكتب إجابتك في الدردشة قبل انتهاء الوقت."
-                    : `ترقّب حركة ${opponentName}.`}
-                </p>
-              </motion.div>
-            </motion.div>
-          </AnimatePresence>
-        ) : null}
-
-        {/* ════════════════════════════════════════════
-            DESKTOP SPLIT: card + chat side by side
-            MOBILE: card stays visible at top, chat fills the rest
-        ════════════════════════════════════════════ */}
-        <div className="flex flex-1 min-h-0 flex-col gap-2.5">
-          <div className="mx-auto w-full max-w-[300px] shrink-0 sm:max-w-[320px]">
-
-            {/* category pill */}
-            <div className="mb-2 flex items-center gap-2">
-              <span
-                className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold"
-                style={{
-                  background: "linear-gradient(135deg,#FFF8EE,#FFEDD8)",
-                  boxShadow: "0 2px 8px rgba(196,134,82,0.16), inset 0 0 0 1px rgba(244,196,141,0.45)",
-                  color: "#9a4f1d",
-                }}
-              >
-                <svg viewBox="0 0 12 12" fill="none" className="h-2.5 w-2.5" aria-hidden>
-                  <path d="M6 1l1.5 3h3l-2.4 1.8.9 3L6 7.2 3 8.8l.9-3L1.5 4h3z" fill="#e07a20" />
-                </svg>
-                {(() => {
-                  const catName = opponentCard?.categoryId
-                    ? getCategoryById(opponentCard.categoryId)?.nameAr
-                    : null;
-                  return catName ? `الفئة: ${catName}` : "بطاقة خصمك";
-                })()}
-              </span>
-            </div>
-
-            {/* card frame */}
-            <motion.div
-              animate={{ y: [0, -5, 0] }}
-              transition={{ duration: 4.5, repeat: Infinity, ease: "easeInOut" }}
-              className="relative overflow-hidden rounded-[1.5rem]"
-              style={{
-                background: "linear-gradient(180deg,#FFF9F1 0%,#FFF4E6 100%)",
-                boxShadow: "0 0 0 2px rgba(244,196,141,0.50), 0 14px 40px rgba(196,120,40,0.20), inset 0 2px 0 rgba(255,255,255,0.72)",
-              }}
-            >
-              {/* corner glows */}
-              <div className="pointer-events-none absolute -left-5 -top-5 h-16 w-16 rounded-full bg-[#ffd080]/28 blur-2xl" />
-              <div className="pointer-events-none absolute -right-5 bottom-0 h-16 w-16 rounded-full bg-[#ffb060]/18 blur-2xl" />
-
-              {opponentCard?.imageUrl ? (
-                <>
-                  <div className="relative mx-auto w-full overflow-hidden rounded-t-[1.4rem] gameplay-opponent-card-visual">
-                    <CardImage src={opponentCard.imageUrl} alt={opponentCard.nameAr} />
-                    <div className="pointer-events-none absolute inset-0 rounded-t-[1.4rem] ring-1 ring-inset ring-white/25" />
-                  </div>
-                  <div className="px-4 pb-3 pt-2.5 text-center">
-                    <p className="text-base font-black text-[#8a3f16] sm:text-lg">
-                      {opponentCard.nameAr}
-                    </p>
-                  </div>
-                </>
-              ) : (
-                <div className="gameplay-opponent-card-visual flex items-center justify-center text-sm text-[#bc7a45]">
-                  بعد بدء المباراة
-                </div>
-              )}
-            </motion.div>
-          </div>
-
-          {/* ── CHAT + INPUT — right column (flex-1 on desktop) ── */}
-          <div className="flex flex-1 min-h-0 flex-col gap-3">
-
-            {/* CHAT FEED */}
-            {!voiceMode && match?.status === "active" && !ended ? (
-              <div
-                className="flex flex-1 min-h-0 flex-col overflow-hidden rounded-[1.65rem]"
-                style={{
-                  background: "linear-gradient(180deg,#ffffff 0%,#fffbf6 55%,#fff6ec 100%)",
-                  boxShadow:
-                    "0 0 0 1.5px rgba(244,196,141,0.42), 0 18px 48px rgba(150,75,30,0.14), inset 0 1px 0 rgba(255,255,255,0.95)",
-                }}
-              >
-                {/* Chat header */}
-                <div
-                  className="flex flex-shrink-0 items-center justify-between px-4 pb-3 pt-3.5"
-                  style={{
-                    borderBottom: "1.5px solid rgba(248,232,210,0.95)",
-                    background: "linear-gradient(180deg,rgba(255,250,243,0.98),rgba(255,246,236,0.5))",
-                  }}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <span
-                      className="flex h-8 w-8 items-center justify-center rounded-xl shadow-md"
-                      style={{
-                        background: "linear-gradient(135deg,#FF9F0A,#FF6B00)",
-                        boxShadow: "0 4px 12px rgba(255,107,0,0.35), inset 0 1px 0 rgba(255,255,255,0.35)",
-                      }}
-                    >
-                      <svg viewBox="0 0 14 14" fill="none" className="h-3.5 w-3.5" aria-hidden>
-                        <path d="M1.5 2.5a1 1 0 011-1h9a1 1 0 011 1v6a1 1 0 01-1 1H4.5l-3 2v-9z" fill="white" />
-                      </svg>
-                    </span>
-                    <div className="flex flex-col leading-tight">
-                      <span className="text-sm font-black text-[#7a3410]">الدردشة</span>
-                      <span className="text-[10px] font-semibold text-[#c48652]">تحدث مع خصمك أثناء اللعب</span>
-                    </div>
-                  </div>
-
-                  {/* turn type badge */}
-                  <span
-                    className={`rounded-xl px-3 py-1 text-[11px] font-extrabold shadow-sm ${
-                      myTurn
-                        ? phase === "answer"
-                          ? "bg-[#dcfce7] text-[#166534]"
-                          : "bg-[#ede9fe] text-[#5b21b6]"
-                        : "bg-[#fff3e0] text-[#a16231]"
-                    }`}
-                  >
-                    {myTurn
-                      ? phase === "answer" ? "دورك: إجابة" : "دورك: سؤال"
-                      : "دور الخصم"}
-                  </span>
-                </div>
-
-                {/* Message list — flex-1 so it fills the chat panel and
-                    becomes the only scroll surface (composer stays pinned). */}
-                <div
-                  ref={chatScrollRef}
-                  className="scroll-y scroll-y-hidden flex-1 min-h-0 space-y-3 px-3 py-3"
-                >
-                  {messages.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center gap-2 py-8 text-center">
-                      <span className="text-3xl">💬</span>
-                      <p className="text-sm font-semibold text-[#c48652]">لا رسائل بعد — ابدأ بالأسئلة!</p>
-                    </div>
-                  ) : (
-                    messages.map((m) => renderMessage(m))
-                  )}
-                  <div ref={chatEndRef} />
-                </div>
-
-                {/* Composer + guess — safe-area only: root is already `--app-vh`
-                    tall; extra `--kbd-h` padding would collapse the message list. */}
-                <div
-                  className="kbd-safe-area-only flex flex-shrink-0 flex-col gap-2.5 p-3 pt-2.5"
-                  style={{
-                    borderTop: "1.5px solid rgba(248,232,210,0.95)",
-                    background: "linear-gradient(180deg,rgba(255,252,247,0.97),rgba(255,248,240,0.99))",
-                  }}
-                >
-                  {myTurn ? (
-                    <div className="flex min-h-0 items-center gap-2">
-                      <input
-                        value={draft}
-                        onChange={(e) => setDraft(e.target.value)}
-                        placeholder={phase === "answer" ? "اكتب إجابتك…" : "اكتب سؤالك أو تخمينك…"}
-                        disabled={busy}
-                        onKeyDown={(e) => { if (e.key === "Enter" && !busy) void sendDraft(); }}
-                        dir="rtl"
-                        // inputMode/enterKeyHint give us a proper Arabic keyboard
-                        // with a "send" key on mobile.
-                        inputMode="text"
-                        enterKeyHint="send"
-                        autoComplete="off"
-                        autoCorrect="off"
-                        spellCheck={false}
-                        className="min-h-[46px] flex-1 rounded-2xl px-3.5 py-2.5 font-semibold text-[#6f3714] placeholder-[#c9955e] outline-none transition-shadow sm:min-h-[48px] sm:px-4"
-                        style={{
-                          // 16px to defeat iOS Safari auto-zoom on focus.
-                          fontSize: "16px",
-                          background: "linear-gradient(180deg,#FFFCF7,#FFF6EB)",
-                          boxShadow: "inset 0 0 0 1.5px rgba(244,196,141,0.55), inset 0 2px 6px rgba(196,134,82,0.06)",
-                        }}
-                        onFocus={(e) => {
-                          setComposerFocused(true);
-                          snapChatToBottom("auto");
-                          e.currentTarget.style.boxShadow =
-                            "inset 0 0 0 2px rgba(255,149,0,0.50), inset 0 2px 6px rgba(196,134,82,0.08)";
-                        }}
-                        onBlur={(e) => {
-                          setComposerFocused(false);
-                          e.currentTarget.style.boxShadow =
-                            "inset 0 0 0 1.5px rgba(244,196,141,0.55), inset 0 2px 6px rgba(196,134,82,0.06)";
-                        }}
-                      />
-                      <motion.button
-                        type="button"
-                        disabled={busy || !draft.trim()}
-                        onClick={() => void sendDraft()}
-                        whileTap={{ scale: 0.9, y: 2 }}
-                        aria-label="إرسال"
-                        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-white disabled:opacity-50 sm:h-12 sm:w-12"
-                        style={{
-                          background: "linear-gradient(135deg,#FF9F0A,#FF6B00)",
-                          boxShadow: "0 5px 0 #be5200, 0 8px 16px rgba(255,107,0,0.34)",
-                        }}
-                      >
-                        <svg viewBox="0 0 18 18" fill="none" className="h-4 w-4" aria-hidden>
-                          <path d="M2.5 9L15.5 3l-4 6 4 6-13-6z" fill="white" />
-                        </svg>
-                      </motion.button>
-                    </div>
-                  ) : (
-                    <div
-                      className="flex min-h-[46px] items-center justify-center gap-3 rounded-2xl px-4 py-2.5 sm:min-h-[48px] sm:py-3"
-                      style={{ background: "#FFF9F0" }}
-                    >
-                      {[0, 1, 2].map((i) => (
-                        <motion.span
-                          key={i}
-                          className="block h-2 w-2 rounded-full bg-[#e0a060]"
-                          animate={{ scale: [1, 1.7, 1], opacity: [0.4, 1, 0.4] }}
-                          transition={{ duration: 1.1, repeat: Infinity, ease: "easeInOut", delay: i * 0.24 }}
-                        />
-                      ))}
-                      <span className="text-sm font-semibold text-[#c48652]">بانتظار دورك…</span>
-                    </div>
-                  )}
-
-                  <motion.button
-                    type="button"
-                    whileHover={{ y: -2, scale: 1.01 }}
-                    whileTap={{ scale: 0.96, y: 2 }}
-                    onClick={openGuessFlow}
-                    animate={
-                      myTurn
-                        ? {
-                            boxShadow: [
-                              "inset 0 2px 0 rgba(255,255,255,0.40), 0 7px 0 #be5200, 0 12px 24px rgba(255,100,0,0.38)",
-                              "inset 0 2px 0 rgba(255,255,255,0.40), 0 7px 0 #be5200, 0 16px 32px rgba(255,100,0,0.52)",
-                              "inset 0 2px 0 rgba(255,255,255,0.40), 0 7px 0 #be5200, 0 12px 24px rgba(255,100,0,0.38)",
-                            ],
-                          }
-                        : {}
-                    }
-                    transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
-                    className="relative w-full overflow-hidden rounded-2xl py-3 text-base font-black sm:rounded-[1.35rem] sm:py-3.5 sm:text-lg"
-                    style={
-                      myTurn
-                        ? {
-                            background: "linear-gradient(140deg,#FF9F0A 0%,#FF5500 100%)",
-                            color: "#fff",
-                            boxShadow: "inset 0 2px 0 rgba(255,255,255,0.40), 0 7px 0 #be5200, 0 12px 24px rgba(255,100,0,0.38)",
-                          }
-                        : {
-                            background: "linear-gradient(140deg,#FFF4E4 0%,#FFE8C8 100%)",
-                            color: "#bc7a45",
-                            boxShadow: "0 0 0 1.5px rgba(244,196,141,0.45), 0 5px 0 rgba(196,134,82,0.18), 0 8px 16px rgba(196,134,82,0.10)",
-                          }
-                    }
-                  >
-                    <span aria-hidden className="pointer-events-none absolute inset-x-10 top-1.5 h-1.5 rounded-full bg-white/28 blur-[2px] sm:inset-x-14 sm:top-2" />
-                    🎯 تخمين
-                  </motion.button>
-                </div>
-              </div>
-            ) : null}
-
-          </div>{/* end right column */}
-        </div>{/* end desktop split */}
-          </>
+          <GameplaySocialSurface
+            banner={banner}
+            matchSyncWaiting={room.status === "playing" && !match}
+            socialMatchLive={Boolean(match?.status === "active" && !ended)}
+            myTurn={myTurn}
+            phase={phase}
+            turnAction={turnAction}
+            secLeft={secLeft}
+            maxPhaseSec={maxPhaseSec}
+            displayName={displayName}
+            opponentName={opponentName}
+            uid={uid}
+            opponent={opponent}
+            cosmeticsMap={cosmeticsMap}
+            userPhotoURL={user?.photoURL}
+            opponentCard={opponentCard}
+            messages={messages}
+            renderMessage={renderMessage}
+            chatScrollRef={chatScrollRef}
+            chatEndRef={chatEndRef}
+            draft={draft}
+            onDraftChange={setDraft}
+            onSendDraft={sendDraft}
+            busy={busy}
+            onGuessClick={openGuessFlow}
+            onComposerFocus={(el) => {
+              setComposerFocused(true);
+              snapChatToBottom("auto");
+              el.style.boxShadow =
+                "inset 0 0 0 2px rgba(255,149,0,0.50), inset 0 2px 6px rgba(196,134,82,0.08)";
+            }}
+            onComposerBlur={(el) => {
+              setComposerFocused(false);
+              el.style.boxShadow =
+                "inset 0 0 0 1.5px rgba(244,196,141,0.55), inset 0 2px 6px rgba(196,134,82,0.06)";
+            }}
+          />
         )}
 
       </div>{/* end scrollable body */}
