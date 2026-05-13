@@ -157,6 +157,91 @@ function CircularTimer({
   );
 }
 
+/** Countdown ring around an avatar — active player gets a live arc + glow. */
+function AvatarTurnRing({
+  showTimer,
+  emphasize,
+  secLeft,
+  maxSec,
+  children,
+}: {
+  showTimer: boolean;
+  emphasize: boolean;
+  secLeft: number | null;
+  maxSec: number;
+  children: React.ReactNode;
+}) {
+  const reduced = useReducedMotion();
+  const dim = 124;
+  const cx = dim / 2;
+  const r = 52;
+  const stroke = 5;
+  const circumference = 2 * Math.PI * r;
+  const safeSec = secLeft ?? 0;
+  const hasCountdown = showTimer && secLeft !== null && maxSec > 0;
+  const pct = hasCountdown ? Math.max(0, Math.min(1, safeSec / maxSec)) : 1;
+  const dash = circumference * pct;
+  const urgent = hasCountdown && safeSec <= 5;
+
+  const trackStroke = emphasize ? "rgba(255,255,255,0.55)" : "rgba(244,196,141,0.55)";
+  const glowStroke = urgent ? "#ef4444" : emphasize ? "#fff" : "rgba(200,150,100,0.55)";
+
+  const ring = (
+    <svg
+      className="pointer-events-none absolute inset-0 -rotate-90"
+      width={dim}
+      height={dim}
+      viewBox={`0 0 ${dim} ${dim}`}
+      aria-hidden
+    >
+      <circle
+        cx={cx}
+        cy={cx}
+        r={r}
+        fill="none"
+        stroke={trackStroke}
+        strokeWidth={stroke}
+      />
+      <circle
+        cx={cx}
+        cy={cx}
+        r={r}
+        fill="none"
+        stroke={glowStroke}
+        strokeWidth={stroke}
+        strokeDasharray={hasCountdown ? `${dash} ${circumference}` : `${circumference} 0`}
+        strokeLinecap="round"
+        style={{ transition: "stroke-dasharray 0.2s linear, stroke 0.35s" }}
+        opacity={hasCountdown || emphasize ? 1 : 0.55}
+      />
+    </svg>
+  );
+
+  return (
+    <div className="relative inline-flex shrink-0 items-center justify-center" style={{ width: dim, height: dim }}>
+      {emphasize && !reduced ? (
+        <motion.div
+          aria-hidden
+          animate={{ opacity: [0.35, 0.75, 0.35], scale: [0.92, 1.06, 0.92] }}
+          transition={{ duration: urgent ? 0.85 : 2.1, repeat: Infinity, ease: "easeInOut" }}
+          className="absolute -inset-2 rounded-full blur-xl"
+          style={{
+            background: urgent ? "rgba(248,113,113,0.55)" : "rgba(255,149,0,0.5)",
+          }}
+        />
+      ) : emphasize ? (
+        <div
+          aria-hidden
+          className="absolute -inset-2 rounded-full opacity-50 blur-xl"
+          style={{ background: urgent ? "rgba(248,113,113,0.45)" : "rgba(255,149,0,0.42)" }}
+        />
+      ) : null}
+      {ring}
+      <div className="relative z-[1] flex items-center justify-center">{children}</div>
+    </div>
+  );
+}
+
 /** Compact avatar chip for voice-mode player row (visual only). */
 function VoicePlayerChip({
   name,
@@ -615,7 +700,7 @@ function MatchResultScreen({
       exit={{ opacity: 0 }}
       transition={{ duration: 0.35 }}
       dir="rtl"
-      className="fixed inset-x-0 z-50 flex w-full flex-col overflow-hidden"
+      className="fixed inset-x-0 z-50 flex w-full min-h-0 flex-col overflow-hidden"
       style={{
         top: "var(--vv-top, 0px)",
         left: "var(--vv-left, 0px)",
@@ -629,8 +714,8 @@ function MatchResultScreen({
       {/* ── confetti (victory only) ── */}
       {iWon && <ConfettiBurst active />}
 
-      {/* ── ambient background layer ── */}
-      <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+      {/* ── ambient background layer (absolute: tracks VisualViewport shell) ── */}
+      <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
         {iWon ? (
           <>
             <motion.div
@@ -1194,6 +1279,8 @@ export function RoomExperience({ roomId }: Props) {
   const vsIntroGen = useRef(0);
 
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const chatScrollRef = useRef<HTMLDivElement>(null);
+  const [composerFocused, setComposerFocused] = useState(false);
   const autoStartRef = useRef(false);
   const firedTimeoutForDeadline = useRef<number | null>(null);
   const prevMyTurn = useRef(false);
@@ -1239,6 +1326,31 @@ export function RoomExperience({ roomId }: Props) {
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages.length]);
+
+  const snapChatToBottom = useCallback((behavior: ScrollBehavior = "auto") => {
+    const el = chatScrollRef.current;
+    if (!el) return;
+    requestAnimationFrame(() => {
+      el.scrollTo({ top: el.scrollHeight, behavior });
+    });
+  }, []);
+
+  /** While the composer is focused, keep the message list pinned to the bottom
+   *  when the VisualViewport shrinks (soft keyboard) so nothing “jumps away”. */
+  useEffect(() => {
+    if (!composerFocused) return;
+    const vv = window.visualViewport;
+    const onVv = () => snapChatToBottom("auto");
+    vv?.addEventListener("resize", onVv);
+    vv?.addEventListener("scroll", onVv);
+    window.addEventListener("resize", onVv);
+    onVv();
+    return () => {
+      vv?.removeEventListener("resize", onVv);
+      vv?.removeEventListener("scroll", onVv);
+      window.removeEventListener("resize", onVv);
+    };
+  }, [composerFocused, snapChatToBottom]);
 
   /** Lock document scroll so fixed gameplay tracks VisualViewport on iOS. */
   useEffect(() => {
@@ -2882,7 +2994,7 @@ export function RoomExperience({ roomId }: Props) {
 
         {/* bubble */}
         <div
-          className="max-w-[72%] rounded-3xl px-4 py-2.5 text-sm leading-relaxed shadow-sm sm:max-w-[68%]"
+          className="max-w-[78%] rounded-[1.35rem] px-4 py-2.5 text-sm leading-relaxed shadow-[0_8px_26px_rgba(120,55,25,0.09)] sm:max-w-[72%]"
           style={bubbleStyle}
         >
           {typeTag && (
@@ -2902,7 +3014,7 @@ export function RoomExperience({ roomId }: Props) {
   return (
     <div
       dir="rtl"
-      className="fixed inset-x-0 z-40 flex w-full flex-col overflow-hidden select-none"
+      className="fixed inset-x-0 z-40 flex w-full min-h-0 flex-col overflow-hidden select-none"
       style={{
         top: "var(--vv-top, 0px)",
         left: "var(--vv-left, 0px)",
@@ -2931,7 +3043,7 @@ export function RoomExperience({ roomId }: Props) {
       />
 
       {/* ── Fixed ambient background ── */}
-      <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+      <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
         <motion.div
           animate={{ y: [0, -24, 0], x: [0, 16, 0] }}
           transition={{ duration: 16, repeat: Infinity, ease: "easeInOut" }}
@@ -3154,76 +3266,161 @@ export function RoomExperience({ roomId }: Props) {
         ) : null}
 
         {/* ════════════════════════════════════════════
-            TURN INDICATOR — the most important element
+            PLAYER STAGE — dual identity + orbital timer on active avatar
         ════════════════════════════════════════════ */}
         {match?.status === "active" && !ended ? (
           <AnimatePresence mode="wait">
             <motion.div
               key={`${myTurn ? "mine" : "theirs"}-${phase}`}
-              initial={{ opacity: 0, scale: 0.93, y: -16 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.93, y: 16 }}
-              transition={{ type: "spring", stiffness: 310, damping: 24 }}
-              className="relative flex-shrink-0 overflow-hidden rounded-[1.75rem]"
-              style={
-                myTurn
-                  ? {
-                      background: "linear-gradient(140deg,#FF9F0A 0%,#FF5F00 100%)",
-                      boxShadow: "0 0 0 3px rgba(255,180,0,0.30), 0 0 40px rgba(255,150,40,.45), 0 18px 52px rgba(255,100,0,0.38), inset 0 2.5px 0 rgba(255,255,255,0.36)",
-                    }
-                  : {
-                      background: "linear-gradient(140deg,#FFF8EE 0%,#FFEDD8 100%)",
-                      boxShadow: "0 0 0 2px rgba(244,196,141,0.50), 0 12px 28px rgba(196,134,82,0.16), inset 0 1.5px 0 rgba(255,255,255,0.7)",
-                    }
-              }
+              initial={{ opacity: 0, y: -12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 10 }}
+              transition={{ type: "spring", stiffness: 320, damping: 26 }}
+              className="flex flex-shrink-0 flex-col gap-2.5"
             >
-              {/* breathing glow overlay when my turn */}
-              {myTurn && (
-                <motion.div
+              <div
+                className="relative overflow-hidden rounded-[1.75rem] px-3 pb-3.5 pt-3 sm:px-5 sm:pb-4 sm:pt-3.5"
+                style={{
+                  background:
+                    "linear-gradient(155deg, rgba(255,253,250,0.98) 0%, rgba(255,244,232,0.98) 42%, rgba(255,234,216,0.99) 100%)",
+                  boxShadow:
+                    "0 0 0 2px rgba(255,200,170,0.42), 0 16px 44px rgba(170,85,45,0.11), inset 0 1px 0 rgba(255,255,255,0.92)",
+                }}
+              >
+                <div
                   aria-hidden
-                  animate={{ opacity: [0.3, 0.7, 0.3] }}
-                  transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-                  className="pointer-events-none absolute inset-0"
-                  style={{ background: "radial-gradient(ellipse at 50% -10%,rgba(255,230,80,0.50),transparent 60%)" }}
+                  className="pointer-events-none absolute -right-24 -top-20 h-44 w-44 rounded-full bg-[#ffb366]/22 blur-3xl"
                 />
-              )}
-              {/* inner top shine */}
-              <span aria-hidden className="pointer-events-none absolute inset-x-12 top-2.5 h-2 rounded-full bg-white/28 blur-[2px]" />
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute -left-16 bottom-0 h-32 w-32 rounded-full bg-[#ffd89e]/18 blur-3xl"
+                />
 
-              <div className="relative flex items-center gap-4 px-5 py-4 sm:px-6 sm:py-5">
-                {/* Player avatar */}
-                <div className="relative flex shrink-0 items-center justify-center">
-                  <ProfileAvatar
-                    cosmetic={
-                      myTurn ? (uid ? cosmeticsMap[uid] : null) : opponent ? cosmeticsMap[opponent.uid] : null
-                    }
-                    fallbackPhotoURL={myTurn ? user?.photoURL : undefined}
-                    displayName={myTurn ? displayName : opponentName}
-                    size="lg"
-                    active={myTurn}
-                    idle
-                    showPulseDot={myTurn}
-                  />
+                <div className="relative flex items-end justify-between gap-1.5 sm:gap-4">
+                  <div className="flex min-w-0 flex-1 flex-col items-center gap-1">
+                    <AvatarTurnRing
+                      showTimer={myTurn}
+                      emphasize={myTurn}
+                      secLeft={secLeft}
+                      maxSec={maxPhaseSec}
+                    >
+                      <ProfileAvatar
+                        cosmetic={uid ? cosmeticsMap[uid] : null}
+                        fallbackPhotoURL={user?.photoURL}
+                        displayName={displayName}
+                        size="lg"
+                        active={myTurn}
+                        idle={!myTurn}
+                        showPulseDot={myTurn}
+                      />
+                    </AvatarTurnRing>
+                    <span
+                      className={`max-w-[112px] truncate text-center text-[11px] font-black sm:max-w-[130px] sm:text-xs ${
+                        myTurn ? "text-[#c2410c]" : "text-[#a16231]"
+                      }`}
+                    >
+                      أنت
+                    </span>
+                  </div>
+
+                  <div className="flex shrink-0 flex-col items-center justify-end gap-1 pb-0.5 sm:pb-1">
+                    <div
+                      className="rounded-2xl px-2.5 py-1 text-[10px] font-black tracking-wide text-[#8a3f16] shadow-sm sm:px-3 sm:text-[11px]"
+                      style={{
+                        background: "linear-gradient(180deg,#ffffff 0%,#fff5e8 100%)",
+                        border: "1.5px solid rgba(244,196,141,0.55)",
+                        boxShadow: "0 4px 12px rgba(196,134,82,0.10)",
+                      }}
+                    >
+                      تحدي مباشر
+                    </div>
+                    <span className="text-base font-black text-[#e07a20]/75 sm:text-lg" aria-hidden>
+                      ⚔
+                    </span>
+                  </div>
+
+                  <div className="flex min-w-0 flex-1 flex-col items-center gap-1">
+                    <AvatarTurnRing
+                      showTimer={!myTurn}
+                      emphasize={!myTurn}
+                      secLeft={secLeft}
+                      maxSec={maxPhaseSec}
+                    >
+                      <ProfileAvatar
+                        cosmetic={opponent ? cosmeticsMap[opponent.uid] : null}
+                        displayName={opponentName}
+                        size="lg"
+                        active={!myTurn}
+                        idle={myTurn}
+                        showPulseDot={!myTurn}
+                      />
+                    </AvatarTurnRing>
+                    <span
+                      className={`max-w-[112px] truncate text-center text-[11px] font-black sm:max-w-[130px] sm:text-xs ${
+                        !myTurn ? "text-[#c2410c]" : "text-[#a16231]"
+                      }`}
+                    >
+                      {opponentName}
+                    </span>
+                  </div>
                 </div>
-
-                {/* Text block */}
-                <div className="min-w-0 flex-1">
-                  <p className={`text-[11px] font-bold uppercase tracking-widest ${myTurn ? "text-orange-100" : "text-[#bc7a45]"}`}>
-                    {myTurn ? "دورك الآن" : `دور ${opponentName}`}
-                  </p>
-                  <p
-                    className={`mt-0.5 truncate text-xl font-black leading-tight sm:text-2xl ${myTurn ? "text-white" : "text-[#8a3f16]"}`}
-                    style={myTurn ? { textShadow: "0 2px 0 rgba(0,0,0,0.20)" } : {}}
-                  >
-                    {turnAction}
-                  </p>
-                </div>
-
-                {/* Circular timer */}
-                {secLeft !== null && (
-                  <CircularTimer secLeft={secLeft} maxSec={maxPhaseSec} active={myTurn} />
-                )}
               </div>
+
+              <motion.div
+                key={`turnline-${myTurn}-${phase}`}
+                initial={{ opacity: 0, scale: 0.97, y: 6 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                transition={{ type: "spring", stiffness: 380, damping: 24 }}
+                className="relative overflow-hidden rounded-[1.35rem] px-4 py-3.5 sm:rounded-[1.5rem] sm:px-5 sm:py-4"
+                style={
+                  myTurn
+                    ? {
+                        background: "linear-gradient(140deg,#FF9F0A 0%,#FF5A00 100%)",
+                        boxShadow:
+                          "0 0 0 3px rgba(255,190,90,0.35), 0 14px 40px rgba(255,100,0,0.32), inset 0 2px 0 rgba(255,255,255,0.38)",
+                      }
+                    : {
+                        background: "linear-gradient(140deg,#FFF9F1 0%,#FFEAD0 100%)",
+                        boxShadow:
+                          "0 0 0 2px rgba(244,196,141,0.48), 0 10px 28px rgba(196,134,82,0.14), inset 0 1.5px 0 rgba(255,255,255,0.75)",
+                      }
+                }
+              >
+                {myTurn ? (
+                  <motion.div
+                    aria-hidden
+                    animate={{ opacity: [0.25, 0.55, 0.25] }}
+                    transition={{ duration: 2.1, repeat: Infinity, ease: "easeInOut" }}
+                    className="pointer-events-none absolute inset-0"
+                    style={{
+                      background: "radial-gradient(ellipse at 50% -20%,rgba(255,240,160,0.55),transparent 58%)",
+                    }}
+                  />
+                ) : null}
+                <span
+                  aria-hidden
+                  className="pointer-events-none absolute inset-x-10 top-2 h-1.5 rounded-full bg-white/30 blur-[1.5px] sm:inset-x-14"
+                />
+                <p
+                  className={`relative text-center text-[15px] font-black leading-snug sm:text-lg ${
+                    myTurn ? "text-white" : "text-[#8a3f16]"
+                  }`}
+                  style={myTurn ? { textShadow: "0 2px 0 rgba(0,0,0,0.18)" } : undefined}
+                >
+                  {turnAction}
+                </p>
+                <p
+                  className={`relative mt-1 text-center text-[11px] font-bold sm:text-xs ${
+                    myTurn ? "text-orange-100/95" : "text-[#bc7a45]"
+                  }`}
+                >
+                  {myTurn
+                    ? phase === "question"
+                      ? "اسأل في الدردشة قبل انتهاء الوقت حول صورتك"
+                      : "أجِب في الدردشة قبل انتهاء الوقت حول صورتك"
+                    : `المؤقت يدور حول صورة ${opponentName}`}
+                </p>
+              </motion.div>
             </motion.div>
           </AnimatePresence>
         ) : null}
@@ -3275,15 +3472,7 @@ export function RoomExperience({ roomId }: Props) {
 
               {opponentCard?.imageUrl ? (
                 <>
-                  <div
-                    className="relative w-full overflow-hidden rounded-t-[1.4rem] mx-auto"
-                    style={{
-                      // Stable 4:5 aspect everywhere (portrait, fits a face nicely)
-                      // with a hard clamp so the card never eats the whole screen.
-                      aspectRatio: "4 / 5",
-                      maxHeight: "clamp(140px, 24svh, 240px)",
-                    }}
-                  >
+                  <div className="relative mx-auto w-full overflow-hidden rounded-t-[1.4rem] gameplay-opponent-card-visual">
                     <CardImage src={opponentCard.imageUrl} alt={opponentCard.nameAr} />
                     <div className="pointer-events-none absolute inset-0 rounded-t-[1.4rem] ring-1 ring-inset ring-white/25" />
                   </div>
@@ -3294,10 +3483,7 @@ export function RoomExperience({ roomId }: Props) {
                   </div>
                 </>
               ) : (
-                <div
-                  className="flex items-center justify-center text-sm text-[#bc7a45]"
-                  style={{ aspectRatio: "4 / 5", maxHeight: "clamp(140px, 24svh, 240px)" }}
-                >
+                <div className="gameplay-opponent-card-visual flex items-center justify-center text-sm text-[#bc7a45]">
                   بعد بدء المباراة
                 </div>
               )}
@@ -3310,32 +3496,42 @@ export function RoomExperience({ roomId }: Props) {
             {/* CHAT FEED */}
             {!voiceMode && match?.status === "active" && !ended ? (
               <div
-                className="flex flex-1 min-h-0 flex-col overflow-hidden rounded-[1.5rem]"
+                className="flex flex-1 min-h-0 flex-col overflow-hidden rounded-[1.65rem]"
                 style={{
-                  background: "#FFFFFF",
-                  boxShadow: "0 0 0 1.5px rgba(244,196,141,0.45), 0 16px 44px rgba(196,134,82,0.16), inset 0 2px 0 rgba(255,255,255,0.85)",
+                  background: "linear-gradient(180deg,#ffffff 0%,#fffbf6 55%,#fff6ec 100%)",
+                  boxShadow:
+                    "0 0 0 1.5px rgba(244,196,141,0.42), 0 18px 48px rgba(150,75,30,0.14), inset 0 1px 0 rgba(255,255,255,0.95)",
                 }}
               >
                 {/* Chat header */}
                 <div
                   className="flex flex-shrink-0 items-center justify-between px-4 pb-3 pt-3.5"
-                  style={{ borderBottom: "1.5px solid #f8e8d4" }}
+                  style={{
+                    borderBottom: "1.5px solid rgba(248,232,210,0.95)",
+                    background: "linear-gradient(180deg,rgba(255,250,243,0.98),rgba(255,246,236,0.5))",
+                  }}
                 >
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2.5">
                     <span
-                      className="flex h-7 w-7 items-center justify-center rounded-xl"
-                      style={{ background: "linear-gradient(135deg,#FF9F0A,#FF6B00)", boxShadow: "0 3px 8px rgba(255,107,0,0.32)" }}
+                      className="flex h-8 w-8 items-center justify-center rounded-xl shadow-md"
+                      style={{
+                        background: "linear-gradient(135deg,#FF9F0A,#FF6B00)",
+                        boxShadow: "0 4px 12px rgba(255,107,0,0.35), inset 0 1px 0 rgba(255,255,255,0.35)",
+                      }}
                     >
                       <svg viewBox="0 0 14 14" fill="none" className="h-3.5 w-3.5" aria-hidden>
                         <path d="M1.5 2.5a1 1 0 011-1h9a1 1 0 011 1v6a1 1 0 01-1 1H4.5l-3 2v-9z" fill="white" />
                       </svg>
                     </span>
-                    <span className="text-sm font-black text-[#8a3f16]">الدردشة</span>
+                    <div className="flex flex-col leading-tight">
+                      <span className="text-sm font-black text-[#7a3410]">الدردشة</span>
+                      <span className="text-[10px] font-semibold text-[#c48652]">تحدث مع خصمك أثناء اللعب</span>
+                    </div>
                   </div>
 
                   {/* turn type badge */}
                   <span
-                    className={`rounded-xl px-3 py-1 text-[11px] font-extrabold ${
+                    className={`rounded-xl px-3 py-1 text-[11px] font-extrabold shadow-sm ${
                       myTurn
                         ? phase === "answer"
                           ? "bg-[#dcfce7] text-[#166534]"
@@ -3351,7 +3547,10 @@ export function RoomExperience({ roomId }: Props) {
 
                 {/* Message list — flex-1 so it fills the chat panel and
                     becomes the only scroll surface (composer stays pinned). */}
-                <div className="scroll-y scroll-y-hidden flex-1 min-h-0 space-y-3 px-3 py-3">
+                <div
+                  ref={chatScrollRef}
+                  className="scroll-y scroll-y-hidden flex-1 min-h-0 space-y-3 px-3 py-3"
+                >
                   {messages.length === 0 ? (
                     <div className="flex flex-col items-center justify-center gap-2 py-8 text-center">
                       <span className="text-3xl">💬</span>
@@ -3367,7 +3566,10 @@ export function RoomExperience({ roomId }: Props) {
                     tall; extra `--kbd-h` padding would collapse the message list. */}
                 <div
                   className="kbd-safe-area-only flex flex-shrink-0 flex-col gap-2.5 p-3 pt-2.5"
-                  style={{ borderTop: "1.5px solid #f8e8d4" }}
+                  style={{
+                    borderTop: "1.5px solid rgba(248,232,210,0.95)",
+                    background: "linear-gradient(180deg,rgba(255,252,247,0.97),rgba(255,248,240,0.99))",
+                  }}
                 >
                   {myTurn ? (
                     <div className="flex min-h-0 items-center gap-2">
@@ -3389,14 +3591,19 @@ export function RoomExperience({ roomId }: Props) {
                         style={{
                           // 16px to defeat iOS Safari auto-zoom on focus.
                           fontSize: "16px",
-                          background: "#FFF9F0",
-                          boxShadow: "inset 0 0 0 1.5px rgba(244,196,141,0.55), inset 0 2px 6px rgba(196,134,82,0.07)",
+                          background: "linear-gradient(180deg,#FFFCF7,#FFF6EB)",
+                          boxShadow: "inset 0 0 0 1.5px rgba(244,196,141,0.55), inset 0 2px 6px rgba(196,134,82,0.06)",
                         }}
                         onFocus={(e) => {
-                          e.currentTarget.style.boxShadow = "inset 0 0 0 2px rgba(255,149,0,0.50), inset 0 2px 6px rgba(196,134,82,0.08)";
+                          setComposerFocused(true);
+                          snapChatToBottom("auto");
+                          e.currentTarget.style.boxShadow =
+                            "inset 0 0 0 2px rgba(255,149,0,0.50), inset 0 2px 6px rgba(196,134,82,0.08)";
                         }}
                         onBlur={(e) => {
-                          e.currentTarget.style.boxShadow = "inset 0 0 0 1.5px rgba(244,196,141,0.55), inset 0 2px 6px rgba(196,134,82,0.07)";
+                          setComposerFocused(false);
+                          e.currentTarget.style.boxShadow =
+                            "inset 0 0 0 1.5px rgba(244,196,141,0.55), inset 0 2px 6px rgba(196,134,82,0.06)";
                         }}
                       />
                       <motion.button

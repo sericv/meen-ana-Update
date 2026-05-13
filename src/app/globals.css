@@ -137,6 +137,8 @@ label {
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
   scroll-behavior: smooth;
+  /* Reduce layout jumps when the composer/viewport height changes on mobile. */
+  overflow-anchor: none;
 }
 
 /* Hide native scrollbar while preserving scroll (used in chat lists). */
@@ -146,6 +148,18 @@ label {
 }
 .scroll-y-hidden {
   scrollbar-width: none;
+}
+
+/* In-room opponent card: height follows VisualViewport (`--app-vh`) so the
+   chat column keeps usable space when the soft keyboard is open (svh/dvh
+   alone can stay “full screen” on some mobile browsers). */
+.gameplay-opponent-card-visual {
+  aspect-ratio: 4 / 5;
+  max-height: min(240px, calc(var(--app-vh, 100dvh) * 0.26));
+}
+
+html.kbd-open .gameplay-opponent-card-visual {
+  max-height: min(200px, calc(var(--app-vh, 100dvh) * 0.2));
 }
 
 /* ─── Keyboard-safe footer: use ONLY on pages whose root height is still
