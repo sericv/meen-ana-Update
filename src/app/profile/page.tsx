@@ -8,7 +8,7 @@ import { ProfileAvatar } from "@/components/profile/ProfileAvatar";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { useDefaultOnlinePresence } from "@/hooks/useDefaultOnlinePresence";
 import { usePlayerCosmetics } from "@/hooks/usePlayerCosmetics";
-import { isGoogleLinkedUser } from "@/lib/auth/google-user";
+import { isFullAccountUser } from "@/lib/auth/google-user";
 import { playUIButton, resumeAudioContext } from "@/lib/audio/game-sounds";
 import { updateUserCosmetics } from "@/lib/firestore/users.client";
 import {
@@ -30,7 +30,7 @@ function ProfileInner() {
   const router = useRouter();
   const { user } = useAuth();
   const uid = user?.uid ?? null;
-  useDefaultOnlinePresence(uid, isGoogleLinkedUser(user));
+  useDefaultOnlinePresence(uid, isFullAccountUser(user));
   const map = usePlayerCosmetics(uid ? [uid] : []);
   const live = uid ? map[uid] : undefined;
   const resolved = useMemo(() => normalizeCosmetic(live as Record<string, unknown> | undefined), [live]);
@@ -98,7 +98,7 @@ function ProfileInner() {
           >
             شخصيتك
           </h1>
-          {isGoogleLinkedUser(user) ? (
+          {isFullAccountUser(user) ? (
             <motion.button
               type="button"
               whileTap={{ scale: 0.94 }}

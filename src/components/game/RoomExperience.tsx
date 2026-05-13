@@ -15,7 +15,7 @@ import {
   type ChangeEvent,
 } from "react";
 import { useAuth } from "@/components/providers/AuthProvider";
-import { isGoogleLinkedUser } from "@/lib/auth/google-user";
+import { isFullAccountUser } from "@/lib/auth/google-user";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Panel } from "@/components/ui/Panel";
@@ -1242,7 +1242,7 @@ export function RoomExperience({ roomId }: Props) {
     (_current: boolean, next: boolean) => next,
   );
   const isHost = Boolean(uid && room?.hostUid === uid);
-  const googleSoc = isGoogleLinkedUser(user);
+  const googleSoc = isFullAccountUser(user);
   useGamePresenceReporter({
     uid: googleSoc ? uid : null,
     enabled: Boolean(googleSoc && uid && room),

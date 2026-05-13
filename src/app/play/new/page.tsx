@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { AuthGate } from "@/components/auth/AuthGate";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { useDefaultOnlinePresence } from "@/hooks/useDefaultOnlinePresence";
-import { isGoogleLinkedUser } from "@/lib/auth/google-user";
+import { isFullAccountUser } from "@/lib/auth/google-user";
 import { fetchCategories } from "@/lib/firestore/categories.client";
 import { createPrivateRoom } from "@/lib/firestore/rooms.client";
 import {
@@ -85,7 +85,7 @@ export default function NewRoomPage() {
 
 function NewRoomInner() {
   const { user } = useAuth();
-  useDefaultOnlinePresence(user?.uid ?? null, isGoogleLinkedUser(user));
+  useDefaultOnlinePresence(user?.uid ?? null, isFullAccountUser(user));
   const router = useRouter();
   const localFallback: Category[] = LOCAL_CATEGORIES.map((c) => ({
     id: c.id,

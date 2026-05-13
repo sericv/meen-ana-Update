@@ -5,23 +5,41 @@ import {
   GoogleAuthProvider,
   browserPopupRedirectResolver,
   getRedirectResult,
+  isSignInWithEmailLink,
   onAuthStateChanged,
+  sendSignInLinkToEmail,
   signInAnonymously,
+  signInWithEmailLink,
   signInWithPopup,
   signInWithRedirect,
   signOut,
   updateProfile,
 } from "firebase/auth";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import {
+  buildEmailLinkContinueUrl,
+  EMAIL_FOR_SIGN_IN_KEY,
+  EMAIL_LINK_NEXT_KEY,
+  isValidSignInEmail,
+  normalizeEmailForSignIn,
+} from "@/lib/auth/email-link";
 import { getFirebaseAuth } from "@/lib/firebase/client";
 import { upsertUserDocument } from "@/lib/firestore/users.client";
 import { useVisualViewport } from "@/hooks/useVisualViewport";
 import { preferGoogleAuthRedirect } from "@/lib/auth/google-sign-in-strategy";
 
+export type EmailLinkBanner = { kind: "success" | "error" | "info"; text: string };
+
 type AuthState = {
   user: User | null;
   loading: boolean;
+  /** True while the URL is an email sign-in link and we still need the user to type their email (e.g. opened on a new device). */
+  needsEmailLinkEmail: boolean;
+  emailLinkBanner: EmailLinkBanner | null;
   signInGoogle: () => Promise<void>;
+  sendSignInEmailLink: (email: string) => Promise<void>;
+  completeSignInWithEmailLink: (email: string) => Promise<void>;
+  clearEmailLinkBanner: () => void;
   signInGuest: () => Promise<void>;
   logout: () => Promise<void>;
   setDisplayName: (name: string) => Promise<void>;
@@ -29,35 +47,95 @@ type AuthState = {
 
 const Ctx = createContext<AuthState | null>(null);
 
+function readStoredEmailForLink(): string | null {
+  if (typeof window === "undefined") return null;
+  const a = window.localStorage.getItem(EMAIL_FOR_SIGN_IN_KEY);
+  const b = window.sessionStorage.getItem(EMAIL_FOR_SIGN_IN_KEY);
+  const raw = a || b;
+  return raw ? normalizeEmailForSignIn(raw) : null;
+}
+
+function clearStoredEmailLinkKeys(): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.removeItem(EMAIL_FOR_SIGN_IN_KEY);
+  window.sessionStorage.removeItem(EMAIL_FOR_SIGN_IN_KEY);
+  window.localStorage.removeItem(EMAIL_LINK_NEXT_KEY);
+  window.sessionStorage.removeItem(EMAIL_LINK_NEXT_KEY);
+}
+
+/** Read `next`, strip link params from the address bar to `/login?...`, then clear stored keys. */
+function finishEmailLinkNavigation(): void {
+  if (typeof window === "undefined") return;
+  const next =
+    window.sessionStorage.getItem(EMAIL_LINK_NEXT_KEY) ||
+    window.localStorage.getItem(EMAIL_LINK_NEXT_KEY) ||
+    new URLSearchParams(window.location.search).get("next") ||
+    "/";
+  clearStoredEmailLinkKeys();
+  const q = next && next !== "/" ? `?next=${encodeURIComponent(next)}` : "";
+  window.history.replaceState({}, "", `/login${q}`);
+}
+
+function firebaseAuthMessage(e: unknown): string {
+  if (e && typeof e === "object" && "code" in e) {
+    const code = String((e as { code: unknown }).code);
+    if (code === "auth/invalid-email") return "عنوان البريد غير صالح.";
+    if (code === "auth/invalid-action-code" || code === "auth/expired-action-code") {
+      return "انتهت صلاحية الرابط أو أنه غير صالح. اطلب رابطاً جديداً من صفحة الدخول.";
+    }
+    if (code === "auth/user-disabled") return "هذا الحساب معطّل.";
+    if (code === "auth/network-request-failed") return "تعذر الاتصال. تحقق من الشبكة وحاول مرة أخرى.";
+  }
+  if (e instanceof Error && e.message) return e.message;
+  return "تعذر إكمال تسجيل الدخول.";
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  // Keep --app-vh / --kbd-h in sync with the soft keyboard for the whole app.
   useVisualViewport();
 
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [needsEmailLinkEmail, setNeedsEmailLinkEmail] = useState(false);
+  const [emailLinkBanner, setEmailLinkBanner] = useState<EmailLinkBanner | null>(null);
 
   useEffect(() => {
     const auth = getFirebaseAuth();
     let unsub: (() => void) | undefined;
     let cancelled = false;
 
-    // Finish redirect OAuth before subscribing — avoids racing redirect completion
-    // against the first `onAuthStateChanged` emission on mobile WebKit.
-    // Do not swallow errors silently: misconfigured OAuth shows up here.
     void (async () => {
       try {
         await getRedirectResult(auth);
       } catch (e) {
         console.warn("[auth] getRedirectResult", e);
       }
+
       if (cancelled) return;
+
+      if (typeof window !== "undefined" && isSignInWithEmailLink(auth, window.location.href)) {
+        const stored = readStoredEmailForLink();
+        if (stored) {
+          try {
+            await signInWithEmailLink(auth, stored, window.location.href);
+            finishEmailLinkNavigation();
+            setEmailLinkBanner({ kind: "success", text: "تم تسجيل الدخول عبر البريد." });
+          } catch (e) {
+            finishEmailLinkNavigation();
+            setEmailLinkBanner({ kind: "error", text: firebaseAuthMessage(e) });
+          }
+        } else {
+          setNeedsEmailLinkEmail(true);
+        }
+      }
+
+      if (cancelled) return;
+
       unsub = onAuthStateChanged(auth, (u) => {
         setUser(u);
         setLoading(false);
         if (u) {
-          void upsertUserDocument(u).catch(() => {
-            // offline / rules — non-fatal; auth user still valid
-          });
+          setNeedsEmailLinkEmail(false);
+          void upsertUserDocument(u).catch(() => undefined);
         }
       });
     })();
@@ -75,8 +153,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     provider.addScope("email");
     provider.setCustomParameters({ prompt: "select_account" });
 
-    // Redirect flow: do not pass `browserPopupRedirectResolver` — it is for popups and
-    // can interact poorly with full-page OAuth on mobile Safari / Samsung Internet.
     if (preferGoogleAuthRedirect()) {
       await signInWithRedirect(auth, provider);
       return;
@@ -100,6 +176,55 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const sendSignInEmailLink = useCallback(async (email: string) => {
+    const auth = getFirebaseAuth();
+    const normalized = normalizeEmailForSignIn(email);
+    if (!isValidSignInEmail(normalized)) {
+      throw new Error("عنوان البريد غير صالح.");
+    }
+    if (typeof window === "undefined") throw new Error("يُستخدم فقط في المتصفح.");
+
+    const next = new URLSearchParams(window.location.search).get("next") || "/";
+    const envUrl = process.env.NEXT_PUBLIC_EMAIL_SIGNIN_CONTINUE_URL?.trim();
+    const continueUrl = envUrl || buildEmailLinkContinueUrl(window.location.origin, next);
+
+    await sendSignInLinkToEmail(auth, normalized, {
+      url: continueUrl,
+      handleCodeInApp: true,
+    });
+
+    window.localStorage.setItem(EMAIL_FOR_SIGN_IN_KEY, normalized);
+    window.sessionStorage.setItem(EMAIL_FOR_SIGN_IN_KEY, normalized);
+    window.sessionStorage.setItem(EMAIL_LINK_NEXT_KEY, next);
+    window.localStorage.setItem(EMAIL_LINK_NEXT_KEY, next);
+  }, []);
+
+  const completeSignInWithEmailLink = useCallback(async (email: string) => {
+    const auth = getFirebaseAuth();
+    if (typeof window === "undefined") return;
+    const normalized = normalizeEmailForSignIn(email);
+    if (!isValidSignInEmail(normalized)) {
+      throw new Error("عنوان البريد غير صالح.");
+    }
+    if (!isSignInWithEmailLink(auth, window.location.href)) {
+      throw new Error("لا يوجد رابط تسجيل صالح في هذا العنوان. اطلب رابطاً جديداً.");
+    }
+    try {
+      await signInWithEmailLink(auth, normalized, window.location.href);
+      finishEmailLinkNavigation();
+      setNeedsEmailLinkEmail(false);
+      setEmailLinkBanner({ kind: "success", text: "تم تسجيل الدخول عبر البريد." });
+    } catch (e) {
+      finishEmailLinkNavigation();
+      setNeedsEmailLinkEmail(false);
+      setEmailLinkBanner({ kind: "error", text: firebaseAuthMessage(e) });
+    }
+  }, []);
+
+  const clearEmailLinkBanner = useCallback(() => {
+    setEmailLinkBanner(null);
+  }, []);
+
   const signInGuest = useCallback(async () => {
     const auth = getFirebaseAuth();
     await signInAnonymously(auth);
@@ -121,8 +246,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ user, loading, signInGoogle, signInGuest, logout, setDisplayName }),
-    [user, loading, signInGoogle, signInGuest, logout, setDisplayName],
+    () => ({
+      user,
+      loading,
+      needsEmailLinkEmail,
+      emailLinkBanner,
+      signInGoogle,
+      sendSignInEmailLink,
+      completeSignInWithEmailLink,
+      clearEmailLinkBanner,
+      signInGuest,
+      logout,
+      setDisplayName,
+    }),
+    [
+      user,
+      loading,
+      needsEmailLinkEmail,
+      emailLinkBanner,
+      signInGoogle,
+      sendSignInEmailLink,
+      completeSignInWithEmailLink,
+      clearEmailLinkBanner,
+      signInGuest,
+      logout,
+      setDisplayName,
+    ],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

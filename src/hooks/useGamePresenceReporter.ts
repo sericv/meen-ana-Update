@@ -21,7 +21,7 @@ type Args = {
 /**
  * Writes `gamePresence` + `gamePresenceUpdatedAt` on the signed-in user's
  * Firestore profile for friends / invites. Google-only callers should pass
- * `enabled: isGoogleLinkedUser(...)`.
+ * `enabled: isFullAccountUser(...)` (Google or email link).
  */
 export function useGamePresenceReporter({
   uid,

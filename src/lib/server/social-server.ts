@@ -13,11 +13,16 @@ import type { RoomPlayer } from "@/types";
 const USERNAME_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 const ROOM_INVITE_TTL_MS = 3 * 60 * 1000;
 
+/** Social APIs: Google sign-in or passwordless email link (Firebase `password` + email on user). */
 export async function assertGoogleUid(uid: string): Promise<void> {
   const auth = getAdminAuth();
   const rec = await auth.getUser(uid);
-  const ok = rec.providerData?.some((p) => p.providerId === "google.com");
-  if (!ok) throw new HttpError(403, "هذه الميزة متاحة لحسابات Google فقط.");
+  const hasGoogle = rec.providerData?.some((p) => p.providerId === "google.com") ?? false;
+  const hasEmailLink =
+    Boolean(rec.email) && (rec.providerData?.some((p) => p.providerId === "password") ?? false);
+  if (!hasGoogle && !hasEmailLink) {
+    throw new HttpError(403, "هذه الميزة متاحة بعد تسجيل الدخول بـ Google أو رابط البريد.");
+  }
 }
 
 async function readUserPublic(uid: string): Promise<Record<string, unknown> | null> {

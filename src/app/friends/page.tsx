@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { getFirebaseDb } from "@/lib/firebase/client";
 import { col, userSub } from "@/lib/firestore/paths";
-import { isGoogleLinkedUser } from "@/lib/auth/google-user";
+import { isFullAccountUser } from "@/lib/auth/google-user";
 import { postSocial, getSocial } from "@/lib/api/social-client";
 import { useLiveUserProfiles } from "@/hooks/useLiveUserProfiles";
 import { useDefaultOnlinePresence } from "@/hooks/useDefaultOnlinePresence";
@@ -47,7 +47,7 @@ function FriendsInner() {
   const router = useRouter();
   const { user } = useAuth();
   const uid = user?.uid ?? null;
-  const google = isGoogleLinkedUser(user);
+  const google = isFullAccountUser(user);
   useDefaultOnlinePresence(uid, google);
 
   const [friends, setFriends] = useState<FriendRow[]>([]);
@@ -192,8 +192,10 @@ function FriendsInner() {
         }}
       >
         <div className="relative z-10 mx-auto max-w-md px-4 py-16 text-center sm:max-w-lg">
-          <p className="text-lg font-black text-[#8a3f16]">الأصدقاء لحساب Google</p>
-          <p className="mt-2 text-sm font-semibold text-[#bc7a45]">سجّل الدخول بـ Google لاستخدام الأسماء المستعارة والأصدقاء والدعوات.</p>
+          <p className="text-lg font-black text-[#8a3f16]">الأصدقاء — حساب كامل</p>
+          <p className="mt-2 text-sm font-semibold text-[#bc7a45]">
+            سجّل الدخول بـ Google أو رابط البريد لاستخدام الأسماء المستعارة والأصدقاء والدعوات.
+          </p>
           <Button type="button" className="mt-6" onClick={() => router.push("/login?next=/friends")}>
             تسجيل الدخول
           </Button>

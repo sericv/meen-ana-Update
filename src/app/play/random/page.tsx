@@ -16,7 +16,7 @@ import { DEFAULT_CATEGORY_ID } from "@/lib/game/categories";
 import { MATCHMAKING_POOL_ALL } from "@/lib/game/constants";
 import { usePlayerCosmetics } from "@/hooks/usePlayerCosmetics";
 import { useGamePresenceReporter } from "@/hooks/useGamePresenceReporter";
-import { isGoogleLinkedUser } from "@/lib/auth/google-user";
+import { isFullAccountUser } from "@/lib/auth/google-user";
 import { normalizeCosmetic, type PlayerCosmetic } from "@/lib/profile/cosmetics";
 
 const DEFAULT_CATEGORY = DEFAULT_CATEGORY_ID;
@@ -397,7 +397,7 @@ function RandomInner() {
 
   const displayName = user?.displayName || user?.email || "زائر";
   const myUid = user?.uid ?? null;
-  const googleSoc = isGoogleLinkedUser(user);
+  const googleSoc = isFullAccountUser(user);
   const matchmakingActive = phase === "searching" || phase === "found" || phase === "matched";
   useGamePresenceReporter({
     uid: googleSoc ? myUid : null,

@@ -5,13 +5,13 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { Panel } from "@/components/ui/Panel";
 import { useDefaultOnlinePresence } from "@/hooks/useDefaultOnlinePresence";
-import { isGoogleLinkedUser } from "@/lib/auth/google-user";
+import { isFullAccountUser } from "@/lib/auth/google-user";
 import { fetchCategories } from "@/lib/firestore/categories.client";
 import type { Category } from "@/types";
 
 export default function CategoriesPage() {
   const { user } = useAuth();
-  useDefaultOnlinePresence(user?.uid ?? null, isGoogleLinkedUser(user));
+  useDefaultOnlinePresence(user?.uid ?? null, isFullAccountUser(user));
   const [cats, setCats] = useState<Category[]>([]);
 
   useEffect(() => {

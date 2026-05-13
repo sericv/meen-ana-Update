@@ -1,6 +1,10 @@
 /**
  * Firebase web client configuration.
  * Prefer NEXT_PUBLIC_* env vars in production; defaults match the project you provided.
+ *
+ * Email link sign-in: enable "Email link" in Firebase Console → Authentication → Sign-in method → Email/Password,
+ * add authorized domains, and (optional) set `NEXT_PUBLIC_EMAIL_SIGNIN_CONTINUE_URL` if the public URL differs
+ * from `window.location.origin` (e.g. custom domain vs default hosting URL).
  */
 export const firebaseConfig = {
   apiKey:

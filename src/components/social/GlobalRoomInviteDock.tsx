@@ -8,7 +8,7 @@ import { ProfileAvatar } from "@/components/profile/ProfileAvatar";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { getFirebaseDb } from "@/lib/firebase/client";
 import { col, userSub } from "@/lib/firestore/paths";
-import { isGoogleLinkedUser } from "@/lib/auth/google-user";
+import { isFullAccountUser } from "@/lib/auth/google-user";
 import { postSocial } from "@/lib/api/social-client";
 import { normalizeCosmetic } from "@/lib/profile/cosmetics";
 import { playRoomJoin, resumeAudioContext } from "@/lib/audio/game-sounds";
@@ -143,7 +143,7 @@ export function GlobalRoomInviteDock() {
   const { user, loading } = useAuth();
   const router = useRouter();
   const uid = user?.uid ?? null;
-  const google = isGoogleLinkedUser(user);
+  const google = isFullAccountUser(user);
   const [invites, setInvites] = useState<InviteDoc[]>([]);
   const [busy, setBusy] = useState(false);
   const [cinematic, setCinematic] = useState<InviteDoc | null>(null);

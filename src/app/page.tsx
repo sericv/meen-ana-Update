@@ -8,7 +8,7 @@ import { ProfileAvatar } from "@/components/profile/ProfileAvatar";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { useDefaultOnlinePresence } from "@/hooks/useDefaultOnlinePresence";
 import { usePlayerCosmetics } from "@/hooks/usePlayerCosmetics";
-import { isGoogleLinkedUser } from "@/lib/auth/google-user";
+import { isFullAccountUser } from "@/lib/auth/google-user";
 import { playUIButton, resumeAudioContext } from "@/lib/audio/game-sounds";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -81,7 +81,7 @@ function IconUser({ className = "" }: { className?: string }) {
 export default function HomePage() {
   const router = useRouter();
   const { user, loading, signInGoogle, signInGuest, logout, setDisplayName } = useAuth();
-  useDefaultOnlinePresence(user?.uid ?? null, isGoogleLinkedUser(user));
+  useDefaultOnlinePresence(user?.uid ?? null, isFullAccountUser(user));
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const [nameModalOpen, setNameModalOpen] = useState(false);
@@ -180,7 +180,7 @@ export default function HomePage() {
                       <MenuItem onClick={() => { setMenuOpen(false); router.push("/profile"); }}>
                         المظهر والإطار
                       </MenuItem>
-                      {isGoogleLinkedUser(user) ? (
+                      {isFullAccountUser(user) ? (
                         <MenuItem onClick={() => { setMenuOpen(false); router.push("/friends"); }}>
                           الأصدقاء والمجتمع
                         </MenuItem>
@@ -209,6 +209,9 @@ export default function HomePage() {
                     <>
                       <MenuItem onClick={() => { setMenuOpen(false); void signInGoogle(); }}>
                         دخول بـ Google
+                      </MenuItem>
+                      <MenuItem onClick={() => { setMenuOpen(false); router.push("/login"); }}>
+                        دخول برابط البريد
                       </MenuItem>
                       <MenuItem onClick={() => { setMenuOpen(false); void signInGuest(); }}>
                         دخول كزائر

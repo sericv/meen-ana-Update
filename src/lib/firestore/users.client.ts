@@ -9,10 +9,14 @@ import { DEFAULT_AVATAR_ID, DEFAULT_FRAME_ID, isValidAvatarId, isValidFrameId } 
 export async function upsertUserDocument(user: User) {
   const db = getFirebaseDb();
   const ref = doc(db, col.users, user.uid);
+  const displayFromEmail =
+    user.displayName?.trim() ||
+    (user.email ? user.email.split("@")[0]?.trim() : "") ||
+    "";
   await setDoc(
     ref,
     {
-      displayName: user.displayName || "زائر",
+      displayName: displayFromEmail || "زائر",
       photoURL: user.photoURL || null,
       isGuest: user.isAnonymous,
       lastSeen: serverTimestamp(),
