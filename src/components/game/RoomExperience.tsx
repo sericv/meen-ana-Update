@@ -1213,27 +1213,23 @@ export function RoomExperience({ roomId }: Props) {
   const [clock, setClock] = useState(() => Date.now());
   const needLiveClock = Boolean(match?.status === "active" && room?.status === "playing");
   useEffect(() => {
-    if (needLiveClock) {
-      let rafId = 0;
-      const loop = () => {
-        setClock(Date.now());
-        rafId = window.requestAnimationFrame(loop);
-      };
-      rafId = window.requestAnimationFrame(loop);
-      const bump = () => setClock(Date.now());
-      const onVis = () => {
-        if (document.visibilityState === "visible") bump();
-      };
-      window.addEventListener("focus", bump);
-      document.addEventListener("visibilitychange", onVis);
-      return () => {
-        window.cancelAnimationFrame(rafId);
-        window.removeEventListener("focus", bump);
-        document.removeEventListener("visibilitychange", onVis);
-      };
-    }
-    const id = window.setInterval(() => setClock(Date.now()), 1000);
-    return () => window.clearInterval(id);
+    const bump = () => setClock(Date.now());
+    const onVis = () => {
+      if (document.visibilityState === "visible") bump();
+    };
+    window.addEventListener("focus", bump);
+    document.addEventListener("visibilitychange", onVis);
+    // RAF was throttled heavily on desktop background tabs and some browsers,
+    // which froze the turn timer. A short interval stays aligned with
+    // `turnDeadline` updates from Firestore on both mobile and desktop.
+    const tickMs = needLiveClock ? 200 : 1000;
+    bump();
+    const id = window.setInterval(bump, tickMs);
+    return () => {
+      window.removeEventListener("focus", bump);
+      document.removeEventListener("visibilitychange", onVis);
+      window.clearInterval(id);
+    };
   }, [needLiveClock, match?.status, room?.status]);
 
   useEffect(() => {

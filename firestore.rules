@@ -75,6 +75,9 @@ service cloud.firestore {
     }
 
     // Short join lookup: code -> roomId (any signed-in user can resolve a code to join).
+    // Client creates the room doc first, then this doc in separate commits: rules evaluate
+    // each write alone, so `exists(/rooms/{roomId})` is false if roomCodes is written in
+    // the same batch as the new room.
     match /roomCodes/{code} {
       allow read: if signedIn();
       allow create: if signedIn()
@@ -149,8 +152,17 @@ service cloud.firestore {
     }
 
     // Match state mutations should go through Admin SDK. Clients read only.
+    // Allow reads either by `playerOrder` OR by room membership — during brief
+    // server transitions `playerOrder` can lag while clients already subscribe.
     match /matches/{matchId} {
-      allow read: if signedIn() && request.auth.uid in resource.data.playerOrder;
+      allow read: if signedIn() && (
+        (resource.data.playerOrder is list && request.auth.uid in resource.data.playerOrder)
+        || (
+          resource.data.roomId is string
+          && exists(/databases/$(database)/documents/rooms/$(resource.data.roomId))
+          && request.auth.uid in get(/databases/$(database)/documents/rooms/$(resource.data.roomId)).data.playerUids
+        )
+      );
       allow write: if false;
     }
   }

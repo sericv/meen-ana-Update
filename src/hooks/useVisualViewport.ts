@@ -52,6 +52,9 @@ export function useVisualViewport(): void {
     }
     window.addEventListener("resize", schedule);
     window.addEventListener("orientationchange", schedule);
+    // Chat inputs: VisualViewport sometimes lags behind focus on mobile keyboards.
+    document.addEventListener("focusin", schedule);
+    document.addEventListener("focusout", schedule);
 
     return () => {
       if (raf) window.cancelAnimationFrame(raf);
@@ -61,6 +64,8 @@ export function useVisualViewport(): void {
       }
       window.removeEventListener("resize", schedule);
       window.removeEventListener("orientationchange", schedule);
+      document.removeEventListener("focusin", schedule);
+      document.removeEventListener("focusout", schedule);
     };
   }, []);
 }

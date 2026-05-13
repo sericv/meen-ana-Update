@@ -1,9 +1,10 @@
 "use client";
 
-import { deleteField, doc, serverTimestamp, updateDoc } from "firebase/firestore";
+import { deleteField, doc, serverTimestamp, setDoc } from "firebase/firestore";
 import { useEffect, useRef } from "react";
 import { getFirebaseDb } from "@/lib/firebase/client";
 import { col } from "@/lib/firestore/paths";
+import { isFirebaseFirestoreError, logFsOpFailure } from "@/lib/firestore/fs-op-debug";
 import type { GamePresence } from "@/lib/social/presence-constants";
 
 type Args = {
@@ -44,7 +45,21 @@ export function useGamePresenceReporter({
       };
       if (roomId) patch.gamePresenceRoomId = roomId;
       else patch.gamePresenceRoomId = deleteField();
-      void updateDoc(ref, patch).catch(() => undefined);
+      // merge create — avoids permission/NOT_FOUND when `users/{uid}` is missing
+      // before the first successful `upsertUserDocument`.
+      void setDoc(ref, patch, { merge: true }).catch((err) => {
+        if (isFirebaseFirestoreError(err)) {
+          logFsOpFailure({
+            area: "useGamePresenceReporter.setDoc",
+            op: "write",
+            path: `${col.users}/${uid}`,
+            err,
+            roomId,
+            myUid: uid,
+            extra: { presence, heartbeat: true },
+          });
+        }
+      });
     };
     if (lastSig.current !== sig) {
       lastSig.current = sig;
@@ -54,11 +69,27 @@ export function useGamePresenceReporter({
     return () => {
       window.clearInterval(id);
       if (resetOnUnmount) {
-        void updateDoc(ref, {
-          gamePresence: "online",
-          gamePresenceRoomId: deleteField(),
-          gamePresenceUpdatedAt: serverTimestamp(),
-        }).catch(() => undefined);
+        void setDoc(
+          ref,
+          {
+            gamePresence: "online",
+            gamePresenceRoomId: deleteField(),
+            gamePresenceUpdatedAt: serverTimestamp(),
+          },
+          { merge: true },
+        ).catch((err) => {
+          if (isFirebaseFirestoreError(err)) {
+            logFsOpFailure({
+              area: "useGamePresenceReporter.resetOnUnmount_setDoc",
+              op: "write",
+              path: `${col.users}/${uid}`,
+              err,
+              roomId,
+              myUid: uid,
+              extra: { resetOnUnmount: true },
+            });
+          }
+        });
       }
     };
   }, [uid, enabled, presence, roomId, heartbeatMs, resetOnUnmount]);

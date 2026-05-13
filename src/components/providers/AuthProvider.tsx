@@ -16,6 +16,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { getFirebaseAuth } from "@/lib/firebase/client";
 import { upsertUserDocument } from "@/lib/firestore/users.client";
 import { useVisualViewport } from "@/hooks/useVisualViewport";
+import { preferGoogleAuthRedirect } from "@/lib/auth/google-sign-in-strategy";
 
 type AuthState = {
   user: User | null;
@@ -37,18 +38,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const auth = getFirebaseAuth();
-    // Completes OAuth when signInWithRedirect was used (popup blocked / strict browsers).
-    void getRedirectResult(auth).catch(() => undefined);
+    let unsub: (() => void) | undefined;
+    let cancelled = false;
 
-    return onAuthStateChanged(auth, (u) => {
-      setUser(u);
-      setLoading(false);
-      if (u) {
-        void upsertUserDocument(u).catch(() => {
-          // offline / rules — non-fatal; auth user still valid
+    // Finish redirect OAuth before subscribing — avoids racing redirect completion
+    // against the first `onAuthStateChanged` emission on mobile WebKit.
+    void getRedirectResult(auth)
+      .catch(() => undefined)
+      .finally(() => {
+        if (cancelled) return;
+        unsub = onAuthStateChanged(auth, (u) => {
+          setUser(u);
+          setLoading(false);
+          if (u) {
+            void upsertUserDocument(u).catch(() => {
+              // offline / rules — non-fatal; auth user still valid
+            });
+          }
         });
-      }
-    });
+      });
+
+    return () => {
+      cancelled = true;
+      unsub?.();
+    };
   }, []);
 
   const signInGoogle = useCallback(async () => {
@@ -57,6 +70,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     provider.addScope("profile");
     provider.addScope("email");
     provider.setCustomParameters({ prompt: "select_account" });
+
+    if (preferGoogleAuthRedirect()) {
+      await signInWithRedirect(auth, provider, browserPopupRedirectResolver);
+      return;
+    }
+
     try {
       await signInWithPopup(auth, provider, browserPopupRedirectResolver);
     } catch (e: unknown) {
@@ -64,6 +83,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         e && typeof e === "object" && "code" in e ? String((e as { code: unknown }).code) : "";
       if (
         code === "auth/popup-blocked" ||
+        code === "auth/cancelled-popup-request" ||
+        code === "auth/popup-closed-by-user" ||
         code === "auth/operation-not-supported-in-this-environment"
       ) {
         await signInWithRedirect(auth, provider, browserPopupRedirectResolver);

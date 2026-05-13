@@ -11,6 +11,7 @@ import { playMatchFound, resumeAudioContext } from "@/lib/audio/game-sounds";
 import { matchmakingAck, matchmakingJoin, matchmakingLeave } from "@/lib/api/matchmaking-client";
 import { getFirebaseDb } from "@/lib/firebase/client";
 import { col } from "@/lib/firestore/paths";
+import { isFirebaseFirestoreError, logFsListenAttach, logFsOpFailure } from "@/lib/firestore/fs-op-debug";
 import { DEFAULT_CATEGORY_ID } from "@/lib/game/categories";
 import { MATCHMAKING_POOL_ALL } from "@/lib/game/constants";
 import { usePlayerCosmetics } from "@/hooks/usePlayerCosmetics";
@@ -411,21 +412,54 @@ function RandomInner() {
   /* Resolve opponent profile from the freshly-created room + users collection. */
   const fetchOpponentProfile = useCallback(
     async (roomId: string, myUid: string): Promise<{ name: string; cosmetic: PlayerCosmetic }> => {
+      const fallback = { name: "خصم جديد", cosmetic: normalizeCosmetic(undefined) };
+      const db = getFirebaseDb();
+      const roomPath = `${col.rooms}/${roomId}`;
+      let snap;
       try {
-        const db = getFirebaseDb();
-        const snap = await getDoc(doc(db, col.rooms, roomId));
-        if (!snap.exists()) return { name: "خصم جديد", cosmetic: normalizeCosmetic(undefined) };
-        const data = snap.data() as { players?: Array<{ uid?: string; displayName?: string }> };
-        const other = (data.players ?? []).find((p) => p?.uid && p.uid !== myUid);
-        const name = (other?.displayName ?? "").toString().trim() || "خصم جديد";
-        const ouid = other?.uid;
-        if (!ouid) return { name, cosmetic: normalizeCosmetic(undefined) };
+        snap = await getDoc(doc(db, col.rooms, roomId));
+      } catch (err) {
+        if (isFirebaseFirestoreError(err)) {
+          logFsOpFailure({
+            area: "random.page.fetchOpponentProfile.getDoc_room",
+            op: "read",
+            path: roomPath,
+            err,
+            roomId,
+            myUid,
+            extra: { step: "room" },
+          });
+        }
+        return fallback;
+      }
+      if (!snap.exists()) return fallback;
+      const data = snap.data() as { players?: Array<{ uid?: string; displayName?: string }> };
+      const other = (data.players ?? []).find((p) => p?.uid && p.uid !== myUid);
+      const name = (other?.displayName ?? "").toString().trim() || "خصم جديد";
+      const ouid = other?.uid;
+      if (!ouid) return { name, cosmetic: normalizeCosmetic(undefined) };
+      const userPath = `${col.users}/${ouid}`;
+      try {
         const uSnap = await getDoc(doc(db, col.users, ouid));
         if (!uSnap.exists()) return { name, cosmetic: normalizeCosmetic(undefined) };
         const raw = uSnap.data() as Record<string, unknown>;
         return { name, cosmetic: normalizeCosmetic(raw) };
-      } catch {
-        return { name: "خصم جديد", cosmetic: normalizeCosmetic(undefined) };
+      } catch (err) {
+        if (isFirebaseFirestoreError(err)) {
+          logFsOpFailure({
+            area: "random.page.fetchOpponentProfile.getDoc_user",
+            op: "read",
+            path: userPath,
+            err,
+            roomId,
+            myUid,
+            opponentUid: ouid,
+            roomPlayerUids: (data.players ?? []).map((p) => String(p.uid ?? "")).filter(Boolean),
+            amInRoomPlayerUids: Boolean((data.players ?? []).some((p) => p.uid === myUid)),
+            extra: { step: "users", opponentName: name },
+          });
+        }
+        return { name, cosmetic: normalizeCosmetic(undefined) };
       }
     },
     [],
@@ -500,23 +534,48 @@ function RandomInner() {
     try {
       const db = getFirebaseDb();
       const resultRef = doc(db, col.matchmakingResults, user.uid);
-      unsubRef.current = onSnapshot(resultRef, (snap) => {
-        if (!snap.exists()) return;
-        const data = snap.data() as {
-          roomId?: unknown;
-          createdAt?: { toMillis?: () => number } | undefined;
-        };
-        const rid = typeof data.roomId === "string" ? data.roomId : "";
-        if (!rid) return;
-        // Defense in depth: ignore docs created before THIS search started.
-        const createdMs = data.createdAt?.toMillis?.() ?? 0;
-        if (createdMs && createdMs < searchStartedAtRef.current - 500) {
-          return;
-        }
-        void enterMatchFound(rid);
-      });
-    } catch {
-      // ignore — the server response below is still the primary signal
+      const resultPath = `${col.matchmakingResults}/${user.uid}`;
+      logFsListenAttach("random.page.matchmakingResults", resultPath, { myUid: user.uid });
+      unsubRef.current = onSnapshot(
+        resultRef,
+        (snap) => {
+          if (!snap.exists()) return;
+          const data = snap.data() as {
+            roomId?: unknown;
+            createdAt?: { toMillis?: () => number } | undefined;
+          };
+          const rid = typeof data.roomId === "string" ? data.roomId : "";
+          if (!rid) return;
+          // Defense in depth: ignore docs created before THIS search started.
+          const createdMs = data.createdAt?.toMillis?.() ?? 0;
+          if (createdMs && createdMs < searchStartedAtRef.current - 500) {
+            return;
+          }
+          void enterMatchFound(rid);
+        },
+        (err) => {
+          if (isFirebaseFirestoreError(err)) {
+            logFsOpFailure({
+              area: "random.page.matchmakingResults.onSnapshot",
+              op: "listen",
+              path: resultPath,
+              err,
+              myUid: user.uid,
+              extra: { note: "listener_error_callback" },
+            });
+          }
+        },
+      );
+    } catch (err) {
+      if (isFirebaseFirestoreError(err)) {
+        logFsOpFailure({
+          area: "random.page.matchmakingResults.onSnapshot_setup",
+          op: "listen",
+          path: `${col.matchmakingResults}/${user.uid}`,
+          err,
+          myUid: user.uid,
+        });
+      }
     }
 
     // Now call the join API.

@@ -14,6 +14,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getFirebaseDb } from "@/lib/firebase/client";
 import { col } from "@/lib/firestore/paths";
+import { logFsListenAttach, logFsOpFailure } from "@/lib/firestore/fs-op-debug";
 import {
   ANSWER_PHASE_SECONDS,
   QUESTION_PHASE_SECONDS,
@@ -180,21 +181,29 @@ export function useRoomWire(roomId: string | null, myUid: string | null) {
     return room.playerUids.find((u) => u !== myUid) ?? null;
   }, [room, myUid]);
 
+  /** Last successful room/match snapshots — for error diagnostics (race-aware). */
+  const lastRoomRef = useRef<Room | null>(null);
+  const lastMatchRef = useRef<MatchState | null>(null);
+
   // Room snapshot
   useEffect(() => {
     if (!roomId) {
       roomSigRef.current = null;
       setRoom(null);
+      lastRoomRef.current = null;
       return;
     }
     let cancelled = false;
     const db = getFirebaseDb();
+    const path = `${col.rooms}/${roomId}`;
+    logFsListenAttach("useRoomWire.room", path, { roomId, myUid });
     const unsub = onSnapshot(
       doc(db, col.rooms, roomId),
       (snap) => {
         if (cancelled) return;
         if (!snap.exists()) {
           roomSigRef.current = null;
+          lastRoomRef.current = null;
           setRoom(null);
           return;
         }
@@ -230,10 +239,26 @@ export function useRoomWire(roomId: string | null, myUid: string | null) {
         const sig = roomWireSignature(next);
         if (sig === roomSigRef.current) return;
         roomSigRef.current = sig;
+        lastRoomRef.current = next;
         setRoom(next);
       },
       (e) => {
-        if (!cancelled) setWireError(e.message);
+        if (cancelled) return;
+        setWireError((e as Error).message);
+        const lr = lastRoomRef.current;
+        const uids = lr?.playerUids ?? null;
+        logFsOpFailure({
+          area: "useRoomWire.room.onSnapshot",
+          op: "listen",
+          path,
+          err: e,
+          roomId,
+          matchId: lr?.matchId ?? null,
+          myUid,
+          roomPlayerUids: uids,
+          amInRoomPlayerUids: myUid && uids ? uids.includes(myUid) : null,
+          extra: { lastKnownRoomStatus: lr?.status ?? null, lastKnownMatchId: lr?.matchId ?? null },
+        });
       },
     );
     return () => {
@@ -247,17 +272,28 @@ export function useRoomWire(roomId: string | null, myUid: string | null) {
     if (!room?.matchId) {
       matchSigRef.current = null;
       setMatch(null);
+      lastMatchRef.current = null;
       return;
     }
     let cancelled = false;
     const db = getFirebaseDb();
     const mid = room.matchId;
+    const path = `${col.matches}/${mid}`;
+    logFsListenAttach("useRoomWire.match", path, {
+      roomId,
+      matchId: mid,
+      myUid,
+      roomPlayerUids: lastRoomRef.current?.playerUids ?? room.playerUids,
+      amInRoomPlayerUids:
+        myUid && room.playerUids ? room.playerUids.includes(myUid) : null,
+    });
     const unsub = onSnapshot(
       doc(db, col.matches, mid),
       (snap) => {
         if (cancelled) return;
         if (!snap.exists()) {
           matchSigRef.current = null;
+          lastMatchRef.current = null;
           setMatch(null);
           return;
         }
@@ -282,10 +318,33 @@ export function useRoomWire(roomId: string | null, myUid: string | null) {
         const sig = matchWireSignature(next);
         if (sig === matchSigRef.current) return;
         matchSigRef.current = sig;
+        lastMatchRef.current = next;
         setMatch(next);
       },
       (e) => {
-        if (!cancelled) setWireError(e.message);
+        if (cancelled) return;
+        setWireError((e as Error).message);
+        const lr = lastRoomRef.current;
+        const lm = lastMatchRef.current;
+        const uids = lr?.playerUids ?? null;
+        const po = lm?.playerOrder ?? null;
+        logFsOpFailure({
+          area: "useRoomWire.match.onSnapshot",
+          op: "listen",
+          path,
+          err: e,
+          roomId: lr?.id ?? roomId,
+          matchId: mid,
+          myUid,
+          roomPlayerUids: uids,
+          amInRoomPlayerUids: myUid && uids ? uids.includes(myUid) : null,
+          matchPlayerOrder: po,
+          amInMatchPlayerOrder: myUid && po ? po.includes(myUid) : null,
+          extra: {
+            wireRoomMatchId: room.matchId,
+            lastKnownMatchStatus: lm?.status ?? null,
+          },
+        });
       },
     );
     return () => {
@@ -349,6 +408,8 @@ export function useRoomWire(roomId: string | null, myUid: string | null) {
       }
     };
 
+    const pcPath = `${col.rooms}/${roomId}/playerCards/${ouid}`;
+    logFsListenAttach("useRoomWire.playerCards", pcPath, { roomId, opponentUid: ouid, myUid });
     const unsub = onSnapshot(
       doc(db, col.rooms, roomId, "playerCards", ouid),
       (snap) => {
@@ -360,8 +421,23 @@ export function useRoomWire(roomId: string | null, myUid: string | null) {
         }
         applyCard(snap.data());
       },
-      () => {
+      (err) => {
         if (snapCancelled) return;
+        const lr = lastRoomRef.current;
+        const uids = lr?.playerUids ?? null;
+        logFsOpFailure({
+          area: "useRoomWire.playerCards.onSnapshot",
+          op: "listen",
+          path: pcPath,
+          err,
+          roomId,
+          matchId: lr?.matchId ?? null,
+          opponentUid: ouid,
+          myUid,
+          roomPlayerUids: uids,
+          amInRoomPlayerUids: myUid && uids ? uids.includes(myUid) : null,
+          extra: { note: "fallback_to_reveal_cards_api" },
+        });
         // Permission denied (rules drift) or transient error: switch to
         // server-driven polling until the match ends.
         setWireError(null);
@@ -394,6 +470,8 @@ export function useRoomWire(roomId: string | null, myUid: string | null) {
       orderBy("createdAt", "asc"),
       limit(150),
     );
+    const msgPath = `${col.rooms}/${rid}/messages`;
+    logFsListenAttach("useRoomWire.messages", msgPath, { roomId: rid, myUid });
     const unsub = onSnapshot(
       q,
       (snap) => {
@@ -417,7 +495,21 @@ export function useRoomWire(roomId: string | null, myUid: string | null) {
         setMessages(next);
       },
       (e) => {
-        if (!cancelled) setWireError(e.message);
+        if (cancelled) return;
+        setWireError((e as Error).message);
+        const lr = lastRoomRef.current;
+        const uids = lr?.playerUids ?? null;
+        logFsOpFailure({
+          area: "useRoomWire.messages.onSnapshot",
+          op: "listen",
+          path: msgPath,
+          err: e,
+          roomId: rid,
+          matchId: lr?.matchId ?? null,
+          myUid,
+          roomPlayerUids: uids,
+          amInRoomPlayerUids: myUid && uids ? uids.includes(myUid) : null,
+        });
       },
     );
     return () => {
@@ -431,7 +523,23 @@ export function useRoomWire(roomId: string | null, myUid: string | null) {
     if (!roomId || !myUid) return;
     const db = getFirebaseDb();
     const ref = doc(db, col.rooms, roomId, "presence", myUid);
-    const tick = () => setDoc(ref, { lastSeen: serverTimestamp(), state: "online" }, { merge: true });
+    const prPath = `${col.rooms}/${roomId}/presence/${myUid}`;
+    const tick = () =>
+      void setDoc(ref, { lastSeen: serverTimestamp(), state: "online" }, { merge: true }).catch((err) => {
+        const lr = lastRoomRef.current;
+        const uids = lr?.playerUids ?? null;
+        logFsOpFailure({
+          area: "useRoomWire.presence.setDoc",
+          op: "write",
+          path: prPath,
+          err,
+          roomId,
+          matchId: lr?.matchId ?? null,
+          myUid,
+          roomPlayerUids: uids,
+          amInRoomPlayerUids: myUid && uids ? uids.includes(myUid) : null,
+        });
+      });
     void tick();
     const id = window.setInterval(() => void tick(), 15000);
     return () => window.clearInterval(id);
