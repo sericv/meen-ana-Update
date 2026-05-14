@@ -591,6 +591,21 @@ function MatchResultScreen({
 
   const winMsg = messages.find((m) => m.type === "guess" && m.correct === true);
 
+  // Defer heavy particle layers so the entrance animations finish first before
+  // the GPU is hit with confetti + sparkles. ~280ms is enough for the first
+  // motion.div fade-in (0.35s) to be mostly done.
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [showSparkles, setShowSparkles] = useState(false);
+  useEffect(() => {
+    if (!iWon) return;
+    const t1 = window.setTimeout(() => setShowConfetti(true), 280);
+    const t2 = window.setTimeout(() => setShowSparkles(true), 460);
+    return () => {
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+    };
+  }, [iWon]);
+
   // Headline copy
   const headlineBig = iWon
     ? (forfeitWin ? "فزت!" : "أحسنت!")
@@ -599,14 +614,15 @@ function MatchResultScreen({
     ? (forfeitWin ? "غادر خصمك المباراة" : "خمّنت البطاقة بشكل صحيح 🎉")
     : (forfeitWin ? "غادر خصمك المباراة" : "جولة قادمة، فرصة جديدة!");
 
-  // Stagger entrance
+  // Stagger entrance — delayChildren:0.18 gives the outer opacity-fade (0.35s)
+  // a head-start before children begin, avoiding a pile-up on frame 1.
   const container = {
     hidden: { opacity: 0 },
-    show: { opacity: 1, transition: { staggerChildren: 0.08, delayChildren: 0.06 } },
+    show: { opacity: 1, transition: { staggerChildren: 0.07, delayChildren: 0.18 } },
   };
   const item = {
-    hidden: { opacity: 0, y: 18, scale: 0.95 },
-    show: { opacity: 1, y: 0, scale: 1, transition: { type: "spring" as const, stiffness: 280, damping: 22 } },
+    hidden: { opacity: 0, y: 16, scale: 0.96 },
+    show: { opacity: 1, y: 0, scale: 1, transition: { type: "spring" as const, stiffness: 300, damping: 24 } },
   };
 
   return (
@@ -623,46 +639,31 @@ function MatchResultScreen({
           : "radial-gradient(130% 75% at 50% 0%, #FFF1DD 0%, #FFECD7 55%, #FDE7CD 100%)",
       }}
     >
-      {/* ── confetti (victory only) ── */}
-      {iWon && <ConfettiBurst active />}
+      {/* ── confetti (victory only, deferred 280ms so entrance animation
+           gets a head-start before 28 GPU layers are created) ── */}
+      {iWon && showConfetti && <ConfettiBurst active />}
 
-      {/* ── ambient background layer (absolute: tracks VisualViewport shell) ── */}
+      {/* ── ambient background layer ── */}
+      {/* Blur orbs are STATIC — animating blur/scale is non-composited (causes
+          main-thread rasterization every frame). Static blobs look identical
+          and cost nothing after the first paint. */}
       <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
         {iWon ? (
           <>
-            <motion.div
-              animate={{ scale: [1, 1.18, 1], opacity: [0.45, 0.8, 0.45] }}
-              transition={{ duration: 3.5, repeat: Infinity, ease: "easeInOut" }}
-              className="absolute left-1/2 top-[-15%] h-[60vh] w-[80vw] max-w-[680px] -translate-x-1/2 rounded-full bg-[#FFD060]/38 blur-3xl"
-            />
-            <motion.div
-              animate={{ y: [0, -22, 0], x: [0, 14, 0] }}
-              transition={{ duration: 13, repeat: Infinity, ease: "easeInOut" }}
-              className="absolute -right-20 top-1/4 h-72 w-72 rounded-full bg-[#FFB340]/26 blur-3xl"
-            />
-            <motion.div
-              animate={{ y: [0, 16, 0], x: [0, -12, 0] }}
-              transition={{ duration: 15, repeat: Infinity, ease: "easeInOut", delay: 3 }}
-              className="absolute -left-24 bottom-1/4 h-64 w-64 rounded-full bg-[#FF9F0A]/22 blur-3xl"
-            />
+            <div className="absolute left-1/2 top-[-15%] h-[60vh] w-[80vw] max-w-[680px] -translate-x-1/2 rounded-full bg-[#FFD060]/40 blur-3xl" />
+            <div className="absolute -right-20 top-1/4 h-72 w-72 rounded-full bg-[#FFB340]/28 blur-3xl" />
+            <div className="absolute -left-24 bottom-1/4 h-64 w-64 rounded-full bg-[#FF9F0A]/22 blur-3xl" />
           </>
         ) : (
           <>
-            <motion.div
-              animate={{ y: [0, -18, 0] }}
-              transition={{ duration: 14, repeat: Infinity, ease: "easeInOut" }}
-              className="absolute -right-24 -top-20 h-72 w-72 rounded-full bg-[#FFCB8A]/34 blur-3xl"
-            />
-            <motion.div
-              animate={{ y: [0, 14, 0] }}
-              transition={{ duration: 16, repeat: Infinity, ease: "easeInOut", delay: 4 }}
-              className="absolute -left-20 bottom-1/4 h-64 w-64 rounded-full bg-[#FFB574]/26 blur-3xl"
-            />
+            <div className="absolute -right-24 -top-20 h-72 w-72 rounded-full bg-[#FFCB8A]/34 blur-3xl" />
+            <div className="absolute -left-20 bottom-1/4 h-64 w-64 rounded-full bg-[#FFB574]/26 blur-3xl" />
           </>
         )}
 
-        {/* upward floating sparkles (victory only) */}
-        {iWon && Array.from({ length: 14 }).map((_, i) => {
+        {/* Upward floating sparkles — deferred 460ms so entrance animations
+            complete before these 14 GPU layers are created. */}
+        {iWon && showSparkles && Array.from({ length: 14 }).map((_, i) => {
           const left = `${(i * 17 + 5) % 96}%`;
           const size = 5 + (i % 4) * 2;
           const dur = 3.8 + (i % 5) * 0.5;
@@ -674,21 +675,22 @@ function MatchResultScreen({
               key={`spk-${i}`}
               aria-hidden
               className="pointer-events-none absolute rounded-full"
-              style={{ left, bottom: "-8px", width: size, height: size, background: color }}
+              style={{ left, bottom: "-8px", width: size, height: size, background: color, willChange: "transform, opacity" }}
               animate={{ y: [0, -(160 + (i % 4) * 60)], opacity: [0, 0.95, 0], scale: [0.6, 1.2, 0.4] }}
               transition={{ duration: dur, delay, repeat: Infinity, ease: "easeOut" }}
             />
           );
         })}
 
-        {/* tiny decorative marks */}
+        {/* Decorative marks — static; the gentle float they had was invisible
+            at this scale and cost 4 Framer Motion instances. */}
         {([
-          { char: "؟", top: "10%", left: "3%",   delay: 0,   size: 32, tint: "rgba(164,80,255,0.07)" },
-          { char: "؟", top: "44%", right: "3%",  delay: 2.2, size: 26, tint: "rgba(255,138,30,0.10)" },
-          { char: "✦", top: "22%", right: "10%", delay: 1,   size: 12, tint: iWon ? "rgba(255,200,50,0.55)" : "rgba(255,180,90,0.42)" },
-          { char: "✦", top: "62%", left: "8%",   delay: 3,   size: 10, tint: iWon ? "rgba(255,200,50,0.45)" : "rgba(150,80,255,0.36)" },
+          { char: "؟", top: "10%", left: "3%",   size: 32, tint: "rgba(164,80,255,0.07)" },
+          { char: "؟", top: "44%", right: "3%",  size: 26, tint: "rgba(255,138,30,0.10)" },
+          { char: "✦", top: "22%", right: "10%", size: 12, tint: iWon ? "rgba(255,200,50,0.55)" : "rgba(255,180,90,0.42)" },
+          { char: "✦", top: "62%", left: "8%",   size: 10, tint: iWon ? "rgba(255,200,50,0.45)" : "rgba(150,80,255,0.36)" },
         ] as const).map((s, idx) => (
-          <motion.span
+          <span
             key={`mark-${idx}`}
             aria-hidden
             style={{
@@ -702,11 +704,9 @@ function MatchResultScreen({
               userSelect: "none",
               lineHeight: 1,
             }}
-            animate={{ y: [0, -10, 0], rotate: [0, 6, 0] }}
-            transition={{ duration: 6 + s.delay, repeat: Infinity, ease: "easeInOut", delay: s.delay }}
           >
             {s.char}
-          </motion.span>
+          </span>
         ))}
       </div>
 
@@ -739,7 +739,7 @@ function MatchResultScreen({
         <motion.div variants={item} className="flex flex-shrink-0 flex-col items-center pt-1 sm:pt-2">
           <motion.div
             animate={iWon ? { y: [0, -6, 0], rotate: [-4, 4, -4] } : { rotate: [-5, 5, -5] }}
-            transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
+            transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut", delay: 0.9 }}
             className="text-4xl leading-none sm:text-5xl"
           >
             {iWon ? "👑" : "😅"}
@@ -747,7 +747,7 @@ function MatchResultScreen({
 
           <motion.h1
             animate={iWon ? { scale: [1, 1.04, 1] } : {}}
-            transition={{ duration: 2.6, repeat: Infinity, ease: "easeInOut" }}
+            transition={{ duration: 2.6, repeat: Infinity, ease: "easeInOut", delay: 1.1 }}
             className="mt-1.5 text-4xl font-black leading-none sm:text-5xl lg:text-6xl"
             style={
               iWon
@@ -820,7 +820,7 @@ function MatchResultScreen({
             <div className="flex flex-shrink-0 flex-col items-center justify-center self-center">
               <motion.div
                 animate={{ scale: [1, 1.08, 1] }}
-                transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
+                transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut", delay: 0.85 }}
                 className="relative flex h-14 w-14 items-center justify-center rounded-full sm:h-16 sm:w-16 lg:h-20 lg:w-20"
                 style={{
                   background: "linear-gradient(140deg,#FF9F0A 0%,#FF5500 100%)",
@@ -830,7 +830,7 @@ function MatchResultScreen({
                 <motion.div
                   aria-hidden
                   animate={{ opacity: [0.4, 0.9, 0.4], scale: [0.9, 1.15, 0.9] }}
-                  transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
+                  transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut", delay: 0.85 }}
                   className="pointer-events-none absolute inset-0 rounded-full"
                   style={{ background: "radial-gradient(circle, rgba(255,220,80,0.55), transparent 65%)" }}
                 />
@@ -896,7 +896,7 @@ function MatchResultScreen({
             <motion.div
               aria-hidden
               animate={{ opacity: [0.55, 1, 0.55], scale: [0.94, 1.05, 0.94] }}
-              transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
+              transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut", delay: 1.0 }}
               className="absolute inset-0 -z-10 rounded-[1.4rem] blur-2xl"
               style={{ background: "radial-gradient(closest-side,rgba(255,138,30,0.7),transparent 70%)" }}
             />
@@ -966,7 +966,9 @@ function CardShowdown({
     return () => window.clearTimeout(t);
   }, [reduceMotion, side, card?.imageUrl]);
 
-  const flipInitial = reduceMotion ? { rotateY: 0, opacity: 1, scale: 1 } : { rotateY: 82, opacity: 0.15, scale: 0.94 };
+  // Reduced from rotateY:82 — a shallower flip is less GPU-intensive (smaller
+  // perspective distortion area) while still giving the "card reveal" feel.
+  const flipInitial = reduceMotion ? { rotateY: 0, opacity: 1, scale: 1 } : { rotateY: 50, opacity: 0.2, scale: 0.95 };
   const flipAnimate = { rotateY: 0, opacity: 1, scale: 1 };
 
   const burstSpecs = useMemo(
@@ -1010,7 +1012,7 @@ function CardShowdown({
 
       <motion.div
         animate={reduceMotion ? undefined : { y: [0, -4, 0] }}
-        transition={{ duration: 4 + (side === "me" ? 0 : 0.5), repeat: Infinity, ease: "easeInOut" }}
+        transition={{ duration: 4 + (side === "me" ? 0 : 0.5), repeat: Infinity, ease: "easeInOut", delay: side === "me" ? 0.7 : 0.9 }}
         className="relative w-full max-w-[160px] sm:max-w-[200px] lg:max-w-[240px] xl:max-w-[260px]"
       >
         {!reduceMotion && card?.imageUrl ? (
@@ -1075,18 +1077,10 @@ function CardShowdown({
                 : "0 0 0 2px rgba(244,196,141,0.55), 0 12px 28px rgba(196,120,40,0.20), inset 0 2px 0 rgba(255,255,255,0.75)",
             }}
           >
-            <motion.div
-              aria-hidden
-              className="pointer-events-none absolute -left-3 -top-3 z-[1] h-14 w-14 rounded-full bg-[#ffd080]/35 blur-2xl"
-              animate={reduceMotion ? undefined : { scale: [1, 1.15, 1], opacity: [0.35, 0.6, 0.35] }}
-              transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
-            />
-            <motion.div
-              aria-hidden
-              className="pointer-events-none absolute -right-3 bottom-0 z-[1] h-14 w-14 rounded-full bg-[#ffb060]/28 blur-2xl"
-              animate={reduceMotion ? undefined : { scale: [1, 1.12, 1], opacity: [0.28, 0.5, 0.28] }}
-              transition={{ duration: 2.6, repeat: Infinity, ease: "easeInOut", delay: 0.4 }}
-            />
+            {/* Static blur orbs — animating scale on blur elements forces
+                main-thread rasterization every frame; static costs one paint. */}
+            <div aria-hidden className="pointer-events-none absolute -left-3 -top-3 z-[1] h-14 w-14 rounded-full bg-[#ffd080]/40 blur-2xl" />
+            <div aria-hidden className="pointer-events-none absolute -right-3 bottom-0 z-[1] h-14 w-14 rounded-full bg-[#ffb060]/32 blur-2xl" />
 
             {!reduceMotion && card?.imageUrl ? (
               <div className="pointer-events-none absolute inset-0 z-[2] overflow-hidden rounded-t-[1rem] sm:rounded-t-[1.3rem]">
@@ -1123,7 +1117,7 @@ function CardShowdown({
                     <motion.div
                       aria-hidden
                       animate={{ opacity: [0.0, 0.4, 0.0], x: ["-110%", "120%"] }}
-                      transition={{ duration: 2.6, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
+                      transition={{ duration: 2.6, repeat: Infinity, ease: "easeInOut", delay: 1.2 }}
                       className="pointer-events-none absolute inset-y-0 left-0 z-[4] w-1/3"
                       style={{
                         background: "linear-gradient(120deg, transparent 0%, rgba(255,255,255,0.45) 50%, transparent 100%)",
@@ -2783,10 +2777,10 @@ export function RoomExperience({ roomId }: Props) {
         <motion.div
           key={m.id}
           layout
-          initial={{ opacity: 0, scale: 0.9 }}
+          initial={{ opacity: 0, scale: 0.92 }}
           animate={{ opacity: 1, scale: 1 }}
-          transition={{ type: "spring", stiffness: 380, damping: 26 }}
-          className="mx-auto w-fit max-w-[88%] rounded-2xl border border-[#f2d4b5] bg-[#fff4e4] px-4 py-1.5 text-center text-xs font-semibold text-[#8a5a2a]"
+          transition={{ type: "spring", stiffness: 380, damping: 28 }}
+          className="mx-auto w-fit max-w-[85%] rounded-full border border-[#f2d4b5]/70 bg-gradient-to-b from-[#fff8ef] to-[#fff4e6] px-4 py-1.5 text-center text-[11px] font-semibold text-[#8a5a2a] shadow-[inset_0_1px_0_rgba(255,255,255,0.8),0_2px_8px_rgba(196,134,82,0.10)]"
         >
           {m.text}
         </motion.div>
@@ -2806,60 +2800,102 @@ export function RoomExperience({ roomId }: Props) {
         <motion.div
           key={m.id}
           layout
-          initial={{ opacity: 0, scale: 0.84, y: 12 }}
+          initial={{ opacity: 0, scale: 0.86, y: 14 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
-          transition={{ type: "spring", stiffness: 340, damping: 22 }}
-          className={`mx-1 flex items-end gap-2 overflow-visible ${isMe ? "flex-row-reverse" : "flex-row"}`}
+          transition={{ type: "spring", stiffness: 320, damping: 22 }}
+          className={`mx-1 flex items-end gap-2.5 overflow-visible ${isMe ? "flex-row-reverse" : "flex-row"}`}
         >
+          {/* Avatar — sm for better frame visibility */}
           <div className="mb-1 shrink-0">
             <ProfileAvatar
               cosmetic={guessCosmetic}
               fallbackPhotoURL={isMe ? user?.photoURL : undefined}
               displayName={isMe ? displayName : m.senderName ?? undefined}
-              size="xs"
+              size="sm"
               idle
               active={isMe}
             />
           </div>
-          <motion.div
-            className={`min-w-0 flex-1 overflow-hidden rounded-[1.4rem] ${
-              m.correct
-                ? "bg-[#dcfce7]"
-                : "bg-[#fff0f0]"
-            }`}
+
+          {/* Guess card */}
+          <div
+            className="min-w-0 flex-1 overflow-hidden rounded-[1.5rem]"
             style={
               m.correct
                 ? {
-                    border: "2px solid #16a34a",
-                    boxShadow: "0 0 0 5px rgba(22,163,74,0.14), 0 10px 28px rgba(22,163,74,0.20)",
+                    background: "linear-gradient(180deg,#f0fdf4 0%,#dcfce7 100%)",
+                    border: "2px solid rgba(22,163,74,0.40)",
+                    boxShadow:
+                      "0 0 0 4px rgba(22,163,74,0.09), 0 8px 24px rgba(22,163,74,0.18), inset 0 1px 0 rgba(255,255,255,0.7)",
                   }
                 : {
-                    border: "2px solid #fca5a5",
-                    boxShadow: "0 0 0 3px rgba(252,165,165,0.22), 0 6px 18px rgba(220,80,80,0.10)",
+                    background: "linear-gradient(180deg,#fff5f5 0%,#fff0f0 100%)",
+                    border: "2px solid rgba(252,165,165,0.55)",
+                    boxShadow:
+                      "0 0 0 3px rgba(252,165,165,0.10), 0 6px 16px rgba(220,80,80,0.08), inset 0 1px 0 rgba(255,255,255,0.6)",
                   }
             }
           >
-            <div className={`flex items-center gap-2 px-4 py-1.5 text-xs font-bold ${m.correct ? "bg-[#bbf7d0] text-[#166534]" : "bg-[#fecaca] text-[#991b1b]"}`}>
-              <span>{m.correct ? "🎉 تخمين صحيح!" : "✗ تخمين خاطئ"}</span>
-              <span className="mr-auto opacity-70">{isMe ? "أنت" : m.senderName}</span>
+            {/* Header bar */}
+            <div
+              className={`flex items-center gap-2 px-4 py-2 text-[11px] font-extrabold ${
+                m.correct
+                  ? "bg-gradient-to-r from-[#bbf7d0] to-[#86efac]/50 text-[#15803d]"
+                  : "bg-gradient-to-r from-[#fecaca] to-[#fca5a5]/50 text-[#b91c1c]"
+              }`}
+            >
+              <span>{m.correct ? "🏆 تخمين صحيح!" : "✗ تخمين خاطئ"}</span>
+              <span className="mr-auto text-[10px] opacity-70">
+                {isMe ? "أنت" : m.senderName}
+              </span>
             </div>
-            <div className={`px-4 py-2.5 text-sm font-black ${m.correct ? "text-[#14532d]" : "text-[#7f1d1d]"}`}>
+            {/* Guess text */}
+            <div
+              className={`px-4 py-3 text-[15px] font-black leading-snug ${
+                m.correct ? "text-[#14532d]" : "text-[#7f1d1d]"
+              }`}
+            >
               {m.text}
             </div>
-          </motion.div>
+          </div>
         </motion.div>
       );
     }
 
     // ── normal question / answer / chat bubble ────────────────
-    // Color semantics: question→purple, answer→green, plain→orange(me)/white(them)
+    // Gradients per type: question→purple depth, answer→green depth,
+    // me→warm orange, them→clean white with warm border
     const bubbleStyle: CSSProperties = isQuestion
-      ? { background: "#ede9fe", border: "1.5px solid #c4b5fd", color: "#3b1f6e" }
+      ? {
+          background: "linear-gradient(135deg,#ede9fe 0%,#ddd6fe 100%)",
+          border: "1.5px solid rgba(167,139,250,0.45)",
+          boxShadow:
+            "0 4px 16px rgba(139,92,246,0.11), inset 0 1px 0 rgba(255,255,255,0.55)",
+          color: "#3b1f6e",
+        }
       : isAnswer
-        ? { background: "#dcfce7", border: "1.5px solid #86efac", color: "#14532d" }
+        ? {
+            background: "linear-gradient(135deg,#dcfce7 0%,#bbf7d0 100%)",
+            border: "1.5px solid rgba(74,222,128,0.38)",
+            boxShadow:
+              "0 4px 16px rgba(22,163,74,0.11), inset 0 1px 0 rgba(255,255,255,0.55)",
+            color: "#14532d",
+          }
         : isMe
-          ? { background: "#ffd7a8", border: "1.5px solid #f0bf8a", color: "#6f3714" }
-          : { background: "#ffffff", border: "1.5px solid #e8d5b5", color: "#6f3714" };
+          ? {
+              background: "linear-gradient(135deg,#ffd7a8 0%,#ffcc8a 100%)",
+              border: "1.5px solid rgba(240,191,138,0.65)",
+              boxShadow:
+                "0 4px 14px rgba(196,120,40,0.16), inset 0 1px 0 rgba(255,255,255,0.42)",
+              color: "#6f3714",
+            }
+          : {
+              background: "linear-gradient(180deg,#ffffff 0%,#fff9f4 100%)",
+              border: "1.5px solid rgba(232,213,181,0.75)",
+              boxShadow:
+                "0 4px 14px rgba(196,134,82,0.09), inset 0 1px 0 rgba(255,255,255,0.85)",
+              color: "#6f3714",
+            };
 
     const typeTag = isQuestion ? "سؤال" : isAnswer ? "إجابة" : null;
 
@@ -2874,37 +2910,42 @@ export function RoomExperience({ roomId }: Props) {
       <motion.div
         key={m.id}
         layout
-        initial={{ opacity: 0, x: isMe ? 16 : -16, y: 4 }}
+        initial={{ opacity: 0, x: isMe ? 14 : -14, y: 4 }}
         animate={{ opacity: 1, x: 0, y: 0 }}
-        transition={{ type: "spring", stiffness: 400, damping: 26 }}
-        className={`flex items-end gap-2 ${isMe ? "flex-row-reverse" : "flex-row"}`}
+        transition={{ type: "spring", stiffness: 420, damping: 28 }}
+        className={`flex items-end gap-2.5 ${isMe ? "flex-row-reverse" : "flex-row"}`}
       >
-        {/* mini avatar */}
+        {/* Avatar — sm size so frames are clearly visible */}
         <div className="mb-0.5 shrink-0">
           <ProfileAvatar
             cosmetic={senderCosmetic}
             fallbackPhotoURL={isMe ? user?.photoURL : undefined}
             displayName={isMe ? displayName : m.senderName ?? undefined}
-            size="xs"
+            size="sm"
             idle
             active={isMe}
           />
         </div>
 
-        {/* bubble */}
+        {/* Bubble */}
         <div
-          className="max-w-[78%] rounded-[1.35rem] px-4 py-2.5 text-sm leading-relaxed shadow-[0_8px_26px_rgba(120,55,25,0.09)] sm:max-w-[72%]"
+          className="max-w-[76%] rounded-[1.45rem] px-4 py-3 text-sm leading-relaxed sm:max-w-[70%]"
           style={bubbleStyle}
         >
-          {typeTag && (
-            <div className={`mb-1 text-[10px] font-extrabold uppercase tracking-wide ${isQuestion ? "text-[#7c3aed]" : "text-[#16a34a]"}`}>
+          {typeTag ? (
+            <div
+              className={`mb-1.5 text-[9.5px] font-extrabold uppercase tracking-wider ${
+                isQuestion ? "text-[#7c3aed]" : "text-[#16a34a]"
+              }`}
+            >
               {typeTag}
             </div>
-          )}
-          {!isMe && !typeTag && (
-            <div className="mb-0.5 text-[10px] font-semibold text-[#9b6338]">{m.senderName}</div>
-          )}
-          <div className="whitespace-pre-wrap break-words">{m.text}</div>
+          ) : !isMe ? (
+            <div className="mb-1 text-[10px] font-bold text-[#9b6338]/80">
+              {m.senderName}
+            </div>
+          ) : null}
+          <div className="whitespace-pre-wrap break-words font-medium">{m.text}</div>
         </div>
       </motion.div>
     );
@@ -3000,50 +3041,59 @@ export function RoomExperience({ roomId }: Props) {
       </div>
 
       {/* ════════════════════════════════════════════════════════
-          TOP HUD
+          TOP HUD — menu · logo · room-code
       ════════════════════════════════════════════════════════ */}
-      <div className="relative z-10 mx-auto w-full max-w-lg flex-shrink-0 px-2 pt-2 sm:max-w-xl sm:px-3">
+      <div className="relative z-10 mx-auto w-full max-w-lg flex-shrink-0 px-3 pt-2 sm:max-w-xl sm:px-4">
         <div className="flex items-center justify-between gap-2">
-          {/* X button — left */}
+
+          {/* ── Hamburger / exit ── */}
           <motion.button
             type="button"
             onClick={requestExit}
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
+            whileHover={{ scale: 1.08 }}
+            whileTap={{ scale: 0.88 }}
             aria-label="قائمة"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/90 shadow-[0_3px_12px_rgba(196,134,82,0.22)] backdrop-blur-sm"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_4px_14px_rgba(196,134,82,0.20)] backdrop-blur-sm"
           >
-            <svg viewBox="0 0 18 18" fill="none" className="h-4 w-4" aria-hidden>
-              <path d="M3.5 3.5l11 11M14.5 3.5l-11 11" stroke="#6b3d15" strokeWidth="2" strokeLinecap="round" />
+            {/* 3-line hamburger */}
+            <svg viewBox="0 0 18 14" fill="none" className="h-4 w-4" aria-hidden>
+              <path d="M1 1h16M1 7h16M1 13h16" stroke="#6b3d15" strokeWidth="1.8" strokeLinecap="round" />
             </svg>
           </motion.button>
 
-          {/* Logo center */}
+          {/* ── Logo ── */}
           <span
             className="text-xl font-black tracking-tight sm:text-2xl"
             style={{
               background: "linear-gradient(180deg,#FF9F0A 0%,#E0660A 100%)",
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
-              filter: "drop-shadow(0 2px 5px rgba(224,102,10,0.30))",
+              filter: "drop-shadow(0 2px 5px rgba(224,102,10,0.28))",
             }}
           >
             مين أنا؟
           </span>
 
-          {/* Leave capsule — right */}
+          {/* ── Room code pill ── */}
           <motion.button
             type="button"
-            onClick={requestExit}
-            whileHover={{ scale: 1.05 }}
+            onClick={copyCode}
+            whileHover={{ scale: 1.04 }}
             whileTap={{ scale: 0.94 }}
-            className="flex items-center gap-1.5 rounded-full bg-white/90 px-3.5 py-2 text-xs font-bold text-[#8a3f16] shadow-[0_3px_12px_rgba(196,134,82,0.18)] backdrop-blur-sm"
+            aria-label="نسخ رمز الغرفة"
+            className="flex items-center gap-1.5 rounded-2xl bg-white/90 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_4px_14px_rgba(196,134,82,0.18)] backdrop-blur-sm"
           >
-            <svg viewBox="0 0 14 14" fill="none" className="h-3 w-3 shrink-0" aria-hidden>
-              <path d="M9 2.5l4 4.5-4 4.5M13 7H5.5M2 1v12" stroke="#8a3f16" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+            <span className="text-[9.5px] font-bold text-[#bc7a45]">رمز</span>
+            <span className="font-mono text-[12px] font-extrabold tracking-wider text-[#8a3f16]">
+              {room.code}
+            </span>
+            {/* copy icon */}
+            <svg viewBox="0 0 14 14" fill="none" className="h-3 w-3 shrink-0 text-[#bc7a45]" aria-hidden>
+              <rect x="4" y="4" width="8" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.4" />
+              <path d="M2 10V2h8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
-            مغادرة
           </motion.button>
+
         </div>
 
         {/* Voice mode indicator — active during voice gameplay */}
