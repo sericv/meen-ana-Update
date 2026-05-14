@@ -110,7 +110,7 @@ export function GameplaySocialSurface({
               initial={{ opacity: 0, y: -6 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
-              className="rounded-lg border border-[#f4c48d] bg-[#fff2de]/95 px-2.5 py-1.5 text-center text-[11px] font-bold text-[#9a5f2d]"
+              className="rounded-xl border border-[#f4c48d]/80 bg-gradient-to-b from-[#fff7e8] to-[#fff2de] px-3 py-2 text-center text-[11.5px] font-extrabold text-[#9a5f2d] shadow-[inset_0_1px_0_rgba(255,255,255,0.8),0_4px_12px_rgba(196,134,82,0.12)]"
             >
               {banner}
             </motion.div>
@@ -126,9 +126,9 @@ export function GameplaySocialSurface({
       {socialMatchLive ? (
         <section className="shrink-0 px-2 pt-1">
           <div
-            className="flex items-end justify-between gap-0.5 rounded-xl border border-white/70 px-1.5 py-1 shadow-[0_4px_16px_rgba(160,80,30,0.07)]"
+            className="flex items-end justify-between gap-0.5 rounded-xl border border-white/70 px-1.5 py-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_4px_16px_rgba(160,80,30,0.10)]"
             style={{
-              background: "linear-gradient(180deg,rgba(255,255,255,0.94),rgba(255,248,238,0.9))",
+              background: "linear-gradient(180deg,rgba(255,255,255,0.97),rgba(255,248,238,0.94))",
             }}
           >
             <div className="flex min-w-0 flex-1 flex-col items-center gap-0">
@@ -213,15 +213,15 @@ export function GameplaySocialSurface({
           className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-[#f0d4bc] bg-gradient-to-b from-white to-[#fffbf6] shadow-[0_10px_32px_rgba(120,55,20,0.07)]"
           style={{ boxShadow: "0 0 0 1px rgba(244,196,141,0.35), 0 12px 36px rgba(120,55,20,0.06)" }}
         >
-          <header className="flex h-8 shrink-0 items-center justify-between border-b border-[#f5e6d6] bg-[#fffaf6]/98 px-2">
-            <span className="text-[11px] font-black text-[#7a3410]">الدردشة</span>
+          <header className="flex h-10 shrink-0 items-center justify-between border-b border-[#f5e6d6] bg-[#fffaf6]/98 px-3">
+            <span className="text-[11.5px] font-black tracking-wide text-[#7a3410]">الدردشة</span>
             <span
-              className={`rounded-md px-1.5 py-0.5 text-[9px] font-extrabold ${
+              className={`rounded-lg px-2 py-0.5 text-[9.5px] font-extrabold shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] ${
                 myTurn
                   ? phase === "answer"
-                    ? "bg-[#dcfce7] text-[#166534]"
-                    : "bg-[#ede9fe] text-[#5b21b6]"
-                  : "bg-[#fff3e0] text-[#a16231]"
+                    ? "bg-gradient-to-b from-[#d1fae5] to-[#bbf7d0] text-[#166534]"
+                    : "bg-gradient-to-b from-[#ede9fe] to-[#ddd6fe] text-[#5b21b6]"
+                  : "bg-gradient-to-b from-[#fff3e0] to-[#ffe8c4] text-[#a16231]"
               }`}
             >
               {myTurn ? (phase === "answer" ? "إجابة" : "سؤال") : "دور الخصم"}
@@ -267,7 +267,7 @@ export function GameplaySocialSurface({
               </div>
 
               <footer
-                className="relative z-20 shrink-0 space-y-1.5 border-t border-[#f5e6d6] bg-[#fffaf6] p-2 pt-1.5"
+                className="relative z-20 shrink-0 space-y-1.5 border-t border-[#f5e6d6] bg-gradient-to-b from-[#fffaf6] to-[#fffbf7] p-2 pt-1.5"
                 style={{
                   paddingBottom: `calc(max(env(safe-area-inset-bottom, 0px), 8px) + ${keyboardOverlapPx}px)`,
                 }}

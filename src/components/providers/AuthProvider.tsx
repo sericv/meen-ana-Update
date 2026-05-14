@@ -26,7 +26,7 @@ import {
 import { getFirebaseAuth } from "@/lib/firebase/client";
 import { upsertUserDocument } from "@/lib/firestore/users.client";
 import { useVisualViewport } from "@/hooks/useVisualViewport";
-import { preferGoogleAuthRedirect } from "@/lib/auth/google-sign-in-strategy";
+import { isInAppBrowser } from "@/lib/auth/google-sign-in-strategy";
 
 export type EmailLinkBanner = { kind: "success" | "error" | "info"; text: string };
 
@@ -107,9 +107,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     void (async () => {
       try {
         await (auth as { authStateReady?: () => Promise<void> }).authStateReady?.();
-        await getRedirectResult(auth);
+        // Pass browserPopupRedirectResolver explicitly — required when initializeAuth
+        // was used (even though we now also configure it there, belt-and-suspenders).
+        const redirectResult = await getRedirectResult(auth, browserPopupRedirectResolver);
+        if (redirectResult?.user) {
+          console.log("[auth] redirect sign-in completed for", redirectResult.user.uid);
+        }
       } catch (e) {
-        console.warn("[auth] getRedirectResult", e);
+        const code =
+          e && typeof e === "object" && "code" in e ? String((e as { code: unknown }).code) : "";
+        console.warn("[auth] getRedirectResult error:", code, e);
+        // Surface real errors (not the benign "no pending redirect" noise).
+        if (code && code !== "auth/no-auth-event" && code !== "auth/null-user") {
+          setEmailLinkBanner({ kind: "error", text: firebaseAuthMessage(e) });
+        }
       }
 
       if (cancelled) return;
@@ -150,37 +161,59 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signInGoogle = useCallback(async () => {
     const auth = getFirebaseAuth();
-    if (googleAuthLock.current) return;
+    if (googleAuthLock.current) {
+      console.log("[auth] signInGoogle: already in progress, ignoring");
+      return;
+    }
     googleAuthLock.current = true;
     try {
+      // In-app browsers (Instagram, Facebook, TikTok, …) block both popups and
+      // redirects. Surface a clear message so the user knows to switch browsers.
+      if (isInAppBrowser()) {
+        console.warn("[auth] signInGoogle: in-app browser detected");
+        throw Object.assign(
+          new Error("افتح الصفحة في Safari أو Chrome لتسجيل الدخول عبر Google."),
+          { code: "auth/in-app-browser" },
+        );
+      }
+
       const provider = new GoogleAuthProvider();
       provider.addScope("profile");
       provider.addScope("email");
-      // `prompt=select_account` breaks some mobile redirect / embedded WebView
-      // flows with auth/argument-error; keep it for desktop popup only.
-      if (!preferGoogleAuthRedirect()) {
-        provider.setCustomParameters({ prompt: "select_account" });
-      }
+      // Always request account picker — needed for account switching on all platforms.
+      provider.setCustomParameters({ prompt: "select_account" });
 
-      if (preferGoogleAuthRedirect()) {
-        await signInWithRedirect(auth, provider);
-        return;
-      }
-
+      console.log("[auth] signInGoogle: attempting popup");
       try {
+        // Popup-first on ALL platforms (mobile Chrome, iOS Safari 15+, desktop).
+        // Pass resolver explicitly — required when auth was created with initializeAuth.
         await signInWithPopup(auth, provider, browserPopupRedirectResolver);
+        console.log("[auth] signInGoogle: popup succeeded");
+        return;
       } catch (e: unknown) {
         const code =
           e && typeof e === "object" && "code" in e ? String((e as { code: unknown }).code) : "";
-        if (
-          code === "auth/popup-blocked" ||
-          code === "auth/cancelled-popup-request" ||
-          code === "auth/popup-closed-by-user" ||
-          code === "auth/operation-not-supported-in-this-environment"
-        ) {
-          await signInWithRedirect(auth, provider);
+
+        // User deliberately closed the picker — treat as cancellation, not an error.
+        if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request") {
+          console.log("[auth] signInGoogle: popup closed by user");
           return;
         }
+
+        // Popup was blocked by the browser → fall back to full-page redirect.
+        if (
+          code === "auth/popup-blocked" ||
+          code === "auth/operation-not-supported-in-this-environment"
+        ) {
+          console.log("[auth] signInGoogle: popup blocked, falling back to redirect");
+          // Pass resolver explicitly here too (belt-and-suspenders with initializeAuth config).
+          await signInWithRedirect(auth, provider, browserPopupRedirectResolver);
+          return;
+        }
+
+        // Any other error (network, auth-domain mis-config, etc.) — rethrow so
+        // the caller can surface it to the user.
+        console.error("[auth] signInGoogle: popup error:", code, e);
         throw e;
       }
     } finally {

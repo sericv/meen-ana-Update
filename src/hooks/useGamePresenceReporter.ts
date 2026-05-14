@@ -2,7 +2,7 @@
 
 import { deleteField, doc, serverTimestamp, setDoc } from "firebase/firestore";
 import { useEffect, useRef } from "react";
-import { getFirebaseDb } from "@/lib/firebase/client";
+import { getFirebaseAuth, getFirebaseDb } from "@/lib/firebase/client";
 import { col } from "@/lib/firestore/paths";
 import { isFirebaseFirestoreError, logFsOpFailure } from "@/lib/firestore/fs-op-debug";
 import type { GamePresence } from "@/lib/social/presence-constants";
@@ -69,6 +69,10 @@ export function useGamePresenceReporter({
     return () => {
       window.clearInterval(id);
       if (resetOnUnmount) {
+        // Guard: auth may have changed (new sign-in) since this effect captured
+        // `uid`. Writing to a different user's doc would be denied by Firestore rules.
+        const currentUid = getFirebaseAuth().currentUser?.uid;
+        if (currentUid !== uid) return;
         void setDoc(
           ref,
           {

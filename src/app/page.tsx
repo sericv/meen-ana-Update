@@ -137,7 +137,7 @@ export default function HomePage() {
                 playUIButton();
                 setMenuOpen((v) => !v);
               }}
-              className="flex items-center gap-2 rounded-full border border-white/70 bg-white/90 px-4 py-2.5 text-sm font-extrabold text-[#8a3f16] shadow-[0_6px_18px_rgba(196,134,82,0.25)] backdrop-blur"
+              className="flex items-center gap-2 rounded-full border border-white/70 bg-white/92 px-4 py-2.5 text-sm font-extrabold text-[#8a3f16] shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_6px_18px_rgba(196,134,82,0.22)] backdrop-blur"
             >
               {user && profileUid ? (
                 <ProfileAvatar
@@ -162,7 +162,7 @@ export default function HomePage() {
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.94, y: -6 }}
                   transition={{ duration: 0.16 }}
-                  className="absolute left-0 top-[calc(100%+8px)] z-50 min-w-[220px] rounded-2xl border border-[#f4c48d] bg-white p-2 shadow-[0_16px_40px_rgba(200,120,40,0.24)]"
+                  className="absolute left-0 top-[calc(100%+8px)] z-50 min-w-[220px] rounded-2xl border border-[#f4c48d]/60 bg-white p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_20px_50px_rgba(200,120,40,0.28),0_4px_12px_rgba(200,120,40,0.12)]"
                 >
                   {displayName ? (
                     <>
@@ -557,7 +557,7 @@ function FeatureRow() {
       transition={{ delay: 0.24, duration: 0.4 }}
       className="mt-6 w-full"
     >
-      <div className="grid grid-cols-3 divide-x divide-[#f4d4b0] rounded-2xl border border-white/65 bg-white/80 shadow-[0_10px_26px_rgba(196,134,82,0.22)] backdrop-blur-md [direction:ltr]">
+      <div className="grid grid-cols-3 divide-x divide-[#f4d4b0]/60 rounded-2xl border border-white/65 bg-white/82 shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_12px_32px_rgba(196,134,82,0.20),0_2px_8px_rgba(196,134,82,0.08)] backdrop-blur-md [direction:ltr]">
         {FEATURES.map(({ Icon, tint, label }) => (
           <div key={label} className="flex flex-col items-center gap-1.5 px-2 py-3.5 [direction:rtl]">
             <span

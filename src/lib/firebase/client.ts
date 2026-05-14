@@ -4,6 +4,7 @@ import { initializeApp, getApps, type FirebaseApp } from "firebase/app";
 import {
   type Auth,
   browserLocalPersistence,
+  browserPopupRedirectResolver,
   getAuth,
   indexedDBLocalPersistence,
   initializeAuth,
@@ -35,6 +36,9 @@ export function getFirebaseAuth(): Auth {
     try {
       auth = initializeAuth(firebaseApp, {
         persistence: [indexedDBLocalPersistence, browserLocalPersistence],
+        // Required: without this, signInWithRedirect / getRedirectResult throw
+        // auth/argument-error silently on any browser (mobile and desktop).
+        popupRedirectResolver: browserPopupRedirectResolver,
       });
     } catch (e: unknown) {
       const code =

@@ -35,6 +35,7 @@ function LoginInner() {
   const [completeBusy, setCompleteBusy] = useState(false);
   const [completeErr, setCompleteErr] = useState<string | null>(null);
   const [googleBusy, setGoogleBusy] = useState(false);
+  const [googleErr, setGoogleErr] = useState<string | null>(null);
 
   useEffect(() => {
     if (loading || !user) return;
@@ -177,15 +178,38 @@ function LoginInner() {
             onClick={() => {
               if (googleBusy) return;
               setGoogleBusy(true);
+              setGoogleErr(null);
               void signInGoogle()
-                .catch(() => {
-                  /* errors surface via Firebase / UI */
+                .catch((e: unknown) => {
+                  const code =
+                    e && typeof e === "object" && "code" in e
+                      ? String((e as { code: unknown }).code)
+                      : "";
+                  // User closed the picker intentionally — not an error.
+                  if (
+                    code === "auth/popup-closed-by-user" ||
+                    code === "auth/cancelled-popup-request"
+                  ) {
+                    return;
+                  }
+                  const msg =
+                    code === "auth/in-app-browser"
+                      ? "افتح هذه الصفحة في Safari أو Chrome لتسجيل الدخول عبر Google."
+                      : e instanceof Error && e.message
+                        ? e.message
+                        : "تعذر فتح Google. تحقق من الاتصال وحاول مجدداً.";
+                  setGoogleErr(msg);
                 })
                 .finally(() => setGoogleBusy(false));
             }}
           >
             {googleBusy ? "جاري فتح Google…" : "المتابعة عبر Google"}
           </Button>
+          {googleErr ? (
+            <p role="alert" className="text-center text-sm font-bold text-red-700">
+              {googleErr}
+            </p>
+          ) : null}
 
           <div className="relative py-1 text-center">
             <span className="relative z-10 inline-block rounded-full bg-white px-3 text-xs font-black text-[#bc7a45]">
