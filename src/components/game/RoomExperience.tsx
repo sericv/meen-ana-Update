@@ -2761,8 +2761,7 @@ export function RoomExperience({ roomId }: Props) {
           : `${opponentName} يجيب الآن`
       : null;
 
-  // Render a single chat message
-  function renderMessage(m: (typeof messages)[number]) {
+  const renderMessage = useCallback((m: (typeof messages)[number]) => {
     const isMe = m.senderUid === uid;
     const isSystem = m.senderUid === "system";
     const isGuessMsg = m.type === "guess";
@@ -2805,7 +2804,6 @@ export function RoomExperience({ roomId }: Props) {
           transition={{ type: "spring", stiffness: 320, damping: 22 }}
           className={`mx-1 flex items-end gap-2.5 overflow-visible ${isMe ? "flex-row-reverse" : "flex-row"}`}
         >
-          {/* Avatar — sm for better frame visibility */}
           <div className="mb-1 shrink-0">
             <ProfileAvatar
               cosmetic={guessCosmetic}
@@ -2817,7 +2815,6 @@ export function RoomExperience({ roomId }: Props) {
             />
           </div>
 
-          {/* Guess card */}
           <div
             className="min-w-0 flex-1 overflow-hidden rounded-[1.5rem]"
             style={
@@ -2836,7 +2833,6 @@ export function RoomExperience({ roomId }: Props) {
                   }
             }
           >
-            {/* Header bar */}
             <div
               className={`flex items-center gap-2 px-4 py-2 text-[11px] font-extrabold ${
                 m.correct
@@ -2849,7 +2845,6 @@ export function RoomExperience({ roomId }: Props) {
                 {isMe ? "أنت" : m.senderName}
               </span>
             </div>
-            {/* Guess text */}
             <div
               className={`px-4 py-3 text-[15px] font-black leading-snug ${
                 m.correct ? "text-[#14532d]" : "text-[#7f1d1d]"
@@ -2915,7 +2910,6 @@ export function RoomExperience({ roomId }: Props) {
         transition={{ type: "spring", stiffness: 420, damping: 28 }}
         className={`flex items-end gap-2.5 ${isMe ? "flex-row-reverse" : "flex-row"}`}
       >
-        {/* Avatar — sm size so frames are clearly visible */}
         <div className="mb-0.5 shrink-0">
           <ProfileAvatar
             cosmetic={senderCosmetic}
@@ -2927,7 +2921,6 @@ export function RoomExperience({ roomId }: Props) {
           />
         </div>
 
-        {/* Bubble */}
         <div
           className="max-w-[76%] rounded-[1.45rem] px-4 py-3 text-sm leading-relaxed sm:max-w-[70%]"
           style={bubbleStyle}
@@ -2949,7 +2942,7 @@ export function RoomExperience({ roomId }: Props) {
         </div>
       </motion.div>
     );
-  }
+  }, [uid, cosmeticsMap, user, displayName]);
 
   return (
     <div
@@ -3046,7 +3039,6 @@ export function RoomExperience({ roomId }: Props) {
       <div className="relative z-10 mx-auto w-full max-w-lg flex-shrink-0 px-3 pt-2 sm:max-w-xl sm:px-4">
         <div className="flex items-center justify-between gap-2">
 
-          {/* ── Hamburger / exit ── */}
           <motion.button
             type="button"
             onClick={requestExit}
@@ -3061,7 +3053,6 @@ export function RoomExperience({ roomId }: Props) {
             </svg>
           </motion.button>
 
-          {/* ── Logo ── */}
           <span
             className="text-xl font-black tracking-tight sm:text-2xl"
             style={{
@@ -3074,7 +3065,6 @@ export function RoomExperience({ roomId }: Props) {
             مين أنا؟
           </span>
 
-          {/* ── Room code pill ── */}
           <motion.button
             type="button"
             onClick={copyCode}

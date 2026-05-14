@@ -113,7 +113,6 @@ export function GameplaySocialSurface({
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
 
-      {/* ── 1. SYSTEM BANNER ─────────────────────────────────── */}
       <div className="shrink-0 px-3 pt-1">
         <AnimatePresence>
           {banner ? (
@@ -135,7 +134,6 @@ export function GameplaySocialSurface({
         ) : null}
       </div>
 
-      {/* ── 2. PLAYER STRIP ──────────────────────────────────── */}
       {socialMatchLive ? (
         <section className="shrink-0 px-3 pt-2">
           <div
@@ -147,7 +145,6 @@ export function GameplaySocialSurface({
                 "inset 0 1px 0 rgba(255,255,255,0.92), 0 6px 22px rgba(160,80,30,0.09), 0 0 0 0.5px rgba(244,196,141,0.4)",
             }}
           >
-            {/* ── Me ── */}
             <div className="flex min-w-0 flex-1 flex-col items-center gap-1">
               <AvatarTurnRing
                 density="comfortable"
@@ -175,7 +172,6 @@ export function GameplaySocialSurface({
               </span>
             </div>
 
-            {/* ── VS Badge ── */}
             <div className="mx-1 flex shrink-0 flex-col items-center">
               <div
                 className="flex h-10 w-10 items-center justify-center rounded-full"
@@ -194,7 +190,6 @@ export function GameplaySocialSurface({
               </div>
             </div>
 
-            {/* ── Opponent ── */}
             <div className="flex min-w-0 flex-1 flex-col items-center gap-1">
               <AvatarTurnRing
                 density="comfortable"
@@ -224,7 +219,6 @@ export function GameplaySocialSurface({
         </section>
       ) : null}
 
-      {/* ── 3. TURN BANNER ───────────────────────────────────── */}
       {socialMatchLive && turnAction ? (
         <section className="shrink-0 px-3 pt-2">
           <AnimatePresence mode="wait">
@@ -268,7 +262,6 @@ export function GameplaySocialSurface({
               >
                 {turnAction}
               </span>
-              {/* Live countdown on active turn */}
               {myTurn && secLeft !== null && (
                 <span
                   className={`shrink-0 font-black tabular-nums ${
@@ -286,7 +279,6 @@ export function GameplaySocialSurface({
         </section>
       ) : null}
 
-      {/* ── 4. CARD SECTION ──────────────────────────────────── */}
       <section className="shrink-0 px-3 pt-2">
         <div
           className="flex items-center gap-3 overflow-hidden rounded-2xl border border-[#f0d8bc]/80 px-3 py-2"
@@ -327,7 +319,6 @@ export function GameplaySocialSurface({
             )}
           </div>
 
-          {/* Card metadata */}
           <div className="min-w-0 flex-1">
             <p className="text-[9px] font-extrabold uppercase tracking-widest text-[#bc7a45]">
               الشخصية السرية
@@ -356,7 +347,6 @@ export function GameplaySocialSurface({
         </div>
       </section>
 
-      {/* ── 5. CHAT PANEL ────────────────────────────────────── */}
       <div className="flex min-h-0 min-w-0 flex-1 flex-col px-3 pb-1 pt-2">
         <div
           className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-[#f0d4bc]/70"
@@ -367,7 +357,6 @@ export function GameplaySocialSurface({
               "inset 0 1px 0 rgba(255,255,255,0.9), 0 0 0 0.5px rgba(244,196,141,0.28), 0 10px 30px rgba(120,55,20,0.06)",
           }}
         >
-          {/* Chat header — minimal: label + phase badge */}
           <header className="flex h-9 shrink-0 items-center justify-between border-b border-[#f5e6d6] bg-[#fffaf6]/98 px-3">
             <span className="text-[10.5px] font-extrabold tracking-wide text-[#7a3410]">
               الدردشة
@@ -393,7 +382,6 @@ export function GameplaySocialSurface({
 
           {socialMatchLive ? (
             <>
-              {/* Message list — space-y-3 for breathing room between bubbles */}
               <div
                 ref={chatScrollRef}
                 className="scroll-y-chat min-h-0 flex-1 space-y-3 px-3 py-3"
@@ -414,7 +402,6 @@ export function GameplaySocialSurface({
                 <div ref={chatEndRef} />
               </div>
 
-              {/* Composer footer */}
               <footer
                 className="relative z-20 shrink-0 space-y-1.5 border-t border-[#f5e6d6] bg-gradient-to-b from-[#fffaf6] to-[#fffbf7] p-2 pt-1.5"
                 style={{
@@ -501,7 +488,6 @@ export function GameplaySocialSurface({
                   </div>
                 )}
 
-                {/* Guess CTA */}
                 <motion.button
                   type="button"
                   whileTap={{ scale: 0.97 }}
