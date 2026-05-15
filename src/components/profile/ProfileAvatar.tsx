@@ -69,7 +69,7 @@ export function ProfileAvatar({
 
   const wrapped = (
     <motion.div
-      className={`relative inline-flex ${className}`}
+      className={`relative inline-flex shrink-0 ${className}`}
       animate={idle ? { y: [0, -2, 0] } : undefined}
       transition={idle ? { duration: 3.2, repeat: Infinity, ease: "easeInOut" } : undefined}
     >

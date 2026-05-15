@@ -349,10 +349,25 @@ html.kbd-open .gameplay-card-compact {
 
 .winner-conic-spin {
   animation: winner-conic-spin 8s linear infinite;
+  transform-origin: center center;
 }
 
 .winner-rays {
   animation: winner-rays-spin 30s linear infinite;
+  transform-origin: center center;
+}
+
+/* Victory screen — lock horizontal axis on mobile Safari */
+.match-result-screen {
+  max-width: 100%;
+  overflow-x: hidden;
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.match-result-decor {
+  contain: paint;
+  max-width: 100%;
 }
 
 @keyframes voice-conic-spin {

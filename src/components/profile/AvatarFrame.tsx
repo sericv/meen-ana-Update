@@ -22,7 +22,7 @@ export function AvatarFrame({ frameId, sizePx, active = false, children }: Props
 
   if (!def.src) {
     return (
-      <div className="relative inline-flex items-center justify-center" style={{ width: s, height: s }}>
+      <div className="relative inline-flex shrink-0 items-center justify-center" style={{ width: s, height: s }}>
         {children}
       </div>
     );
@@ -33,7 +33,7 @@ export function AvatarFrame({ frameId, sizePx, active = false, children }: Props
 
   return (
     <div
-      className={`relative inline-flex items-center justify-center overflow-visible ${active ? "drop-shadow-[0_0_12px_rgba(52,211,153,0.4)]" : ""}`}
+      className={`relative inline-flex shrink-0 items-center justify-center overflow-visible ${active ? "drop-shadow-[0_0_12px_rgba(52,211,153,0.4)]" : ""}`}
       style={{ width: outer, height: outer }}
     >
       <div

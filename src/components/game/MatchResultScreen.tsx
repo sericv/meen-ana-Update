@@ -298,7 +298,7 @@ function WinnerBackground({ celebrate }: { celebrate: boolean }) {
   );
 
   return (
-    <motion.div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
+    <motion.div className="match-result-decor pointer-events-none absolute inset-0 -z-10 overflow-hidden">
       <div
         className="absolute inset-0"
         style={{
@@ -306,14 +306,14 @@ function WinnerBackground({ celebrate }: { celebrate: boolean }) {
         }}
       />
       <div
-        className="winner-rays absolute left-1/2 top-[60px] h-[460px] w-[460px] -translate-x-1/2 rounded-full opacity-35"
+        className="winner-rays absolute left-1/2 top-[60px] h-[min(100vw,460px)] w-[min(100vw,460px)] max-w-none -translate-x-1/2 rounded-full opacity-35"
         style={{
           background: `repeating-conic-gradient(from 0deg, transparent 0deg, ${W_GOLD}33 6deg, transparent 12deg, transparent 28deg)`,
           filter: "blur(4px)",
         }}
       />
       <motion.div
-        className="absolute left-1/2 top-[60px] h-[460px] w-[460px] -translate-x-1/2 rounded-full"
+        className="absolute left-1/2 top-[60px] h-[min(100vw,460px)] w-[min(100vw,460px)] -translate-x-1/2 rounded-full"
         style={{
           background: `radial-gradient(circle, ${W_GOLD}55 0%, ${W_ORANGE}33 40%, transparent 70%)`,
           filter: "blur(40px)",
@@ -366,18 +366,18 @@ function WinnerBackground({ celebrate }: { celebrate: boolean }) {
 
 function VictoryTitle({ text, celebrate }: { text: string; celebrate: boolean }) {
   return (
-    <div className="relative flex justify-center pt-3">
+    <motion.div className="relative flex justify-center overflow-hidden pt-3">
       {celebrate ? (
         <>
           <div
-            className="winner-conic-spin pointer-events-none absolute left-1/2 top-[-30px] h-[360px] w-[360px] -translate-x-1/2 opacity-50"
+            className="winner-conic-spin pointer-events-none absolute left-1/2 top-[-30px] h-[min(92vw,360px)] w-[min(92vw,360px)] -translate-x-1/2 opacity-50"
             style={{
               background: `conic-gradient(from 0deg, ${W_GOLD}33, transparent 8%, ${W_GOLD}44 14%, transparent 22%, ${W_ORANGE}33 28%, transparent 36%, ${W_GOLD}44 42%, transparent 50%, ${W_ORANGE}33 58%, transparent 66%, ${W_GOLD}44 72%, transparent 80%, ${W_ORANGE}33 86%, transparent 94%, ${W_GOLD}33)`,
               filter: "blur(2px)",
             }}
           />
           <motion.div
-            className="pointer-events-none absolute left-1/2 top-5 h-[280px] w-[280px] -translate-x-1/2 rounded-full"
+            className="pointer-events-none absolute left-1/2 top-5 h-[min(72vw,280px)] w-[min(72vw,280px)] -translate-x-1/2 rounded-full"
             style={{
               background: `radial-gradient(circle, ${W_GOLD}88 0%, ${W_ORANGE}44 35%, transparent 70%)`,
               filter: "blur(20px)",
@@ -403,7 +403,7 @@ function VictoryTitle({ text, celebrate }: { text: string; celebrate: boolean })
               ? `drop-shadow(0 4px 0 ${W_ORANGE_DEEP}) drop-shadow(0 8px 16px ${W_ORANGE_DEEP}88) drop-shadow(0 0 30px ${W_GOLD}aa)`
               : `drop-shadow(0 3px 0 ${W_ORANGE_DEEP}) drop-shadow(0 6px 12px rgba(242,106,31,0.35))`,
           }}
-          animate={celebrate ? { scale: [1, 1.03, 1] } : undefined}
+          animate={celebrate ? { opacity: [1, 0.92, 1] } : undefined}
           transition={{ duration: 2.6, repeat: Infinity, ease: "easeInOut" }}
         >
           {text}
@@ -423,7 +423,7 @@ function VictoryTitle({ text, celebrate }: { text: string; celebrate: boolean })
           </>
         ) : null}
       </div>
-    </div>
+    </motion.div>
   );
 }
 
@@ -470,18 +470,18 @@ function WinnerHero({
 }) {
   return (
     <motion.div
-      layout
-      className="relative mt-3 flex flex-col items-center"
+      layout={false}
+      className="relative mt-3 flex w-full max-w-full flex-col items-center overflow-hidden"
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ type: "spring", stiffness: 320, damping: 26, delay: 0.15 }}
     >
       {celebrate ? (
         <>
-          <FloatSpark style={{ left: -6, top: 28 }} delay={0} />
-          <FloatSpark style={{ right: -4, top: 20 }} delay={1.5} />
-          <FloatSpark style={{ left: 20, top: 130 }} delay={0.7} />
-          <FloatSpark style={{ right: 18, top: 140 }} delay={2.1} />
+          <FloatSpark style={{ left: 4, top: 28 }} delay={0} />
+          <FloatSpark style={{ right: 4, top: 20 }} delay={1.5} />
+          <FloatSpark style={{ left: 24, top: 130 }} delay={0.7} />
+          <FloatSpark style={{ right: 24, top: 140 }} delay={2.1} />
         </>
       ) : null}
 
@@ -516,7 +516,7 @@ function WinnerHero({
             background: "linear-gradient(180deg, #fff 0%, #FFF1DD 100%)",
             boxShadow: `0 16px 32px ${W_ORANGE_DEEP}55, inset 0 2px 0 #fff, inset 0 -3px 0 ${W_CREAM_DEEP}`,
           }}
-          animate={celebrate ? { scale: [1, 1.02, 1] } : undefined}
+          animate={celebrate ? { y: [0, -2, 0] } : undefined}
           transition={{ duration: 2.8, repeat: Infinity, ease: "easeInOut" }}
         >
           <div
@@ -586,10 +586,9 @@ function ResultCollectibleCard({
     <motion.div
       layout
       className="relative min-w-0 flex-1"
-      initial={reduceMotion ? false : { opacity: 0, y: 20, rotateY: 40 }}
-      animate={{ opacity: 1, y: 0, rotateY: 0 }}
+      initial={reduceMotion ? false : { opacity: 0, y: 18, scale: 0.94 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ type: "spring", stiffness: 260, damping: 22 }}
-      style={{ perspective: reduceMotion ? undefined : 900 }}
     >
       <motion.div
         className="absolute left-1/2 top-[-6px] z-[3] -translate-x-1/2 whitespace-nowrap rounded-lg px-4 py-1 text-[11px] font-black text-white"
@@ -889,7 +888,11 @@ export function MatchResultScreen({
       exit={{ opacity: 0 }}
       transition={{ duration: 0.35 }}
       dir="rtl"
-      className="absolute inset-0 z-50 flex min-h-0 w-full flex-col overflow-hidden overflow-y-auto"
+      className="match-result-screen absolute inset-0 z-50 flex min-h-0 w-full max-w-full flex-col overflow-x-hidden overflow-y-auto"
+      style={{
+        overscrollBehavior: "none",
+        touchAction: "pan-y",
+      }}
     >
       {iWon && showConfetti ? <ConfettiBurst active={true} /> : null}
 
@@ -899,7 +902,7 @@ export function MatchResultScreen({
         variants={container}
         initial="hidden"
         animate="show"
-        className="relative z-10 mx-auto flex w-full max-w-lg flex-1 flex-col px-1 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-[max(0.5rem,env(safe-area-inset-top))] sm:max-w-xl"
+        className="relative z-10 mx-auto flex w-full min-w-0 max-w-lg flex-1 flex-col overflow-x-hidden px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-[max(0.5rem,env(safe-area-inset-top))] sm:max-w-xl"
       >
         <motion.div variants={item} className="flex justify-center pb-1">
           <span
@@ -973,7 +976,7 @@ export function MatchResultScreen({
                   boxShadow: `0 8px 18px ${W_ORANGE_DEEP}88, inset 0 1.5px 0 rgba(255,255,255,0.5), inset 0 -3px 0 rgba(0,0,0,0.15), 0 0 0 3px #fff`,
                   textShadow: "0 1px 0 rgba(0,0,0,0.2)",
                 }}
-                animate={{ scale: [1, 1.08, 1] }}
+                animate={{ opacity: [0.92, 1, 0.92] }}
                 transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
               >
                 VS

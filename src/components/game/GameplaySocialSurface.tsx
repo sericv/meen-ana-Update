@@ -98,13 +98,14 @@ function PlayerColumn({
 }) {
   return (
     <motion.div
-      layout
+      layout={false}
       className="flex min-w-0 flex-1 flex-col items-center gap-1.5"
-      animate={active ? { scale: 1 } : { scale: 0.96 }}
-      transition={{ type: "spring", stiffness: 400, damping: 28 }}
+      animate={active ? { opacity: 1 } : { opacity: 0.88 }}
+      transition={{ duration: 0.2 }}
     >
       <motion.div
-        className="relative flex flex-col items-center"
+        layout={false}
+        className="relative flex shrink-0 flex-col items-center"
         animate={active ? { y: [0, -2, 0] } : { y: 0 }}
         transition={
           active
@@ -114,13 +115,15 @@ function PlayerColumn({
       >
         <AvatarTurnRing
           density="compact"
+          innerPx={56}
           showTimer={showTimer}
           emphasize={active}
           secLeft={secLeft}
           maxSec={maxPhaseSec}
         >
           <motion.div
-            className="rounded-full p-0.5"
+            layout={false}
+            className="flex items-center justify-center rounded-full p-0.5"
             style={{
               background: active ? "#fff" : "rgba(255,255,255,0.88)",
               boxShadow: active
@@ -176,9 +179,8 @@ function SecretCardVisual({
 
   return (
     <motion.div
-      layout
-      className="relative mx-0 shrink-0"
-      style={{ width: 132, marginInline: -4 }}
+      layout={false}
+      className="relative mx-0 w-[min(132px,30vw)] max-w-[132px] shrink-0"
     >
       <motion.div
         aria-hidden
@@ -192,8 +194,7 @@ function SecretCardVisual({
       />
       <motion.div
         layout
-        className="gameplay-secret-card relative flex flex-col items-center justify-between overflow-hidden rounded-[22px] px-2.5 pb-2.5 pt-3.5"
-        style={{ width: 132, height: 168 }}
+        className="gameplay-secret-card relative flex h-[min(168px,38vw)] w-full flex-col items-center justify-between overflow-hidden rounded-[22px] px-2.5 pb-2.5 pt-3.5"
       >
         <div
           aria-hidden
@@ -216,7 +217,7 @@ function SecretCardVisual({
           {hasImage ? (
             <motion.div
               layout
-              className="relative h-[88px] w-[88px] overflow-hidden rounded-2xl"
+              className="relative h-[min(88px,20vw)] w-[min(88px,20vw)] overflow-hidden rounded-2xl"
               style={{
                 boxShadow: `inset 0 -4px 8px rgba(0,0,0,0.12), 0 6px 14px ${ORANGE}33`,
               }}
@@ -541,7 +542,7 @@ export function GameplaySocialSurface({
       ) : null}
 
       {/* ── Players + secret card ─────────────────────────── */}
-      <section className="relative shrink-0 px-4 pt-3">
+      <section className="relative shrink-0 overflow-hidden px-4 pt-3">
         <span
           aria-hidden
           className="pointer-events-none absolute end-8 top-2.5 select-none text-[26px] font-black"
@@ -565,7 +566,7 @@ export function GameplaySocialSurface({
         </span>
 
         {socialMatchLive ? (
-          <div className="relative flex items-center justify-center gap-2">
+          <motion.div layout={false} className="relative flex min-w-0 items-center justify-center gap-1 sm:gap-2">
             {myTurn ? (
               <>
                 {meColumn}
@@ -588,9 +589,9 @@ export function GameplaySocialSurface({
               </>
             )}
             <FloatingGuessButton myTurn={myTurn} onGuessClick={onGuessClick} />
-          </div>
+          </motion.div>
         ) : (
-          <motion.div layout className="flex justify-center py-1">
+          <motion.div layout={false} className="flex justify-center py-1">
             <SecretCardVisual
               opponentCard={opponentCard}
               catName={catName}

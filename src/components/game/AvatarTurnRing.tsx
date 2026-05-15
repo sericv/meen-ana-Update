@@ -5,10 +5,29 @@ import type { ReactNode } from "react";
 
 type Density = "comfortable" | "compact";
 
-const RING: Record<Density, { dim: number; r: number; stroke: number }> = {
-  comfortable: { dim: 124, r: 52, stroke: 5.5 },
-  compact: { dim: 88, r: 36, stroke: 4.5 },
+/** Largest frame overlay scale in cosmetics — ring must clear this. */
+const MAX_FRAME_OVERLAY = 1.18;
+
+const DEFAULT_INNER: Record<Density, number> = {
+  /** md avatar (52) + p-0.5 wrapper (4) */
+  compact: 56,
+  /** lg avatar (72) + light wrapper */
+  comfortable: 76,
 };
+
+const STROKE: Record<Density, number> = {
+  comfortable: 5.5,
+  compact: 4.5,
+};
+
+function ringGeometry(innerPx: number, density: Density) {
+  const stroke = STROKE[density];
+  const contentDiameter = Math.ceil(innerPx * MAX_FRAME_OVERLAY);
+  const ringInset = density === "compact" ? 5 : 6;
+  const r = contentDiameter / 2 + ringInset;
+  const dim = Math.ceil(2 * (r + stroke + 3));
+  return { dim, r, stroke, contentDiameter, cx: dim / 2 };
+}
 
 /** Countdown ring around an avatar — active player gets a live arc + layered glow. */
 export function AvatarTurnRing({
@@ -17,6 +36,7 @@ export function AvatarTurnRing({
   secLeft,
   maxSec,
   density = "comfortable",
+  innerPx,
   children,
 }: {
   showTimer: boolean;
@@ -24,11 +44,13 @@ export function AvatarTurnRing({
   secLeft: number | null;
   maxSec: number;
   density?: Density;
+  /** Outer footprint of avatar + border padding (px). */
+  innerPx?: number;
   children: ReactNode;
 }) {
   const reduced = useReducedMotion();
-  const { dim, r, stroke } = RING[density];
-  const cx = dim / 2;
+  const footprint = innerPx ?? DEFAULT_INNER[density];
+  const { dim, r, stroke, contentDiameter, cx } = ringGeometry(footprint, density);
   const circumference = 2 * Math.PI * r;
   const safeSec = secLeft ?? 0;
   const hasCountdown = showTimer && secLeft !== null && maxSec > 0;
@@ -43,36 +65,34 @@ export function AvatarTurnRing({
   const progressStroke = urgent
     ? "#ef4444"
     : emphasize
-    ? "rgba(255,255,255,0.92)"
-    : "rgba(200,150,100,0.45)";
+      ? "rgba(255,255,255,0.92)"
+      : "rgba(200,150,100,0.45)";
 
-  // Outer decorative ring color when active
   const outerRingColor = urgent
     ? "rgba(239,68,68,0.18)"
     : emphasize
-    ? "rgba(255,159,10,0.18)"
-    : "transparent";
+      ? "rgba(255,159,10,0.18)"
+      : "transparent";
 
   const ring = (
     <svg
-      className="pointer-events-none absolute inset-0 -rotate-90"
+      className="pointer-events-none absolute left-1/2 top-1/2"
       width={dim}
       height={dim}
       viewBox={`0 0 ${dim} ${dim}`}
+      style={{ transform: "translate(-50%, -50%) rotate(-90deg)" }}
       aria-hidden
     >
-      {/* Outer decorative track */}
-      {emphasize && (
+      {emphasize ? (
         <circle
           cx={cx}
           cy={cx}
-          r={r + stroke + 2}
+          r={r + stroke + 1}
           fill="none"
           stroke={outerRingColor}
-          strokeWidth={3}
+          strokeWidth={2.5}
         />
-      )}
-      {/* Base track */}
+      ) : null}
       <circle
         cx={cx}
         cy={cx}
@@ -81,7 +101,6 @@ export function AvatarTurnRing({
         stroke={trackStroke}
         strokeWidth={stroke}
       />
-      {/* Progress arc */}
       <circle
         cx={cx}
         cy={cx}
@@ -106,27 +125,22 @@ export function AvatarTurnRing({
     </svg>
   );
 
-  const glowPad = density === "compact" ? "-inset-1.5" : "-inset-2.5";
-
   return (
-    <div
+    <motion.div
+      layout={false}
       className="relative inline-flex shrink-0 items-center justify-center"
       style={{ width: dim, height: dim }}
     >
-      {/* Primary glow blob */}
       {emphasize && !reduced ? (
         <motion.div
           aria-hidden
-          animate={{
-            opacity: [0.3, 0.72, 0.3],
-            scale: [0.9, 1.08, 0.9],
-          }}
+          animate={{ opacity: [0.3, 0.72, 0.3] }}
           transition={{
             duration: urgent ? 0.75 : 2.2,
             repeat: Infinity,
             ease: "easeInOut",
           }}
-          className={`absolute ${glowPad} rounded-full blur-xl`}
+          className="pointer-events-none absolute inset-0 rounded-full blur-xl"
           style={{
             background: urgent
               ? "rgba(239,68,68,0.50)"
@@ -134,9 +148,9 @@ export function AvatarTurnRing({
           }}
         />
       ) : emphasize ? (
-        <div
+        <motion.div
           aria-hidden
-          className={`absolute ${glowPad} rounded-full opacity-45 blur-xl`}
+          className="pointer-events-none absolute inset-0 rounded-full opacity-45 blur-xl"
           style={{
             background: urgent
               ? "rgba(239,68,68,0.42)"
@@ -145,21 +159,29 @@ export function AvatarTurnRing({
         />
       ) : null}
 
-      {/* Secondary inner shimmer when active (reduced only shows a static ring) */}
-      {emphasize && !reduced && !urgent && (
+      {emphasize && !reduced && !urgent ? (
         <motion.div
           aria-hidden
           animate={{ opacity: [0, 0.4, 0] }}
-          transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
-          className="absolute inset-1 rounded-full blur-md"
+          transition={{
+            duration: 1.6,
+            repeat: Infinity,
+            ease: "easeInOut",
+            delay: 0.5,
+          }}
+          className="pointer-events-none absolute inset-1 rounded-full blur-md"
           style={{ background: "rgba(255,200,80,0.30)" }}
         />
-      )}
+      ) : null}
 
       {ring}
-      <div className="relative z-[1] flex items-center justify-center">
+      <motion.div
+        layout={false}
+        className="relative z-[1] flex shrink-0 items-center justify-center"
+        style={{ width: contentDiameter, height: contentDiameter }}
+      >
         {children}
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }

@@ -3,6 +3,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import Image from "next/image";
 import { memo, useState } from "react";
+import { AvatarTurnRing } from "@/components/game/AvatarTurnRing";
 import { ProfileAvatar } from "@/components/profile/ProfileAvatar";
 import { getCategoryById } from "@/lib/game/categories";
 import type { PlayerCosmetic } from "@/lib/profile/cosmetics";
@@ -85,6 +86,7 @@ function TurnTimerRing({
   maxSec: number;
   active: boolean;
 }) {
+  const size = 46;
   const r = 18;
   const circumference = 2 * Math.PI * r;
   const pct = maxSec > 0 ? Math.max(0, Math.min(1, secLeft / maxSec)) : 0;
@@ -92,8 +94,18 @@ function TurnTimerRing({
   const urgent = active && secLeft <= 5;
 
   return (
-    <motion.div className="relative h-[46px] w-[46px] shrink-0">
-      <svg width="46" height="46" viewBox="0 0 46 46" className="-rotate-90" aria-hidden>
+    <div
+      className="relative shrink-0"
+      style={{ width: size, height: size }}
+    >
+      <svg
+        width={size}
+        height={size}
+        viewBox={`0 0 ${size} ${size}`}
+        className="absolute left-1/2 top-1/2"
+        style={{ transform: "translate(-50%, -50%) rotate(-90deg)" }}
+        aria-hidden
+      >
         <circle
           cx="23"
           cy="23"
@@ -124,7 +136,7 @@ function TurnTimerRing({
       >
         {secLeft}
       </div>
-    </motion.div>
+    </div>
   );
 }
 
@@ -241,28 +253,18 @@ function VoicePlayerSide({
   displayName: string;
 }) {
   return (
-    <motion.div layout className="flex min-w-0 flex-1 flex-col items-center gap-1.5">
-      <div className="relative">
-        {active ? (
-          <>
-            <div
-              aria-hidden
-              className="absolute -inset-3 rounded-full"
-              style={{
-                background: `radial-gradient(circle, ${S_ORANGE}55 0%, transparent 70%)`,
-                filter: "blur(6px)",
-              }}
-            />
-            <div
-              className="voice-conic-spin absolute -inset-1.5 rounded-full"
-              style={{
-                background: `conic-gradient(from 0deg, ${S_ORANGE}, ${S_GOLD}, ${S_ORANGE}, ${S_GOLD}, ${S_ORANGE})`,
-              }}
-            />
-          </>
-        ) : null}
-        <div
-          className="relative rounded-full p-0.5"
+    <motion.div layout={false} className="flex min-w-0 flex-1 flex-col items-center gap-1.5">
+      <AvatarTurnRing
+        density="compact"
+        innerPx={56}
+        showTimer={false}
+        emphasize={active}
+        secLeft={null}
+        maxSec={0}
+      >
+        <motion.div
+          layout={false}
+          className="flex items-center justify-center rounded-full p-0.5"
           style={{
             background: active ? "#fff" : "rgba(255,255,255,0.9)",
             boxShadow: active
@@ -279,8 +281,8 @@ function VoicePlayerSide({
             idle={!active}
             showPulseDot={active}
           />
-        </div>
-      </div>
+        </motion.div>
+      </AvatarTurnRing>
       <p
         className="max-w-[88px] truncate text-center text-xs font-extrabold"
         style={{ color: active ? S_INK : S_INK_SOFT }}
@@ -357,7 +359,7 @@ export function VoiceModePlayingPanel({
   return (
     <motion.div
       layout
-      className="flex min-h-0 flex-1 flex-col overflow-hidden"
+      className="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-hidden"
       dir="rtl"
     >
       <AnimatePresence>
