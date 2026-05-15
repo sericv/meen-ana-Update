@@ -1,5 +1,5 @@
 "use client";
-// v2 — premium social redesign
+// v3 — premium social UI from game.jsx layout reference
 import { AnimatePresence, motion } from "framer-motion";
 import Image from "next/image";
 import type { RefObject } from "react";
@@ -14,6 +14,44 @@ const CARD_PLACEHOLDER = "/cards/_placeholder.svg";
 
 /** أحدث رسائل تظهر في الشات فقط؛ الأقدم تُزال من الواجهة ولا يمكن التمرير إليها. */
 const VISIBLE_CHAT_MESSAGE_COUNT = 6;
+
+/* ─── Design tokens (game.jsx) ───────────────────────────────────── */
+const ORANGE = "#FF8A3D";
+const ORANGE_DEEP = "#F26A1F";
+const ORANGE_SOFT = "#FFC58A";
+const CREAM = "#FFF1DD";
+const CREAM_DEEP = "#FBE0BD";
+const INK = "#3A2517";
+const INK_SOFT = "#7A5A45";
+const GOLD = "#F2B544";
+const GREEN = "#3FB87A";
+
+function formatPhaseTimer(sec: number): string {
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
+
+function IconSend({ color = "#fff" }: { color?: string }) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden>
+      <path d="M16.5 9L1.5 1.5l3 7.5-3 7.5L16.5 9z" fill={color} />
+    </svg>
+  );
+}
+
+function IconBulb({ color = "#fff" }: { color?: string }) {
+  return (
+    <svg width="20" height="22" viewBox="0 0 20 22" fill="none" aria-hidden>
+      <path
+        d="M10 1.5a6.5 6.5 0 00-4 11.6c.7.6 1 1.4 1 2.3v1.1h6v-1.1c0-.9.3-1.7 1-2.3A6.5 6.5 0 0010 1.5z"
+        fill={color}
+      />
+      <rect x="7" y="17.5" width="6" height="2" rx="1" fill={color} />
+      <rect x="8" y="20" width="4" height="1.5" rx="0.75" fill={color} />
+    </svg>
+  );
+}
 
 const CardImage = memo(function CardImageInner({
   src,
@@ -30,12 +68,284 @@ const CardImage = memo(function CardImageInner({
       alt={alt}
       fill
       className="object-cover object-center"
-      sizes="(max-width: 640px) 46vw, 180px"
+      sizes="132px"
       unoptimized
       onError={() => setErrored(true)}
     />
   );
 });
+
+function PlayerColumn({
+  active,
+  label,
+  uid,
+  cosmeticsMap,
+  userPhotoURL,
+  displayName,
+  showTimer,
+  secLeft,
+  maxPhaseSec,
+}: {
+  active: boolean;
+  label: string;
+  uid: string | null;
+  cosmeticsMap: Record<string, PlayerCosmetic>;
+  userPhotoURL: string | null | undefined;
+  displayName: string;
+  showTimer: boolean;
+  secLeft: number | null;
+  maxPhaseSec: number;
+}) {
+  return (
+    <motion.div
+      layout
+      className="flex min-w-0 flex-1 flex-col items-center gap-1.5"
+      animate={active ? { scale: 1 } : { scale: 0.96 }}
+      transition={{ type: "spring", stiffness: 400, damping: 28 }}
+    >
+      <motion.div
+        className="relative flex flex-col items-center"
+        animate={active ? { y: [0, -2, 0] } : { y: 0 }}
+        transition={
+          active
+            ? { duration: 2.8, repeat: Infinity, ease: "easeInOut" }
+            : { duration: 0.2 }
+        }
+      >
+        <AvatarTurnRing
+          density="compact"
+          showTimer={showTimer}
+          emphasize={active}
+          secLeft={secLeft}
+          maxSec={maxPhaseSec}
+        >
+          <motion.div
+            className="rounded-full p-0.5"
+            style={{
+              background: active ? "#fff" : "rgba(255,255,255,0.88)",
+              boxShadow: active
+                ? `0 6px 16px ${ORANGE}55, inset 0 0 0 1px rgba(255,255,255,0.9)`
+                : "0 4px 12px rgba(58,37,23,0.12), inset 0 0 0 1px rgba(255,255,255,0.9)",
+            }}
+          >
+            <ProfileAvatar
+              cosmetic={uid ? cosmeticsMap[uid] : null}
+              fallbackPhotoURL={userPhotoURL}
+              displayName={displayName}
+              size="md"
+              active={active}
+              idle={!active}
+              showPulseDot={active}
+            />
+          </motion.div>
+        </AvatarTurnRing>
+        {active ? (
+          <motion.span
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="absolute -bottom-0.5 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-[10px] border-[1.5px] border-white px-2 py-0.5 text-[9px] font-extrabold text-white"
+            style={{
+              background: ORANGE,
+              boxShadow: `0 3px 8px ${ORANGE}66`,
+            }}
+          >
+            دوره
+          </motion.span>
+        ) : null}
+      </motion.div>
+      <div
+        className="max-w-[72px] truncate text-center text-[11px] font-bold"
+        style={{ color: INK }}
+      >
+        {label}
+      </div>
+    </motion.div>
+  );
+}
+
+function SecretCardVisual({
+  opponentCard,
+  catName,
+  catEmoji,
+}: {
+  opponentCard: GameCard | null;
+  catName: string | null;
+  catEmoji: string;
+}) {
+  const hasImage = Boolean(opponentCard?.imageUrl);
+
+  return (
+    <motion.div
+      layout
+      className="relative mx-0 shrink-0"
+      style={{ width: 132, marginInline: -4 }}
+    >
+      <motion.div
+        aria-hidden
+        className="pointer-events-none absolute -inset-3.5 rounded-[28px]"
+        style={{
+          background: `radial-gradient(ellipse, ${ORANGE}33 0%, transparent 70%)`,
+          filter: "blur(8px)",
+        }}
+        animate={{ opacity: [0.65, 1, 0.65] }}
+        transition={{ duration: 3.2, repeat: Infinity, ease: "easeInOut" }}
+      />
+      <motion.div
+        layout
+        className="gameplay-secret-card relative flex flex-col items-center justify-between overflow-hidden rounded-[22px] px-2.5 pb-2.5 pt-3.5"
+        style={{ width: 132, height: 168 }}
+      >
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -left-5 -top-5 h-[200px] w-20 rotate-[20deg]"
+          style={{
+            background:
+              "linear-gradient(110deg, transparent, rgba(255,255,255,0.65), transparent)",
+          }}
+        />
+
+        <motion.div
+          className="relative flex w-full flex-1 items-center justify-center"
+          animate={hasImage ? undefined : { y: [0, -3, 0] }}
+          transition={
+            hasImage
+              ? undefined
+              : { duration: 2.6, repeat: Infinity, ease: "easeInOut" }
+          }
+        >
+          {hasImage ? (
+            <motion.div
+              layout
+              className="relative h-[88px] w-[88px] overflow-hidden rounded-2xl"
+              style={{
+                boxShadow: `inset 0 -4px 8px rgba(0,0,0,0.12), 0 6px 14px ${ORANGE}33`,
+              }}
+            >
+              <CardImage
+                src={opponentCard!.imageUrl!}
+                alt={opponentCard?.nameAr || "بطاقة الخصم"}
+              />
+            </motion.div>
+          ) : (
+            <>
+              <div
+                aria-hidden
+                className="absolute top-2 h-[70px] w-[70px] rounded-full"
+                style={{
+                  background: `linear-gradient(160deg, ${ORANGE_DEEP} 0%, #8E3F12 100%)`,
+                  boxShadow: `inset 0 -6px 10px rgba(0,0,0,0.25), inset 0 4px 6px ${ORANGE}88`,
+                }}
+              />
+              <span
+                className="relative z-[2] mt-3 text-[64px] font-black leading-none"
+                style={{
+                  fontFamily: "var(--font-rubik, Rubik), system-ui",
+                  background: "linear-gradient(180deg, #fff 0%, #F2B544 100%)",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                  backgroundClip: "text",
+                  filter: `drop-shadow(0 4px 6px ${ORANGE_DEEP}55)`,
+                }}
+              >
+                ؟
+              </span>
+              <span
+                aria-hidden
+                className="absolute right-3.5 top-1 h-1.5 w-1.5 rounded-full bg-white"
+                style={{ boxShadow: "0 0 6px #fff" }}
+              />
+              <span
+                aria-hidden
+                className="absolute bottom-7 left-3 h-1 w-1 rounded-full"
+                style={{ background: GOLD, boxShadow: `0 0 6px ${GOLD}` }}
+              />
+            </>
+          )}
+        </motion.div>
+
+        <p
+          className="relative z-[1] max-w-full truncate px-1 text-center text-[11px] font-extrabold leading-tight"
+          style={{ color: INK }}
+        >
+          {opponentCard?.nameAr ?? "بطاقة الخصم"}
+        </p>
+
+        {catName ? (
+          <div
+            className="relative z-[1] flex items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-extrabold text-white"
+            style={{
+              background: `linear-gradient(180deg, ${INK} 0%, #2A1810 100%)`,
+              boxShadow:
+                "inset 0 1px 0 rgba(255,255,255,0.15), 0 3px 8px rgba(0,0,0,0.2)",
+            }}
+          >
+            <span
+              className="h-1 w-1 shrink-0 rounded-full"
+              style={{ background: GOLD, boxShadow: `0 0 4px ${GOLD}` }}
+            />
+            الفئة: {catEmoji} {catName}
+          </div>
+        ) : (
+          <p className="text-[9px] font-semibold" style={{ color: INK_SOFT }}>
+            {opponentCard ? "بدون تصنيف" : "تظهر بعد بدء المباراة"}
+          </p>
+        )}
+      </motion.div>
+    </motion.div>
+  );
+}
+
+function FloatingGuessButton({
+  myTurn,
+  onGuessClick,
+}: {
+  myTurn: boolean;
+  onGuessClick: () => void;
+}) {
+  return (
+    <div className="pointer-events-none absolute end-2.5 top-[52%] z-[5] -translate-y-1/2">
+      <div className="pointer-events-auto relative">
+        <div
+          aria-hidden
+          className="absolute -inset-2 rounded-[22px]"
+          style={{
+            background: `radial-gradient(circle, ${GOLD}66 0%, transparent 70%)`,
+            filter: "blur(6px)",
+          }}
+        />
+        <motion.button
+          type="button"
+          whileTap={{ scale: 0.9 }}
+          whileHover={myTurn ? { scale: 1.05 } : undefined}
+          onClick={onGuessClick}
+          aria-label="تخمين"
+          className="relative flex h-[50px] w-[50px] items-center justify-center rounded-2xl border-0"
+          style={{
+            background: myTurn
+              ? `linear-gradient(180deg, ${GOLD} 0%, #D8941F 100%)`
+              : `linear-gradient(180deg, ${CREAM} 0%, ${CREAM_DEEP} 100%)`,
+            boxShadow: myTurn
+              ? `0 8px 16px ${GOLD}66, inset 0 1.5px 0 rgba(255,255,255,0.5), inset 0 -3px 0 rgba(0,0,0,0.15)`
+              : "0 4px 12px rgba(58,37,23,0.10), inset 0 0 0 1px rgba(255,255,255,0.9)",
+            opacity: myTurn ? 1 : 0.88,
+          }}
+        >
+          <IconBulb color={myTurn ? "#fff" : INK_SOFT} />
+        </motion.button>
+        <span
+          className="absolute -bottom-1.5 -end-1.5 rounded-[10px] border-[1.5px] bg-white px-1.5 py-0.5 text-[10px] font-black"
+          style={{
+            color: INK,
+            borderColor: GOLD,
+            boxShadow: "0 3px 8px rgba(0,0,0,0.18)",
+          }}
+        >
+          تخمين
+        </span>
+      </div>
+    </div>
+  );
+}
 
 export type GameplaySocialSurfaceProps = {
   banner: string | null;
@@ -97,7 +407,7 @@ export function GameplaySocialSurface({
   keyboardOverlapPx = 0,
 }: GameplaySocialSurfaceProps) {
   const catName = opponentCard?.categoryId
-    ? getCategoryById(opponentCard.categoryId)?.nameAr
+    ? (getCategoryById(opponentCard.categoryId)?.nameAr ?? null)
     : null;
 
   const CAT_EMOJI: Record<string, string> = {
@@ -116,11 +426,42 @@ export function GameplaySocialSurface({
     [messages],
   );
 
-  return (
-    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+  const meColumn = (
+    <PlayerColumn
+      active={myTurn}
+      label="أنت"
+      uid={uid}
+      cosmeticsMap={cosmeticsMap}
+      userPhotoURL={userPhotoURL}
+      displayName={displayName}
+      showTimer={myTurn}
+      secLeft={secLeft}
+      maxPhaseSec={maxPhaseSec}
+    />
+  );
 
+  const opponentColumn = (
+    <PlayerColumn
+      active={!myTurn}
+      label={opponentName}
+      uid={opponent?.uid ?? null}
+      cosmeticsMap={cosmeticsMap}
+      userPhotoURL={undefined}
+      displayName={opponentName}
+      showTimer={!myTurn}
+      secLeft={secLeft}
+      maxPhaseSec={maxPhaseSec}
+    />
+  );
+
+  return (
+    <motion.div
+      layout
+      className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
+      dir="rtl"
+    >
       {/* ── System banner ──────────────────────────────────── */}
-      <div className="shrink-0 px-3 pt-2">
+      <div className="shrink-0 px-4 pt-2">
         <AnimatePresence>
           {banner ? (
             <motion.div
@@ -129,8 +470,10 @@ export function GameplaySocialSurface({
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -6, scale: 0.97 }}
               transition={{ type: "spring", stiffness: 420, damping: 32 }}
-              className="rounded-2xl border border-[#f4c48d]/80 px-4 py-2 text-center text-[11px] font-extrabold text-[#9a5f2d]"
+              className="rounded-2xl border px-4 py-2 text-center text-[11px] font-extrabold"
               style={{
+                borderColor: `${ORANGE_SOFT}cc`,
+                color: "#9a5f2d",
                 background: "linear-gradient(135deg,#fff7e8,#fff0d8)",
                 boxShadow:
                   "inset 0 1px 0 rgba(255,255,255,0.85), 0 6px 18px rgba(196,134,82,0.14)",
@@ -141,335 +484,156 @@ export function GameplaySocialSurface({
           ) : null}
         </AnimatePresence>
         {matchSyncWaiting ? (
-          <div className="mt-1.5 rounded-xl border border-[#f4d4af] bg-[#fff9ef]/95 px-3 py-1.5 text-center text-[10.5px] font-semibold text-[#a16231]">
+          <div
+            className="mt-1.5 rounded-xl border px-3 py-1.5 text-center text-[10.5px] font-semibold"
+            style={{
+              borderColor: CREAM_DEEP,
+              background: "rgba(255,249,239,0.95)",
+              color: "#a16231",
+            }}
+          >
             جاري مزامنة حالة المباراة…
           </div>
         ) : null}
       </div>
 
-      {/* ── Player strip — premium avatars + VS badge ──────── */}
-      {socialMatchLive ? (
-        <section className="shrink-0 px-3 pt-2">
-          <div
-            className="relative flex items-center justify-between overflow-hidden rounded-[24px] px-3 py-3"
-            style={{
-              background:
-                "linear-gradient(160deg,rgba(255,255,255,0.99) 0%,rgba(255,248,236,0.97) 55%,rgba(255,235,205,0.95) 100%)",
-              boxShadow:
-                "inset 0 1.5px 0 rgba(255,255,255,0.95), inset 0 -1px 0 rgba(244,196,141,0.25), 0 8px 32px rgba(160,80,30,0.11), 0 2px 8px rgba(160,80,30,0.07), 0 0 0 1px rgba(244,196,141,0.38)",
-            }}
-          >
-            {/* Warm ambient glow blob */}
-            <div
-              aria-hidden
-              className="pointer-events-none absolute inset-0 opacity-40"
-              style={{
-                background:
-                  "radial-gradient(ellipse 60% 80% at 50% 110%,rgba(255,159,10,0.18) 0%,transparent 70%)",
-              }}
-            />
-
-            {/* Me */}
-            <div className="relative flex min-w-0 flex-1 flex-col items-center gap-1.5">
-              <AvatarTurnRing
-                density="comfortable"
-                showTimer={myTurn}
-                emphasize={myTurn}
-                secLeft={secLeft}
-                maxSec={maxPhaseSec}
-              >
-                <ProfileAvatar
-                  cosmetic={uid ? cosmeticsMap[uid] : null}
-                  fallbackPhotoURL={userPhotoURL}
-                  displayName={displayName}
-                  size="lg"
-                  active={myTurn}
-                  idle={!myTurn}
-                  showPulseDot={myTurn}
-                />
-              </AvatarTurnRing>
-
-              {/* Name pill */}
-              <div
-                className="max-w-[80px] truncate rounded-full px-2.5 py-0.5 text-center text-[10px] font-black leading-tight"
-                style={
-                  myTurn
-                    ? {
-                        background:
-                          "linear-gradient(135deg,#FF9F0A,#FF5500)",
-                        color: "#fff",
-                        boxShadow:
-                          "0 2px 8px rgba(255,107,0,0.35), inset 0 1px 0 rgba(255,255,255,0.3)",
-                      }
-                    : {
-                        background: "rgba(244,196,141,0.22)",
-                        color: "#a16231",
-                        border: "1px solid rgba(244,196,141,0.45)",
-                      }
-                }
-              >
-                أنت
-              </div>
-            </div>
-
-            {/* VS badge */}
-            <div className="relative mx-2 flex shrink-0 flex-col items-center gap-1">
-              <motion.div
-                animate={
-                  socialMatchLive
-                    ? { scale: [1, 1.06, 1], opacity: [0.9, 1, 0.9] }
-                    : {}
-                }
-                transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
-                className="flex h-11 w-11 items-center justify-center rounded-full"
-                style={{
-                  background:
-                    "linear-gradient(140deg,#FF9F0A 0%,#FF4500 100%)",
-                  boxShadow:
-                    "inset 0 2px 0 rgba(255,255,255,0.42), 0 5px 0 #b84500, 0 10px 24px rgba(255,107,0,0.38), 0 0 0 2px rgba(255,159,10,0.22)",
-                }}
-              >
-                <span
-                  className="text-[12px] font-black tracking-tight text-white"
-                  style={{ textShadow: "0 1.5px 0 rgba(0,0,0,0.25)" }}
-                >
-                  VS
-                </span>
-              </motion.div>
-            </div>
-
-            {/* Opponent */}
-            <div className="relative flex min-w-0 flex-1 flex-col items-center gap-1.5">
-              <AvatarTurnRing
-                density="comfortable"
-                showTimer={!myTurn}
-                emphasize={!myTurn}
-                secLeft={secLeft}
-                maxSec={maxPhaseSec}
-              >
-                <ProfileAvatar
-                  cosmetic={opponent ? cosmeticsMap[opponent.uid] : null}
-                  displayName={opponentName}
-                  size="lg"
-                  active={!myTurn}
-                  idle={myTurn}
-                  showPulseDot={!myTurn}
-                />
-              </AvatarTurnRing>
-
-              {/* Name pill */}
-              <div
-                className="max-w-[80px] truncate rounded-full px-2.5 py-0.5 text-center text-[10px] font-black leading-tight"
-                style={
-                  !myTurn
-                    ? {
-                        background:
-                          "linear-gradient(135deg,#FF9F0A,#FF5500)",
-                        color: "#fff",
-                        boxShadow:
-                          "0 2px 8px rgba(255,107,0,0.35), inset 0 1px 0 rgba(255,255,255,0.3)",
-                      }
-                    : {
-                        background: "rgba(244,196,141,0.22)",
-                        color: "#a16231",
-                        border: "1px solid rgba(244,196,141,0.45)",
-                      }
-                }
-              >
-                {opponentName}
-              </div>
-            </div>
-          </div>
-        </section>
-      ) : null}
-
-      {/* ── Turn banner ────────────────────────────────────── */}
+      {/* ── Turn banner (centered pill) ───────────────────── */}
       {socialMatchLive && turnAction ? (
-        <section className="shrink-0 px-3 pt-2">
+        <section className="shrink-0 px-4 pt-3.5">
           <AnimatePresence mode="wait">
             <motion.div
               key={turnAction}
-              initial={{ opacity: 0, y: -10, scale: 0.96 }}
+              initial={{ opacity: 0, y: -10, scale: 0.94 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 8, scale: 0.96 }}
+              exit={{ opacity: 0, y: 8, scale: 0.94 }}
               transition={{ type: "spring", stiffness: 440, damping: 32 }}
-              className="relative flex items-center gap-3 overflow-hidden rounded-[18px] px-4 py-2.5"
-              style={
-                myTurn
-                  ? {
-                      background:
-                        "linear-gradient(135deg,#FF9F0A 0%,#FF5500 100%)",
-                      boxShadow:
-                        "inset 0 2px 0 rgba(255,255,255,0.42), inset 0 -3px 10px rgba(140,40,0,0.22), 0 6px 0 #b84500, 0 14px 32px rgba(255,107,0,0.36)",
-                    }
-                  : {
-                      background:
-                        "linear-gradient(135deg,rgba(255,255,255,0.99) 0%,rgba(255,249,239,0.97) 100%)",
-                      boxShadow:
-                        "inset 0 1.5px 0 rgba(255,255,255,0.95), 0 4px 16px rgba(160,80,30,0.09), 0 0 0 1px rgba(244,196,141,0.42)",
-                    }
-              }
+              className="flex justify-center"
             >
-              {myTurn && (
-                <>
-                  <span
-                    aria-hidden
-                    className="pointer-events-none absolute inset-x-10 top-1.5 h-[3px] rounded-full bg-white/32 blur-[2px]"
-                  />
-                  <span
-                    aria-hidden
-                    className="pointer-events-none absolute right-3 top-2 h-8 w-8 rounded-full bg-white/10 blur-md"
-                  />
-                </>
-              )}
-              <span
-                className={`min-w-0 flex-1 truncate text-[13px] font-extrabold ${
-                  myTurn ? "text-white" : "text-[#8a3f16]"
-                }`}
-                style={
-                  myTurn ? { textShadow: "0 1.5px 0 rgba(0,0,0,0.2)" } : {}
-                }
+              <div
+                className="gameplay-turn-pill relative min-w-[200px] rounded-[22px] px-7 py-2.5 text-center"
               >
-                {turnAction}
-              </span>
-              {myTurn && secLeft !== null && (
                 <span
-                  className={`shrink-0 font-black tabular-nums ${
-                    secLeft <= 5
-                      ? "text-[16px] text-red-100"
-                      : "text-[14px] text-white/92"
-                  }`}
-                  style={{ textShadow: "0 1.5px 0 rgba(0,0,0,0.2)" }}
+                  aria-hidden
+                  className="absolute -top-1 end-3.5 h-1.5 w-1.5 rounded-full bg-white"
+                  style={{ boxShadow: "0 0 8px #fff" }}
+                />
+                <span
+                  aria-hidden
+                  className="absolute start-3 top-1.5 h-1 w-1 rounded-full"
+                  style={{ background: GOLD, boxShadow: `0 0 6px ${GOLD}` }}
+                />
+                <p
+                  className="text-[19px] font-black text-white"
+                  style={{ textShadow: "0 1.5px 0 rgba(0,0,0,0.18)" }}
                 >
-                  {secLeft}ث
-                </span>
-              )}
+                  {turnAction}
+                </p>
+                {myTurn && secLeft !== null ? (
+                  <p className="-mt-0.5 text-[11.5px] font-bold text-white/92">
+                    {phase === "answer" ? "أجب بسرعة!" : "اسأل بسرعة!"}{" "}
+                    <span className="tabular-nums">⏱ {formatPhaseTimer(secLeft)}</span>
+                  </p>
+                ) : null}
+              </div>
             </motion.div>
           </AnimatePresence>
         </section>
       ) : null}
 
-      {/* ── Card section — the mystery card ───────────────── */}
-      <section className="shrink-0 px-3 pt-2">
-        <div
-          className="relative overflow-hidden rounded-[20px]"
-          style={{
-            background:
-              "linear-gradient(160deg,rgba(255,255,255,0.99) 0%,rgba(255,248,234,0.97) 55%,rgba(255,235,200,0.95) 100%)",
-            boxShadow:
-              "inset 0 1.5px 0 rgba(255,255,255,0.95), inset 0 -1px 0 rgba(244,196,141,0.2), 0 8px 28px rgba(160,80,30,0.10), 0 2px 6px rgba(160,80,30,0.06), 0 0 0 1px rgba(244,196,141,0.36)",
-          }}
+      {/* ── Players + secret card ─────────────────────────── */}
+      <section className="relative shrink-0 px-4 pt-3">
+        <span
+          aria-hidden
+          className="pointer-events-none absolute end-8 top-2.5 select-none text-[26px] font-black"
+          style={{ color: ORANGE_SOFT, opacity: 0.35, transform: "rotate(-18deg)" }}
         >
-          {/* Warm top-left blob */}
-          <div
-            aria-hidden
-            className="pointer-events-none absolute -left-4 -top-4 h-24 w-24 rounded-full opacity-30 blur-2xl"
-            style={{ background: "radial-gradient(circle,#FFD580,transparent)" }}
-          />
+          ؟
+        </span>
+        <span
+          aria-hidden
+          className="pointer-events-none absolute start-4 top-20 select-none text-xl font-black"
+          style={{ color: ORANGE_SOFT, opacity: 0.35, transform: "rotate(15deg)" }}
+        >
+          ؟
+        </span>
+        <span
+          aria-hidden
+          className="pointer-events-none absolute end-2 top-[130px] select-none text-base font-black"
+          style={{ color: GOLD, opacity: 0.4, transform: "rotate(8deg)" }}
+        >
+          ؟
+        </span>
 
-          <div className="flex flex-col items-center px-3 pb-3 pt-3 text-center">
-            <p className="mb-2 text-[9px] font-extrabold uppercase tracking-widest text-[#bc7a45]">
-              الشخصية السرية
-            </p>
-
-            <div
-              className="relative mx-auto shrink-0 overflow-hidden"
-              style={{
-                width: "clamp(118px, 46vw, 176px)",
-                aspectRatio: "3 / 4",
-                borderRadius: "16px",
-                background:
-                  "linear-gradient(160deg,#FFF6E5 0%,#FFE8BF 60%,#FFDFA0 100%)",
-                boxShadow:
-                  "0 0 0 2px rgba(244,196,141,0.6), 0 3px 0 rgba(244,196,141,0.28), 0 10px 22px rgba(196,120,40,0.22), inset 0 2px 0 rgba(255,255,255,0.55)",
-              }}
-            >
-              {opponentCard?.imageUrl ? (
-                <CardImage
-                  src={opponentCard.imageUrl}
-                  alt={opponentCard.nameAr || "بطاقة الخصم"}
+        {socialMatchLive ? (
+          <div className="relative flex items-center justify-center gap-2">
+            {myTurn ? (
+              <>
+                {meColumn}
+                <SecretCardVisual
+                  opponentCard={opponentCard}
+                  catName={catName}
+                  catEmoji={catEmoji}
                 />
-              ) : (
-                <div className="flex h-full w-full flex-col items-center justify-center">
-                  <span className="text-3xl leading-none opacity-30">؟</span>
-                </div>
-              )}
-            </div>
-
-            <p className="mt-2.5 max-w-[95%] truncate text-[13px] font-black leading-tight text-[#6f3714]">
-              {opponentCard?.nameAr ?? "بطاقة الخصم"}
-            </p>
-            {catName ? (
-              <span
-                className="mt-1.5 inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[9.5px] font-extrabold"
-                style={{
-                  background:
-                    "linear-gradient(135deg,#FFF4E4,#FFE8C8)",
-                  color: "#9a4f1d",
-                  boxShadow:
-                    "0 0 0 1px rgba(244,196,141,0.52), inset 0 1px 0 rgba(255,255,255,0.6)",
-                }}
-              >
-                {catEmoji} {catName}
-              </span>
+                {opponentColumn}
+              </>
             ) : (
-              <p className="mt-1 text-[9.5px] font-semibold text-[#c48652]">
-                {opponentCard ? "بدون تصنيف" : "تظهر بعد بدء المباراة"}
-              </p>
+              <>
+                {opponentColumn}
+                <SecretCardVisual
+                  opponentCard={opponentCard}
+                  catName={catName}
+                  catEmoji={catEmoji}
+                />
+                {meColumn}
+              </>
             )}
+            <FloatingGuessButton myTurn={myTurn} onGuessClick={onGuessClick} />
           </div>
-        </div>
+        ) : (
+          <motion.div layout className="flex justify-center py-1">
+            <SecretCardVisual
+              opponentCard={opponentCard}
+              catName={catName}
+              catEmoji={catEmoji}
+            />
+          </motion.div>
+        )}
       </section>
 
-      {/* ── Chat panel — social, fills remaining space ─────── */}
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col px-3 pb-1 pt-2">
-        <div
-          className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[20px]"
-          style={{
-            background:
-              "linear-gradient(180deg,rgba(255,255,255,0.99) 0%,rgba(255,251,244,0.98) 100%)",
-            boxShadow:
-              "inset 0 1.5px 0 rgba(255,255,255,0.95), 0 0 0 1px rgba(244,196,141,0.30), 0 10px 32px rgba(120,55,20,0.07)",
-          }}
-        >
-          {/* Chat header */}
+      {/* ── Chat panel ─────────────────────────────────────── */}
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col px-3.5 pb-1 pt-3">
+        <div className="gameplay-glass-chat flex min-h-0 flex-1 flex-col overflow-hidden rounded-[22px]">
           <header
-            className="flex h-10 shrink-0 items-center justify-between px-4"
-            style={{
-              borderBottom: "1px solid rgba(244,220,190,0.6)",
-              background:
-                "linear-gradient(180deg,rgba(255,252,247,0.99),rgba(255,249,240,0.97))",
-            }}
+            className="flex shrink-0 items-center justify-between px-4 pb-2 pt-2.5"
+            style={{ borderBottom: `1px dashed ${CREAM_DEEP}` }}
           >
-            <span className="text-[10.5px] font-extrabold tracking-wide text-[#7a3410]">
-              💬 الدردشة
-            </span>
-            {socialMatchLive && (
+            <div
+              className="flex items-center gap-1.5 text-xs font-extrabold"
+              style={{ color: INK }}
+            >
+              <span
+                className="h-1.5 w-1.5 rounded-full"
+                style={{ background: GREEN, boxShadow: `0 0 6px ${GREEN}` }}
+              />
+              الدردشة
+            </div>
+            {socialMatchLive ? (
               <span
                 className="rounded-full px-2.5 py-0.5 text-[9px] font-extrabold"
                 style={
                   myTurn
                     ? phase === "answer"
                       ? {
-                          background:
-                            "linear-gradient(135deg,#d1fae5,#bbf7d0)",
+                          background: `linear-gradient(135deg, #d1fae5, #bbf7d0)`,
                           color: "#166534",
-                          boxShadow:
-                            "inset 0 1px 0 rgba(255,255,255,0.7), 0 0 0 1px rgba(134,239,172,0.4)",
                         }
                       : {
-                          background:
-                            "linear-gradient(135deg,#ede9fe,#ddd6fe)",
+                          background: `linear-gradient(135deg, #ede9fe, #ddd6fe)`,
                           color: "#5b21b6",
-                          boxShadow:
-                            "inset 0 1px 0 rgba(255,255,255,0.7), 0 0 0 1px rgba(196,181,253,0.4)",
                         }
                     : {
-                        background:
-                          "linear-gradient(135deg,#fff3e0,#ffe8c4)",
+                        background: `linear-gradient(135deg, ${CREAM}, ${CREAM_DEEP})`,
                         color: "#a16231",
-                        boxShadow:
-                          "inset 0 1px 0 rgba(255,255,255,0.7), 0 0 0 1px rgba(244,196,141,0.4)",
                       }
                 }
               >
@@ -479,56 +643,75 @@ export function GameplaySocialSurface({
                     : "سؤال"
                   : "دور الخصم"}
               </span>
-            )}
+            ) : null}
           </header>
 
           {socialMatchLive ? (
             <>
-              {/* Message list */}
-              <div
+              <motion.div
+                layout
                 ref={chatScrollRef}
-                className="scroll-y-chat min-h-0 flex-1 space-y-2.5 px-3 py-3"
+                className="scroll-y-chat min-h-0 flex-1 space-y-2.5 px-2.5 py-2.5"
               >
                 {messages.length === 0 ? (
                   <div className="flex flex-col items-center justify-center gap-2.5 py-10 text-center">
                     <motion.span
                       className="text-4xl leading-none"
                       animate={{ y: [0, -5, 0] }}
-                      transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
+                      transition={{
+                        duration: 2.4,
+                        repeat: Infinity,
+                        ease: "easeInOut",
+                      }}
                     >
                       💬
                     </motion.span>
-                    <p className="text-[12px] font-bold text-[#c48652]">
+                    <p className="text-[12px] font-bold" style={{ color: INK_SOFT }}>
                       ابدأ بطرح سؤالك على خصمك
                     </p>
-                    <p className="text-[10.5px] font-medium text-[#d4a574]">
+                    <p className="text-[10.5px] font-medium opacity-80" style={{ color: INK_SOFT }}>
                       اسأل بـ «نعم» أو «لا»
                     </p>
                   </div>
                 ) : (
                   visibleMessages.map((m) => renderMessage(m))
                 )}
-                <div ref={chatEndRef} />
-              </div>
+                <motion.div layout ref={chatEndRef} />
+              </motion.div>
 
-              {/* Footer: input + guess button */}
               <footer
-                className="relative z-20 shrink-0 space-y-2 px-3 pb-2 pt-2"
+                className="relative z-20 shrink-0 px-2.5 pb-2 pt-1.5"
                 style={{
-                  borderTop: "1px solid rgba(244,220,190,0.55)",
-                  background:
-                    "linear-gradient(180deg,rgba(255,252,247,0.99),rgba(255,249,240,0.98))",
                   paddingBottom: `calc(max(env(safe-area-inset-bottom, 0px), 8px) + ${keyboardOverlapPx}px)`,
                 }}
               >
-                {/* Input row */}
                 {myTurn ? (
-                  <div className="flex items-center gap-2">
+                  <motion.div
+                    layout
+                    className="gameplay-input-shell flex items-center gap-1.5 rounded-[22px] p-1.5"
+                    dir="rtl"
+                  >
+                    <motion.button
+                      type="button"
+                      disabled={busy || !draft.trim()}
+                      onClick={() => void onSendDraft()}
+                      whileTap={{ scale: 0.88 }}
+                      aria-label="إرسال"
+                      className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-[14px] border-0 disabled:opacity-50"
+                      style={{
+                        background: `linear-gradient(180deg, ${ORANGE} 0%, ${ORANGE_DEEP} 100%)`,
+                        boxShadow: `0 6px 14px ${ORANGE}66, inset 0 1.5px 0 rgba(255,255,255,0.4), inset 0 -2px 0 rgba(0,0,0,0.1)`,
+                        transform: "scaleX(-1)",
+                      }}
+                    >
+                      <IconSend />
+                    </motion.button>
+
                     <input
                       value={draft}
                       onChange={(e) => onDraftChange(e.target.value)}
                       placeholder={
-                        phase === "answer" ? "اكتب إجابتك…" : "اكتب سؤالك…"
+                        phase === "answer" ? "اكتب إجابتك…" : "اكتب سؤالك..."
                       }
                       disabled={busy}
                       onKeyDown={(e) => {
@@ -540,69 +723,32 @@ export function GameplaySocialSurface({
                       autoComplete="off"
                       autoCorrect="off"
                       spellCheck={false}
-                      className="min-h-[44px] flex-1 rounded-[14px] px-4 py-2 font-semibold text-[#6f3714] placeholder-[#c9955e] outline-none"
+                      className="min-h-[38px] min-w-0 flex-1 border-0 bg-transparent px-1 py-2 font-semibold outline-none"
                       style={{
                         fontSize: "16px",
-                        background:
-                          "linear-gradient(180deg,#FFFCF8,#FFF5E8)",
-                        boxShadow:
-                          "inset 0 0 0 1.5px rgba(244,196,141,0.52), inset 0 2px 6px rgba(196,134,82,0.06)",
-                        transition: "box-shadow 0.18s ease",
+                        color: INK,
                       }}
                       onFocus={(e) => {
-                        e.currentTarget.style.boxShadow =
-                          "inset 0 0 0 2px rgba(255,159,10,0.70), inset 0 2px 6px rgba(196,134,82,0.06), 0 0 0 3px rgba(255,159,10,0.12)";
                         onComposerFocus(e.currentTarget);
                       }}
                       onBlur={(e) => {
-                        e.currentTarget.style.boxShadow =
-                          "inset 0 0 0 1.5px rgba(244,196,141,0.52), inset 0 2px 6px rgba(196,134,82,0.06)";
                         onComposerBlur(e.currentTarget);
                       }}
                     />
-                    <motion.button
-                      type="button"
-                      disabled={busy || !draft.trim()}
-                      onClick={() => void onSendDraft()}
-                      whileTap={{ scale: 0.88 }}
-                      whileHover={{ scale: 1.04 }}
-                      aria-label="إرسال"
-                      className="relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-[14px] text-white disabled:opacity-50"
-                      style={{
-                        background:
-                          "linear-gradient(140deg,#FF9F0A,#FF5500)",
-                        boxShadow:
-                          "inset 0 2px 0 rgba(255,255,255,0.38), 0 4px 0 #be4800, 0 8px 18px rgba(255,107,0,0.32)",
-                      }}
-                    >
-                      {/* Gloss streak */}
-                      <span
-                        aria-hidden
-                        className="pointer-events-none absolute inset-x-2 top-1 h-[3px] rounded-full bg-white/30 blur-[1px]"
-                      />
-                      <svg
-                        viewBox="0 0 18 18"
-                        fill="none"
-                        className="relative h-4 w-4"
-                        aria-hidden
-                      >
-                        <path d="M2.5 9L15.5 3l-4 6 4 6-13-6z" fill="white" />
-                      </svg>
-                    </motion.button>
-                  </div>
+                  </motion.div>
                 ) : (
-                  /* Waiting state */
                   <div
                     className="flex min-h-[44px] items-center justify-center gap-2.5 rounded-[14px] px-3 py-2"
                     style={{
                       background: "rgba(255,249,240,0.96)",
-                      boxShadow: "inset 0 0 0 1px rgba(244,196,141,0.32)",
+                      boxShadow: `inset 0 0 0 1px ${CREAM_DEEP}88`,
                     }}
                   >
                     {[0, 1, 2].map((i) => (
                       <motion.span
                         key={i}
-                        className="block h-1.5 w-1.5 rounded-full bg-[#e0a060]"
+                        className="block h-1.5 w-1.5 rounded-full"
+                        style={{ background: ORANGE_SOFT }}
                         animate={{
                           scale: [1, 1.6, 1],
                           opacity: [0.35, 1, 0.35],
@@ -615,45 +761,11 @@ export function GameplaySocialSurface({
                         }}
                       />
                     ))}
-                    <span className="text-[11px] font-semibold text-[#c48652]">
+                    <span className="text-[11px] font-semibold" style={{ color: INK_SOFT }}>
                       بانتظار دورك…
                     </span>
                   </div>
                 )}
-
-                {/* Guess button */}
-                <motion.button
-                  type="button"
-                  whileTap={{ scale: 0.97 }}
-                  whileHover={{ scale: myTurn ? 1.01 : 1 }}
-                  onClick={onGuessClick}
-                  className="relative w-full overflow-hidden rounded-[14px] py-2.5 text-[13px] font-black"
-                  style={
-                    myTurn
-                      ? {
-                          background:
-                            "linear-gradient(140deg,#FF9F0A 0%,#FF4800 100%)",
-                          color: "#fff",
-                          boxShadow:
-                            "inset 0 2px 0 rgba(255,255,255,0.38), inset 0 -2px 8px rgba(140,40,0,0.18), 0 4px 0 #be4800, 0 8px 20px rgba(255,107,0,0.30)",
-                        }
-                      : {
-                          background:
-                            "linear-gradient(140deg,#FFF4E4 0%,#FFE8C8 100%)",
-                          color: "#bc7a45",
-                          boxShadow:
-                            "0 0 0 1px rgba(244,196,141,0.45), inset 0 1px 0 rgba(255,255,255,0.7)",
-                        }
-                  }
-                >
-                  {myTurn && (
-                    <span
-                      aria-hidden
-                      className="pointer-events-none absolute inset-x-12 top-1.5 h-[3px] rounded-full bg-white/28 blur-[2px]"
-                    />
-                  )}
-                  🎯 تخمين
-                </motion.button>
               </footer>
             </>
           ) : (
@@ -665,13 +777,13 @@ export function GameplaySocialSurface({
               >
                 ⏳
               </motion.span>
-              <p className="text-[12px] font-semibold text-[#c48652]">
+              <p className="text-[12px] font-semibold" style={{ color: INK_SOFT }}>
                 ستظهر الدردشة هنا عند بدء المباراة
               </p>
             </div>
           )}
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }

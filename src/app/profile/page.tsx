@@ -66,6 +66,9 @@ function ProfileInner() {
   const [photoErr, setPhotoErr] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [uploadPhase, setUploadPhase] = useState<"idle" | "compressing" | "uploading">("idle");
+  // "photo" → show stored/uploaded photo in preview; "avatar" → show illustrated preset.
+  // Google users default to "photo" so their profile pic shows immediately.
+  const [photoMode, setPhotoMode] = useState<"photo" | "avatar">("photo");
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -77,9 +80,10 @@ function ProfileInner() {
     () => ({
       avatarId,
       avatarFrameId: frameId,
-      photoURL: resolved.photoURL,
+      // When in avatar mode, null out photoURL so the illustrated preset renders.
+      photoURL: photoMode === "photo" ? resolved.photoURL : null,
     }),
-    [avatarId, frameId, resolved.photoURL],
+    [avatarId, frameId, resolved.photoURL, photoMode],
   );
 
   const save = useCallback(async () => {
@@ -89,13 +93,21 @@ function ProfileInner() {
     setBusy(true);
     setErr(null);
     try {
-      await updateUserCosmetics(uid, { avatarId, avatarFrameId: frameId });
+      const ops: Promise<void>[] = [
+        updateUserCosmetics(uid, { avatarId, avatarFrameId: frameId }),
+      ];
+      // If the user switched to avatar mode while a photo was stored, clear it so the
+      // preset shows in-game too (not just in the preview).
+      if (photoMode === "avatar" && resolved.photoURL) {
+        ops.push(updateUserPhotoURL(uid, null));
+      }
+      await Promise.all(ops);
     } catch {
       setErr("تعذر الحفظ — تحقق من الاتصال.");
     } finally {
       setBusy(false);
     }
-  }, [uid, fullAccount, avatarId, frameId]);
+  }, [uid, fullAccount, avatarId, frameId, photoMode, resolved.photoURL]);
 
   const applyProviderPhoto = useCallback(async () => {
     if (!uid || !user?.photoURL || !fullAccount) return;
@@ -105,6 +117,7 @@ function ProfileInner() {
     setPhotoErr(null);
     try {
       await updateUserPhotoURL(uid, user.photoURL);
+      setPhotoMode("photo");
     } catch {
       setPhotoErr("تعذر مزامنة صورة الحساب.");
     } finally {
@@ -129,6 +142,7 @@ function ProfileInner() {
         setUploadProgress(12);
         await uploadProfileAvatarImage(b64, (p) => setUploadProgress(p));
         setUploadProgress(100);
+        setPhotoMode("photo");
       } catch (ex) {
         setPhotoErr(ex instanceof Error ? ex.message : "تعذر رفع الصورة.");
       } finally {
@@ -282,6 +296,65 @@ function ProfileInner() {
                   ) : null}
                 </div>
 
+                {/* Mode toggle: visible when a photo is stored in Firestore.
+                    Lets Google users (and anyone with a photo) switch between
+                    showing their photo vs. a preset avatar. */}
+                <AnimatePresence>
+                  {resolved.photoURL ? (
+                    <motion.div
+                      key="mode-toggle"
+                      initial={{ opacity: 0, y: -4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -4 }}
+                      className="flex items-center justify-between gap-2 rounded-2xl px-3.5 py-2.5"
+                      style={{
+                        background:
+                          photoMode === "photo"
+                            ? "linear-gradient(135deg,rgba(255,255,255,0.98),rgba(255,248,236,0.96))"
+                            : "linear-gradient(135deg,rgba(255,249,236,0.98),rgba(255,237,198,0.96))",
+                        boxShadow:
+                          "inset 0 1px 0 rgba(255,255,255,0.85), 0 0 0 1px rgba(244,196,141,0.38)",
+                      }}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span
+                          className="flex h-5 w-5 items-center justify-center rounded-full text-[11px]"
+                          style={{
+                            background:
+                              photoMode === "photo"
+                                ? "linear-gradient(135deg,#FF9F0A,#FF5500)"
+                                : "linear-gradient(135deg,#ede9fe,#ddd6fe)",
+                          }}
+                        >
+                          {photoMode === "photo" ? "📷" : "🎨"}
+                        </span>
+                        <span className="text-[11px] font-extrabold text-[#7a3410]">
+                          {photoMode === "photo" ? "الصورة الشخصية نشطة" : "الشكل الافتراضي نشط"}
+                        </span>
+                      </div>
+                      <motion.button
+                        type="button"
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => setPhotoMode(photoMode === "photo" ? "avatar" : "photo")}
+                        className="rounded-xl px-2.5 py-1 text-[10.5px] font-extrabold"
+                        style={{
+                          background:
+                            photoMode === "photo"
+                              ? "linear-gradient(135deg,#ede9fe,#ddd6fe)"
+                              : "linear-gradient(135deg,#FF9F0A,#FF5500)",
+                          color: photoMode === "photo" ? "#5b21b6" : "#fff",
+                          boxShadow:
+                            photoMode === "photo"
+                              ? "inset 0 1px 0 rgba(255,255,255,0.7), 0 2px 6px rgba(139,92,246,0.15)"
+                              : "inset 0 1.5px 0 rgba(255,255,255,0.38), 0 3px 0 #be4800, 0 5px 10px rgba(255,107,0,0.22)",
+                        }}
+                      >
+                        {photoMode === "photo" ? "استخدام الشكل الافتراضي" : "استخدام صورتي"}
+                      </motion.button>
+                    </motion.div>
+                  ) : null}
+                </AnimatePresence>
+
                 <AnimatePresence>
                   {uploadProgress !== null && photoBusy ? (
                     <motion.div
@@ -335,7 +408,9 @@ function ProfileInner() {
               title="الشكل الافتراضي"
             >
               <p className="mb-4 text-[11px] font-semibold leading-relaxed text-[#bc7a45]">
-                يظهر حين لا توجد صورة رفع — اختر ما يعجبك.
+                {photoMode === "photo" && resolved.photoURL
+                  ? "اضغط أي شكل للتبديل إليه وإخفاء الصورة الشخصية."
+                  : "يظهر في اللعبة بدلاً من الصورة الشخصية — اختر ما يعجبك."}
               </p>
               <div className="grid grid-cols-4 gap-2.5 sm:grid-cols-4">
                 {AVATAR_PRESETS.map((a, presetIndex) => (
@@ -348,6 +423,7 @@ function ProfileInner() {
                       resumeAudioContext();
                       playUIButton();
                       setAvatarId(a.id);
+                      setPhotoMode("avatar");
                     }}
                     aria-label={`شكل افتراضي ${presetIndex + 1}`}
                     className={`flex aspect-square items-center justify-center rounded-2xl p-1.5 transition-all duration-200 ${

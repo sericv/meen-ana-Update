@@ -3,8 +3,9 @@
  */
 
 const MAX_INPUT_BYTES = 12 * 1024 * 1024;
-const OUTPUT_SIDE = 512;
-const JPEG_QUALITY = 0.88;
+// 256×256 is plenty for the 96px max display size; keeps the Firestore payload tiny (~15–40 KB).
+const OUTPUT_SIDE = 256;
+const JPEG_QUALITY = 0.85;
 
 export async function compressAvatarImageFromFile(file: File, maxSide = OUTPUT_SIDE): Promise<string> {
   if (!file.type.startsWith("image/")) {

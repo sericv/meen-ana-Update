@@ -328,6 +328,96 @@ html.kbd-open .gameplay-card-compact {
   border: 1px solid rgba(244, 196, 141, 0.45);
 }
 
+/* ─── Victory screen animations (winner.jsx reference) ───────────── */
+@keyframes winner-conic-spin {
+  from {
+    transform: translateX(-50%) rotate(0deg);
+  }
+  to {
+    transform: translateX(-50%) rotate(360deg);
+  }
+}
+
+@keyframes winner-rays-spin {
+  from {
+    transform: translateX(-50%) rotate(0deg);
+  }
+  to {
+    transform: translateX(-50%) rotate(360deg);
+  }
+}
+
+.winner-conic-spin {
+  animation: winner-conic-spin 8s linear infinite;
+}
+
+.winner-rays {
+  animation: winner-rays-spin 30s linear infinite;
+}
+
+@keyframes voice-conic-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.voice-conic-spin {
+  animation: voice-conic-spin 6s linear infinite;
+}
+
+/* ─── Premium gameplay UI (game.jsx reference) ───────────────────── */
+@keyframes gameplay-vbar {
+  from {
+    transform: scaleY(0.55);
+    opacity: 0.65;
+  }
+  to {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+}
+
+.gameplay-glass-chat {
+  background: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.8),
+    0 8px 20px rgba(180, 100, 30, 0.08);
+}
+
+.gameplay-turn-pill {
+  background: linear-gradient(180deg, #ff8a3d 0%, #f26a1f 100%);
+  box-shadow:
+    0 10px 24px rgba(255, 138, 61, 0.4),
+    0 2px 0 rgba(0, 0, 0, 0.06),
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.45),
+    inset 0 -3px 0 rgba(0, 0, 0, 0.1);
+}
+
+.gameplay-secret-card {
+  background: linear-gradient(160deg, #fff 0%, #fff1dd 50%, #fbe0bd 100%);
+  box-shadow:
+    0 14px 28px rgba(180, 100, 30, 0.22),
+    0 2px 0 rgba(180, 100, 30, 0.08),
+    inset 0 1.5px 0 #fff,
+    inset 0 -3px 0 #fbe0bd;
+  border: 1.5px solid rgba(255, 138, 61, 0.2);
+}
+
+.gameplay-input-shell {
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  box-shadow:
+    0 8px 20px rgba(180, 100, 30, 0.12),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.95),
+    inset 0 0 0 1.5px rgba(255, 138, 61, 0.12);
+}
+
 /* ─── Reduced motion friendliness ─────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   *,
