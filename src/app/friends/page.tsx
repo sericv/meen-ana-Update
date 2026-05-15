@@ -205,7 +205,7 @@ function FriendsInner() {
             <div className="relative min-w-0 flex-1">
               <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-base font-black text-[#ea8c2f]">@</span>
               <Input value={usernameDraft} onChange={(e) => setUsernameDraft(e.target.value)}
-                placeholder="shehab" className="pr-9" disabled={usernameBusy} />
+                placeholder="أدخل اسم المستخدم الخاص بك" className="pr-9" disabled={usernameBusy} />
             </div>
             <Button type="button" className="shrink-0 px-5" disabled={usernameBusy} onClick={() => void saveUsername()}>
               {usernameBusy ? "…" : "حفظ"}
@@ -230,7 +230,7 @@ function FriendsInner() {
           <p className="mb-3 text-sm font-black text-[#8a3f16]">🔍 بحث عن لاعبين</p>
           <div className="flex gap-2.5">
             <Input value={searchQ} onChange={(e) => setSearchQ(e.target.value)}
-              placeholder="@ghost" className="flex-1"
+              placeholder="أدخل اسم المستخدم للبحث (بدون @)" className="flex-1"
               onKeyDown={(e) => { if (e.key === "Enter") void runSearch(); }} />
             <Button type="button" className="shrink-0 px-5" disabled={searchBusy} onClick={() => void runSearch()}>
               {searchBusy ? "…" : "بحث"}

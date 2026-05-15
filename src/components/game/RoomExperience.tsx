@@ -2647,7 +2647,7 @@ export function RoomExperience({ roomId }: Props) {
                         dir="rtl"
                         value={lobbyCustomName}
                         onChange={(ev) => setLobbyCustomName(ev.target.value)}
-                        placeholder='مثال: رونالدو'
+                        placeholder="اكتب اسم الإجابة التي سيخمنها خصمك"
                         className="font-bold text-[#8a3f16]"
                       />
                       {lobbyCustomName.trim().length > 0 && (

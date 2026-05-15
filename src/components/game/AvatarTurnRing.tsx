@@ -6,11 +6,11 @@ import type { ReactNode } from "react";
 type Density = "comfortable" | "compact";
 
 const RING: Record<Density, { dim: number; r: number; stroke: number }> = {
-  comfortable: { dim: 124, r: 52, stroke: 5 },
-  compact: { dim: 88, r: 36, stroke: 4 },
+  comfortable: { dim: 124, r: 52, stroke: 5.5 },
+  compact: { dim: 88, r: 36, stroke: 4.5 },
 };
 
-/** Countdown ring around an avatar — active player gets a live arc + glow. */
+/** Countdown ring around an avatar — active player gets a live arc + layered glow. */
 export function AvatarTurnRing({
   showTimer,
   emphasize,
@@ -36,8 +36,22 @@ export function AvatarTurnRing({
   const dash = circumference * pct;
   const urgent = hasCountdown && safeSec <= 5;
 
-  const trackStroke = emphasize ? "rgba(255,255,255,0.55)" : "rgba(244,196,141,0.55)";
-  const glowStroke = urgent ? "#ef4444" : emphasize ? "#fff" : "rgba(200,150,100,0.55)";
+  const trackStroke = emphasize
+    ? "rgba(255,255,255,0.45)"
+    : "rgba(244,196,141,0.40)";
+
+  const progressStroke = urgent
+    ? "#ef4444"
+    : emphasize
+    ? "rgba(255,255,255,0.92)"
+    : "rgba(200,150,100,0.45)";
+
+  // Outer decorative ring color when active
+  const outerRingColor = urgent
+    ? "rgba(239,68,68,0.18)"
+    : emphasize
+    ? "rgba(255,159,10,0.18)"
+    : "transparent";
 
   const ring = (
     <svg
@@ -47,45 +61,105 @@ export function AvatarTurnRing({
       viewBox={`0 0 ${dim} ${dim}`}
       aria-hidden
     >
-      <circle cx={cx} cy={cx} r={r} fill="none" stroke={trackStroke} strokeWidth={stroke} />
+      {/* Outer decorative track */}
+      {emphasize && (
+        <circle
+          cx={cx}
+          cy={cx}
+          r={r + stroke + 2}
+          fill="none"
+          stroke={outerRingColor}
+          strokeWidth={3}
+        />
+      )}
+      {/* Base track */}
       <circle
         cx={cx}
         cy={cx}
         r={r}
         fill="none"
-        stroke={glowStroke}
+        stroke={trackStroke}
         strokeWidth={stroke}
-        strokeDasharray={hasCountdown ? `${dash} ${circumference}` : `${circumference} 0`}
+      />
+      {/* Progress arc */}
+      <circle
+        cx={cx}
+        cy={cx}
+        r={r}
+        fill="none"
+        stroke={progressStroke}
+        strokeWidth={stroke}
+        strokeDasharray={
+          hasCountdown ? `${dash} ${circumference}` : `${circumference} 0`
+        }
         strokeLinecap="round"
-        style={{ transition: "stroke-dasharray 0.2s linear, stroke 0.35s" }}
-        opacity={hasCountdown || emphasize ? 1 : 0.55}
+        style={{
+          transition: "stroke-dasharray 0.2s linear, stroke 0.35s ease",
+          filter: emphasize
+            ? urgent
+              ? "drop-shadow(0 0 4px rgba(239,68,68,0.7))"
+              : "drop-shadow(0 0 5px rgba(255,210,100,0.65))"
+            : "none",
+        }}
+        opacity={hasCountdown || emphasize ? 1 : 0.5}
       />
     </svg>
   );
 
-  const glowPad = density === "compact" ? "-inset-1" : "-inset-2";
+  const glowPad = density === "compact" ? "-inset-1.5" : "-inset-2.5";
 
   return (
-    <div className="relative inline-flex shrink-0 items-center justify-center" style={{ width: dim, height: dim }}>
+    <div
+      className="relative inline-flex shrink-0 items-center justify-center"
+      style={{ width: dim, height: dim }}
+    >
+      {/* Primary glow blob */}
       {emphasize && !reduced ? (
         <motion.div
           aria-hidden
-          animate={{ opacity: [0.35, 0.75, 0.35], scale: [0.92, 1.06, 0.92] }}
-          transition={{ duration: urgent ? 0.85 : 2.1, repeat: Infinity, ease: "easeInOut" }}
+          animate={{
+            opacity: [0.3, 0.72, 0.3],
+            scale: [0.9, 1.08, 0.9],
+          }}
+          transition={{
+            duration: urgent ? 0.75 : 2.2,
+            repeat: Infinity,
+            ease: "easeInOut",
+          }}
           className={`absolute ${glowPad} rounded-full blur-xl`}
           style={{
-            background: urgent ? "rgba(248,113,113,0.55)" : "rgba(255,149,0,0.5)",
+            background: urgent
+              ? "rgba(239,68,68,0.50)"
+              : "rgba(255,149,0,0.48)",
           }}
         />
       ) : emphasize ? (
         <div
           aria-hidden
-          className={`absolute ${glowPad} rounded-full opacity-50 blur-xl`}
-          style={{ background: urgent ? "rgba(248,113,113,0.45)" : "rgba(255,149,0,0.42)" }}
+          className={`absolute ${glowPad} rounded-full opacity-45 blur-xl`}
+          style={{
+            background: urgent
+              ? "rgba(239,68,68,0.42)"
+              : "rgba(255,149,0,0.40)",
+          }}
         />
       ) : null}
+
+      {/* Secondary inner shimmer when active (reduced only shows a static ring) */}
+      {emphasize && !reduced && !urgent && (
+        <motion.div
+          aria-hidden
+          animate={{ opacity: [0, 0.4, 0] }}
+          transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
+          className="absolute inset-1 rounded-full blur-md"
+          style={{ background: "rgba(255,200,80,0.30)" }}
+        />
+      )}
+
       {ring}
-      <div className="relative z-[1] flex items-center justify-center">{children}</div>
+      <div className="relative z-[1] flex items-center justify-center">
+        {children}
+      </div>
     </div>
   );
 }
