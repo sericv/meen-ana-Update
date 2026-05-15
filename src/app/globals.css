@@ -328,36 +328,7 @@ html.kbd-open .gameplay-card-compact {
   border: 1px solid rgba(244, 196, 141, 0.45);
 }
 
-/* ─── Victory screen animations (winner.jsx reference) ───────────── */
-@keyframes winner-conic-spin {
-  from {
-    transform: translateX(-50%) rotate(0deg);
-  }
-  to {
-    transform: translateX(-50%) rotate(360deg);
-  }
-}
-
-@keyframes winner-rays-spin {
-  from {
-    transform: translateX(-50%) rotate(0deg);
-  }
-  to {
-    transform: translateX(-50%) rotate(360deg);
-  }
-}
-
-.winner-conic-spin {
-  animation: winner-conic-spin 8s linear infinite;
-  transform-origin: center center;
-}
-
-.winner-rays {
-  animation: winner-rays-spin 30s linear infinite;
-  transform-origin: center center;
-}
-
-/* Victory screen — lock horizontal axis on mobile Safari */
+/* Victory screen — stable mobile layout (no horizontal drift / zoom clipping) */
 .match-result-screen {
   max-width: 100%;
   overflow-x: hidden;
@@ -366,8 +337,16 @@ html.kbd-open .gameplay-card-compact {
 }
 
 .match-result-decor {
-  contain: paint;
   max-width: 100%;
+}
+
+.winner-hero {
+  overflow: visible;
+}
+
+.match-result-hero-name {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 @keyframes voice-conic-spin {

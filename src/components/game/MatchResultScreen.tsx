@@ -2,7 +2,6 @@
 
 import { motion, useReducedMotion } from "framer-motion";
 import Image from "next/image";
-import type { CSSProperties } from "react";
 import { memo, useEffect, useMemo, useState } from "react";
 import { ConfettiBurst } from "@/components/game/ConfettiBurst";
 import { ProfileAvatar } from "@/components/profile/ProfileAvatar";
@@ -251,179 +250,39 @@ function IconCheck() {
   );
 }
 
-function FloatSpark({ style, delay = 0 }: { style: CSSProperties; delay?: number }) {
+function WinnerBackground() {
   return (
-    <motion.div
-      aria-hidden
-      className="pointer-events-none absolute rounded-full"
-      style={{
-        width: 34,
-        height: 34,
-        background: "rgba(255,255,255,0.95)",
-        backdropFilter: "blur(8px)",
-        boxShadow: "0 6px 14px rgba(180,100,30,0.18), inset 0 1px 0 #fff",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        ...style,
-      }}
-      animate={{ y: [0, -8, 0] }}
-      transition={{ duration: 3, delay, repeat: Infinity, ease: "easeInOut" }}
-    >
-      <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden>
-        <path
-          d="M7 1l1.2 3.8H12l-3 2.3 1.1 3.9L7 8.7 3.9 11l1.1-3.9-3-2.3h3.8L7 1z"
-          fill={W_GOLD}
-        />
-      </svg>
-    </motion.div>
-  );
-}
-
-function WinnerBackground({ celebrate }: { celebrate: boolean }) {
-  const confetti = useMemo(
-    () =>
-      [
-        { x: 8, y: 40, c: W_ORANGE, r: 6, rot: 20 },
-        { x: 88, y: 60, c: W_GOLD, r: 5, rot: -15 },
-        { x: 18, y: 100, c: W_GREEN, r: 5, rot: 30 },
-        { x: 92, y: 130, c: W_RED, r: 6, rot: 45 },
-        { x: 50, y: 8, c: W_GOLD, r: 4, rot: 0 },
-        { x: 28, y: 180, c: W_ORANGE, r: 5, rot: -20 },
-        { x: 78, y: 200, c: W_GOLD, r: 4, rot: 60 },
-        { x: 6, y: 240, c: W_GREEN, r: 5, rot: 10 },
-        { x: 94, y: 280, c: W_ORANGE, r: 5, rot: -30 },
-      ] as const,
-    [],
-  );
-
-  return (
-    <motion.div className="match-result-decor pointer-events-none absolute inset-0 -z-10 overflow-hidden">
+    <div className="match-result-decor pointer-events-none absolute inset-0 -z-10" aria-hidden>
       <div
         className="absolute inset-0"
         style={{
-          background: `radial-gradient(ellipse at 50% 10%, #FFE7C2 0%, ${W_CREAM} 35%, #FFE0B8 65%, ${W_CREAM_DEEP} 100%)`,
+          background: `linear-gradient(180deg, #FFE7C2 0%, ${W_CREAM} 42%, ${W_CREAM_DEEP} 100%)`,
         }}
       />
-      <div
-        className="winner-rays absolute left-1/2 top-[60px] h-[min(100vw,460px)] w-[min(100vw,460px)] max-w-none -translate-x-1/2 rounded-full opacity-35"
-        style={{
-          background: `repeating-conic-gradient(from 0deg, transparent 0deg, ${W_GOLD}33 6deg, transparent 12deg, transparent 28deg)`,
-          filter: "blur(4px)",
-        }}
-      />
-      <motion.div
-        className="absolute left-1/2 top-[60px] h-[min(100vw,460px)] w-[min(100vw,460px)] -translate-x-1/2 rounded-full"
-        style={{
-          background: `radial-gradient(circle, ${W_GOLD}55 0%, ${W_ORANGE}33 40%, transparent 70%)`,
-          filter: "blur(40px)",
-        }}
-        animate={celebrate ? { opacity: [0.55, 0.85, 0.55] } : { opacity: 0.45 }}
-        transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-      />
-      {confetti.map((c, i) => (
-        <div
-          key={`c-${i}`}
-          aria-hidden
-          className="absolute"
-          style={{
-            left: `${c.x}%`,
-            top: c.y,
-            width: c.r * 1.4,
-            height: c.r * 0.6,
-            background: c.c,
-            transform: `rotate(${c.rot}deg)`,
-            borderRadius: 1,
-            boxShadow: `0 0 6px ${c.c}88`,
-            opacity: celebrate ? 0.85 : 0.35,
-          }}
-        />
-      ))}
-      {[
-        [40, 110],
-        [88, 88],
-        [12, 250],
-        [96, 320],
-      ].map(([x, y], i) => (
-        <motion.div
-          key={`s-${i}`}
-          aria-hidden
-          className="absolute rounded-full bg-white"
-          style={{
-            left: `${x}%`,
-            top: y,
-            width: 3,
-            height: 3,
-            boxShadow: `0 0 8px #fff, 0 0 14px ${W_GOLD}`,
-          }}
-          animate={{ opacity: [0.4, 1, 0.4], scale: [0.8, 1.2, 0.8] }}
-          transition={{ duration: 2.4 + i * 0.3, repeat: Infinity, ease: "easeInOut" }}
-        />
-      ))}
-    </motion.div>
+    </div>
   );
 }
 
 function VictoryTitle({ text, celebrate }: { text: string; celebrate: boolean }) {
   return (
-    <motion.div className="relative flex justify-center overflow-hidden pt-3">
-      {celebrate ? (
-        <>
-          <div
-            className="winner-conic-spin pointer-events-none absolute left-1/2 top-[-30px] h-[min(92vw,360px)] w-[min(92vw,360px)] -translate-x-1/2 opacity-50"
-            style={{
-              background: `conic-gradient(from 0deg, ${W_GOLD}33, transparent 8%, ${W_GOLD}44 14%, transparent 22%, ${W_ORANGE}33 28%, transparent 36%, ${W_GOLD}44 42%, transparent 50%, ${W_ORANGE}33 58%, transparent 66%, ${W_GOLD}44 72%, transparent 80%, ${W_ORANGE}33 86%, transparent 94%, ${W_GOLD}33)`,
-              filter: "blur(2px)",
-            }}
-          />
-          <motion.div
-            className="pointer-events-none absolute left-1/2 top-5 h-[min(72vw,280px)] w-[min(72vw,280px)] -translate-x-1/2 rounded-full"
-            style={{
-              background: `radial-gradient(circle, ${W_GOLD}88 0%, ${W_ORANGE}44 35%, transparent 70%)`,
-              filter: "blur(20px)",
-            }}
-            animate={{ opacity: [0.65, 1, 0.65] }}
-            transition={{ duration: 3.5, repeat: Infinity, ease: "easeInOut" }}
-          />
-        </>
-      ) : null}
-      <div className="relative text-center">
-        <motion.h1
-          className="text-[clamp(2.75rem,12vw,5.25rem)] font-black leading-none tracking-tight"
-          style={{
-            background: celebrate
-              ? "linear-gradient(180deg, #FFF6DC 0%, #F2B544 35%, #FF8A3D 70%, #F26A1F 100%)"
-              : "linear-gradient(180deg, #FFF6DC 0%, #FF9F0A 55%, #E0660A 100%)",
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-            backgroundClip: "text",
-            WebkitTextStroke: "2px #fff",
-            paintOrder: "stroke fill",
-            filter: celebrate
-              ? `drop-shadow(0 4px 0 ${W_ORANGE_DEEP}) drop-shadow(0 8px 16px ${W_ORANGE_DEEP}88) drop-shadow(0 0 30px ${W_GOLD}aa)`
-              : `drop-shadow(0 3px 0 ${W_ORANGE_DEEP}) drop-shadow(0 6px 12px rgba(242,106,31,0.35))`,
-          }}
-          animate={celebrate ? { opacity: [1, 0.92, 1] } : undefined}
-          transition={{ duration: 2.6, repeat: Infinity, ease: "easeInOut" }}
-        >
-          {text}
-        </motion.h1>
-        {celebrate ? (
-          <>
-            <span
-              aria-hidden
-              className="absolute -end-3.5 top-1.5 h-2.5 w-2.5 rounded-full bg-white"
-              style={{ boxShadow: "0 0 14px #fff, 0 0 24px #F2B544" }}
-            />
-            <span
-              aria-hidden
-              className="absolute -start-4 top-6 h-1.5 w-1.5 rounded-full"
-              style={{ background: W_GOLD, boxShadow: `0 0 10px ${W_GOLD}` }}
-            />
-          </>
-        ) : null}
-      </div>
-    </motion.div>
+    <div className="relative px-2 pt-2 pb-1">
+      <h1
+        className="text-center text-[clamp(2rem,10vw,4.25rem)] font-black leading-[1.1] tracking-tight"
+        style={{
+          background: celebrate
+            ? "linear-gradient(180deg, #FFF6DC 0%, #F2B544 40%, #FF8A3D 75%, #F26A1F 100%)"
+            : "linear-gradient(180deg, #FFF6DC 0%, #FF9F0A 55%, #E0660A 100%)",
+          WebkitBackgroundClip: "text",
+          WebkitTextFillColor: "transparent",
+          backgroundClip: "text",
+          WebkitTextStroke: "1.5px #fff",
+          paintOrder: "stroke fill",
+          filter: `drop-shadow(0 2px 0 ${W_ORANGE_DEEP})`,
+        }}
+      >
+        {text}
+      </h1>
+    </div>
   );
 }
 
@@ -471,53 +330,22 @@ function WinnerHero({
   return (
     <motion.div
       layout={false}
-      className="relative mt-3 flex w-full max-w-full flex-col items-center overflow-hidden"
+      className="winner-hero relative mt-4 flex w-full flex-col items-center gap-0 overflow-visible px-3"
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ type: "spring", stiffness: 320, damping: 26, delay: 0.15 }}
     >
-      {celebrate ? (
-        <>
-          <FloatSpark style={{ left: 4, top: 28 }} delay={0} />
-          <FloatSpark style={{ right: 4, top: 20 }} delay={1.5} />
-          <FloatSpark style={{ left: 24, top: 130 }} delay={0.7} />
-          <FloatSpark style={{ right: 24, top: 140 }} delay={2.1} />
-        </>
-      ) : null}
+      <div className="relative z-[2] mb-2 shrink-0">
+        <CrownIcon size={52} id="hero-crown" />
+      </div>
 
-      <motion.div
-        className="relative z-[3] -mb-4"
-        animate={celebrate ? { y: [0, -6, 0] } : undefined}
-        transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-      >
-        <CrownIcon size={64} id="hero-crown" />
-      </motion.div>
-
-      <div className="relative">
+      <div className="relative z-[1] shrink-0">
         <div
-          aria-hidden
-          className="absolute -inset-6 rounded-full"
-          style={{
-            background: `radial-gradient(circle, ${W_GOLD}88 0%, ${W_ORANGE}55 40%, transparent 70%)`,
-            filter: "blur(8px)",
-          }}
-        />
-        {celebrate ? (
-          <div
-            className="winner-conic-spin absolute -inset-2 rounded-full"
-            style={{
-              background: `conic-gradient(from 0deg, ${W_GOLD}, ${W_ORANGE}, #fff, ${W_GOLD}, ${W_ORANGE}, ${W_GOLD})`,
-            }}
-          />
-        ) : null}
-        <motion.div
-          className="relative rounded-full p-[5px]"
+          className="rounded-full p-[4px]"
           style={{
             background: "linear-gradient(180deg, #fff 0%, #FFF1DD 100%)",
-            boxShadow: `0 16px 32px ${W_ORANGE_DEEP}55, inset 0 2px 0 #fff, inset 0 -3px 0 ${W_CREAM_DEEP}`,
+            boxShadow: "0 10px 22px rgba(180,100,30,0.16), inset 0 2px 0 #fff",
           }}
-          animate={celebrate ? { y: [0, -2, 0] } : undefined}
-          transition={{ duration: 2.8, repeat: Infinity, ease: "easeInOut" }}
         >
           <div
             className="rounded-full p-[3px]"
@@ -534,26 +362,30 @@ function WinnerHero({
               idle={!celebrate}
             />
           </div>
-        </motion.div>
+        </div>
+      </div>
+
+      <div className="relative z-[2] mt-3 w-full max-w-[min(100%,20rem)] shrink-0">
+        <p
+          className="match-result-hero-name rounded-2xl px-4 py-2.5 text-center text-lg font-black leading-snug sm:text-xl"
+          style={{
+            color: W_INK,
+            background: "linear-gradient(180deg, #fff 0%, #FFF1DD 100%)",
+            boxShadow: `0 6px 16px rgba(180,100,30,0.12), inset 0 1px 0 #fff, 0 0 0 1px ${W_ORANGE}33`,
+            overflowWrap: "anywhere",
+            wordBreak: "break-word",
+          }}
+        >
+          {name}
+        </p>
       </div>
 
       <div
-        className="relative z-[2] mt-3 rounded-2xl px-5 py-1.5 text-xl font-black"
-        style={{
-          background: "linear-gradient(180deg, #fff 0%, #FFF1DD 100%)",
-          color: W_INK,
-          boxShadow: `0 8px 18px rgba(180,100,30,0.18), inset 0 1.5px 0 #fff, inset 0 -2px 0 ${W_CREAM_DEEP}, 0 0 0 1.5px ${W_ORANGE}44`,
-        }}
-      >
-        {name}
-      </div>
-
-      <div
-        className="mt-2 flex items-center gap-1.5 rounded-full px-3.5 py-1 text-xs font-extrabold text-white"
+        className="relative z-[2] mt-2.5 inline-flex shrink-0 items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-extrabold text-white"
         style={{
           background: `linear-gradient(180deg, ${W_GREEN} 0%, ${W_GREEN_DEEP} 100%)`,
-          boxShadow: `0 6px 14px ${W_GREEN}66, inset 0 1.5px 0 rgba(255,255,255,0.4), inset 0 -2px 0 rgba(0,0,0,0.12)`,
-          textShadow: "0 1px 0 rgba(0,0,0,0.18)",
+          boxShadow: `0 4px 12px ${W_GREEN}55, inset 0 1px 0 rgba(255,255,255,0.35)`,
+          textShadow: "0 1px 0 rgba(0,0,0,0.15)",
         }}
       >
         <IconCheck />
@@ -584,10 +416,10 @@ function ResultCollectibleCard({
 
   return (
     <motion.div
-      layout
+      layout={false}
       className="relative min-w-0 flex-1"
-      initial={reduceMotion ? false : { opacity: 0, y: 18, scale: 0.94 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
+      initial={reduceMotion ? false : { opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
       transition={{ type: "spring", stiffness: 260, damping: 22 }}
     >
       <motion.div
@@ -601,16 +433,14 @@ function ResultCollectibleCard({
         {ribbon}
       </motion.div>
 
-      <motion.div
+      <div
         className="mt-2 rounded-[18px] p-1.5"
         style={{
           background: "linear-gradient(160deg, #fff 0%, #FFF1DD 100%)",
-          boxShadow: `0 12px 24px rgba(180,100,30,0.18), inset 0 1.5px 0 #fff, inset 0 -3px 0 ${W_CREAM_DEEP}, 0 0 0 1.5px ${borderColor}55, 0 0 18px ${borderColor}33`,
+          boxShadow: `0 12px 24px rgba(180,100,30,0.14), inset 0 1.5px 0 #fff, inset 0 -3px 0 ${W_CREAM_DEEP}, 0 0 0 1.5px ${borderColor}55`,
         }}
-        animate={reduceMotion ? undefined : { y: [0, -3, 0] }}
-        transition={{ duration: 4.2, repeat: Infinity, ease: "easeInOut" }}
       >
-        <motion.div
+        <div
           className="relative h-[min(130px,26vw)] overflow-hidden rounded-[13px]"
           style={{
             background: "linear-gradient(180deg, #FFF6E5 0%, #FFE8BF 100%)",
@@ -620,11 +450,7 @@ function ResultCollectibleCard({
           {card?.imageUrl ? (
             <CardImage src={card.imageUrl} alt={card.nameAr || fallbackLabel} />
           ) : (
-            <motion.div
-              className="flex h-full w-full items-center justify-center"
-              animate={reduceMotion ? undefined : { scale: [1, 1.04, 1] }}
-              transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
-            >
+            <div className="flex h-full w-full items-center justify-center">
               <span
                 className="text-5xl font-black leading-none"
                 style={{
@@ -635,20 +461,18 @@ function ResultCollectibleCard({
               >
                 ؟
               </span>
-            </motion.div>
+            </div>
           )}
-          <motion.div
+          <div
             aria-hidden
             className="pointer-events-none absolute inset-0"
             style={{
               background:
-                "linear-gradient(180deg, rgba(255,255,255,0.35) 0%, transparent 55%)",
+                "linear-gradient(180deg, rgba(255,255,255,0.28) 0%, transparent 55%)",
             }}
-            animate={reduceMotion ? undefined : { opacity: [0.5, 0.85, 0.5] }}
-            transition={{ duration: 2.8, repeat: Infinity, ease: "easeInOut" }}
           />
-        </motion.div>
-        <motion.div layout className="px-1.5 pb-1 pt-2 text-center">
+        </div>
+        <div className="px-1.5 pb-1 pt-2 text-center">
           <p className="truncate text-[15px] font-black leading-tight" style={{ color: W_INK }}>
             {card?.nameAr || fallbackLabel}
           </p>
@@ -657,8 +481,8 @@ function ResultCollectibleCard({
               فئة: {categoryLabel}
             </p>
           ) : null}
-        </motion.div>
-      </motion.div>
+        </div>
+      </div>
     </motion.div>
   );
 }
@@ -872,11 +696,10 @@ export function MatchResultScreen({
     show: { opacity: 1, transition: { staggerChildren: 0.07, delayChildren: 0.14 } },
   };
   const item = {
-    hidden: { opacity: 0, y: 14, scale: 0.97 },
+    hidden: { opacity: 0, y: 10 },
     show: {
       opacity: 1,
       y: 0,
-      scale: 1,
       transition: { type: "spring" as const, stiffness: 300, damping: 24 },
     },
   };
@@ -896,7 +719,7 @@ export function MatchResultScreen({
     >
       {iWon && showConfetti ? <ConfettiBurst active={true} /> : null}
 
-      <WinnerBackground celebrate={iWon} />
+      <WinnerBackground />
 
       <motion.div
         variants={container}
