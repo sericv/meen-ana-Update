@@ -15,6 +15,8 @@ export const col = {
 export const userSub = {
   friends: "friends",
   friendInbox: "friendInbox",
+  /** Outgoing friend requests (sender's view) — server-maintained. */
+  friendOutbox: "friendOutbox",
   roomInvites: "roomInvites",
   socialInbox: "socialInbox",
 } as const;

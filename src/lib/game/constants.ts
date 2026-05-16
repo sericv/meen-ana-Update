@@ -20,6 +20,12 @@ export const ROOM_INACTIVE_MS = 45 * 60 * 1000;
 /** After a match ends, schedule full room deletion (cron respects `cleanupAt`) */
 export const ROOM_POST_MATCH_CLEANUP_MS = 5 * 60 * 1000;
 
+/** Room invite TTL — invites expire after this duration. */
+export const ROOM_INVITE_TTL_MS = 3 * 60 * 1000; // 3 minutes
+
+/** socialInbox notification retention — cron sweeps entries older than this. */
+export const SOCIAL_INBOX_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+
 /** Min interval between chat sends (client hint; server should enforce too) */
 export const CHAT_COOLDOWN_MS = 1200;
 

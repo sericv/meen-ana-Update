@@ -6,6 +6,7 @@ import { memo, useEffect, useMemo, useState } from "react";
 import { ConfettiBurst } from "@/components/game/ConfettiBurst";
 import { ProfileAvatar } from "@/components/profile/ProfileAvatar";
 import { postGame } from "@/lib/api/game-client";
+import { awardMatchWinRewards } from "@/lib/firestore/users.client";
 import { getCategoryById } from "@/lib/game/categories";
 import { normalizeCosmetic } from "@/lib/profile/cosmetics";
 import type { PlayerCosmetic } from "@/lib/profile/cosmetics";
@@ -657,6 +658,23 @@ export function MatchResultScreen({
     const t = window.setTimeout(() => setShowConfetti(true), 280);
     return () => window.clearTimeout(t);
   }, [iWon]);
+
+  useEffect(() => {
+    if (!iWon || !myUid || !roomId) return;
+    if (typeof window === "undefined") return;
+    const key = `meenana-win-award:${roomId}`;
+    const state = window.sessionStorage.getItem(key);
+    if (state === "1" || state === "pending") return;
+    window.sessionStorage.setItem(key, "pending");
+    void (async () => {
+      try {
+        await awardMatchWinRewards(myUid);
+        window.sessionStorage.setItem(key, "1");
+      } catch {
+        window.sessionStorage.removeItem(key);
+      }
+    })();
+  }, [iWon, myUid, roomId]);
 
   const headlineBig = iWon
     ? forfeitWin

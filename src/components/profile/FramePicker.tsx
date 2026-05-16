@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import { useEffect } from "react";
+import { ProfileAvatar } from "@/components/profile/ProfileAvatar";
 import { playUIButton, resumeAudioContext } from "@/lib/audio/game-sounds";
 import {
   FRAME_REGISTRY,
@@ -11,7 +12,8 @@ import {
   type FrameRarity,
   type PlayerCosmetic,
 } from "@/lib/profile/cosmetics";
-import { ProfileAvatar } from "@/components/profile/ProfileAvatar";
+import type { PlayerProgress } from "@/lib/profile/progression";
+import { selectableShopFrameIds } from "@/lib/profile/progression";
 
 type Props = {
   previewCosmetic: PlayerCosmetic;
@@ -19,6 +21,9 @@ type Props = {
   onSelect: (id: FrameId) => void;
   fallbackPhotoURL?: string | null;
   displayName?: string;
+  playerProgress: PlayerProgress;
+  /** When false, hides helper copy for a denser equip strip. */
+  showLabels?: boolean;
 };
 
 function rarityGlow(r: FrameRarity): string {
@@ -34,21 +39,33 @@ function rarityGlow(r: FrameRarity): string {
   }
 }
 
-export function FramePicker({ previewCosmetic, selectedFrameId, onSelect, fallbackPhotoURL, displayName }: Props) {
+export function FramePicker({
+  previewCosmetic,
+  selectedFrameId,
+  onSelect,
+  fallbackPhotoURL,
+  displayName,
+  playerProgress,
+  showLabels = true,
+}: Props) {
   useEffect(() => {
     preloadFrameAssets();
   }, []);
 
+  const allowed = new Set(selectableShopFrameIds(playerProgress));
+
   return (
     <div className="space-y-2">
-      <p className="text-xs font-semibold leading-relaxed text-[#bc7a45]">
-        معاينة حية — صورتك مع كل إطار. مرّر أفقياً على الجوال.
-      </p>
+      {showLabels ? (
+        <p className="text-xs font-semibold leading-relaxed text-[#bc7a45]">
+          الإطارات التي تمتلكها — معاينة حية مع صورتك.
+        </p>
+      ) : null}
       <div
         className={`-mx-1 flex gap-3 overflow-x-auto overflow-y-visible overscroll-x-contain px-1 pb-2 pt-1 sm:grid sm:max-h-[min(52vh,460px)] sm:grid-cols-3 sm:overflow-y-auto sm:overflow-x-visible sm:pb-3 lg:grid-cols-4`}
         style={{ scrollSnapType: "x mandatory" }}
       >
-        {FRAME_REGISTRY.map((f, index) => {
+        {FRAME_REGISTRY.filter((f) => allowed.has(f.id)).map((f, index) => {
           const selected = selectedFrameId === f.id;
           const cosmetic: PlayerCosmetic = { ...previewCosmetic, avatarFrameId: f.id };
           return (

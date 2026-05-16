@@ -50,13 +50,37 @@ import { useRoomWire } from "@/hooks/useRoomWire";
 import { useVisualKeyboardOverlapPx } from "@/hooks/useVisualViewport";
 import { useRouter } from "next/navigation";
 import { ConfettiBurst } from "@/components/game/ConfettiBurst";
+import {
+  MATCHUP_VS_INTRO_DURATION_MS,
+  MatchupVsTransitionOverlay,
+} from "@/components/game/MatchupVsTransitionOverlay";
 import { MatchResultScreen } from "@/components/game/MatchResultScreen";
-import { MatchVsIntroOverlay } from "@/components/game/MatchVsIntroOverlay";
 import { GameplaySocialSurface } from "@/components/game/GameplaySocialSurface";
 import { VoiceModePlayingPanel } from "@/components/game/VoiceModePlayingPanel";
 import { RoomInviteFriendsPanel } from "@/components/social/RoomInviteFriendsPanel";
 
 type Props = { roomId: string };
+
+const MATCHUP_VS_STALE_MS = MATCHUP_VS_INTRO_DURATION_MS + 8000;
+
+function matchupVsSessionKey(matchId: string) {
+  return `meenana-matchup-vs:${matchId}`;
+}
+
+function readMatchupVsSession(matchId: string): { t: number; phase: "start" | "done" } | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = sessionStorage.getItem(matchupVsSessionKey(matchId));
+    if (!raw) return null;
+    return JSON.parse(raw) as { t: number; phase: "start" | "done" };
+  } catch {
+    return null;
+  }
+}
+
+function writeMatchupVsSession(matchId: string, phase: "start" | "done") {
+  sessionStorage.setItem(matchupVsSessionKey(matchId), JSON.stringify({ t: Date.now(), phase }));
+}
 
 // ─── ROOM EXPERIENCE ────────────────────────────────────────────────────────
 
@@ -78,7 +102,6 @@ export function RoomExperience({ roomId }: Props) {
     () => (room && uid ? room.players.find((p) => p.uid !== uid) : undefined),
     [room, uid],
   );
-  const opponentNameForVs = opponentPlayer?.displayName ?? "الخصم";
 
   const [draft, setDraft] = useState("");
   const [guessSureOpen, setGuessSureOpen] = useState(false);
@@ -88,8 +111,8 @@ export function RoomExperience({ roomId }: Props) {
   const [banner, setBanner] = useState<string | null>(null);
   const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false);
   const [turnPopup, setTurnPopup] = useState<string | null>(null);
-  const [vsIntroOpen, setVsIntroOpen] = useState(false);
-  const vsIntroGen = useRef(0);
+  const [matchupVsOpen, setMatchupVsOpen] = useState(false);
+  const matchupVsTimerRef = useRef<number | null>(null);
 
   const chatEndRef = useRef<HTMLDivElement>(null);
   const chatScrollRef = useRef<HTMLDivElement>(null);
@@ -210,28 +233,63 @@ export function RoomExperience({ roomId }: Props) {
   const ended = room?.status === "ended" || match?.status === "ended";
 
   useEffect(() => {
-    if (!room || room.status !== "playing" || !match || match.status !== "active" || ended) return;
-    const startedMs = match.startedAt?.toMillis?.() ?? 0;
-    if (startedMs > 0 && Date.now() - startedMs > 12000) return;
+    if (matchupVsTimerRef.current) {
+      window.clearTimeout(matchupVsTimerRef.current);
+      matchupVsTimerRef.current = null;
+    }
 
-    vsIntroGen.current += 1;
-    const gen = vsIntroGen.current;
-    setVsIntroOpen(true);
-    const t = window.setTimeout(() => {
-      if (vsIntroGen.current === gen) setVsIntroOpen(false);
-    }, 2600);
-    return () => {
-      vsIntroGen.current += 1;
-      window.clearTimeout(t);
+    if (!room || room.status !== "playing" || !match || match.status !== "active" || ended) {
+      return;
+    }
+    if (!opponentPlayer) return;
+
+    const startedMs = match.startedAt?.toMillis?.() ?? 0;
+    if (startedMs > 0 && Date.now() - startedMs > 12000) {
+      return;
+    }
+
+    const st = readMatchupVsSession(match.id);
+    if (st?.phase === "done") return;
+
+    const finish = () => {
+      writeMatchupVsSession(match.id, "done");
+      setMatchupVsOpen(false);
+      matchupVsTimerRef.current = null;
     };
-  }, [room?.status, match?.id, match?.status, ended]);
+
+    if (st?.phase === "start") {
+      const elapsed = Date.now() - st.t;
+      if (elapsed >= MATCHUP_VS_STALE_MS) {
+        finish();
+        return;
+      }
+      const remaining = MATCHUP_VS_INTRO_DURATION_MS - elapsed;
+      if (remaining <= 0) {
+        finish();
+        return;
+      }
+      setMatchupVsOpen(true);
+      matchupVsTimerRef.current = window.setTimeout(finish, remaining);
+    } else {
+      writeMatchupVsSession(match.id, "start");
+      setMatchupVsOpen(true);
+      matchupVsTimerRef.current = window.setTimeout(finish, MATCHUP_VS_INTRO_DURATION_MS);
+    }
+
+    return () => {
+      if (matchupVsTimerRef.current) {
+        window.clearTimeout(matchupVsTimerRef.current);
+        matchupVsTimerRef.current = null;
+      }
+    };
+  }, [room?.status, match?.id, match?.status, match?.startedAt, ended, opponentPlayer]);
 
   useEffect(() => {
-    if (ended) setVsIntroOpen(false);
+    if (ended) setMatchupVsOpen(false);
   }, [ended]);
 
   useEffect(() => {
-    if (!room || room.status !== "playing") setVsIntroOpen(false);
+    if (!room || room.status !== "playing") setMatchupVsOpen(false);
   }, [room?.id, room?.status]);
 
   const winnerUid = match?.winnerUid ?? null;
@@ -1867,13 +1925,13 @@ export function RoomExperience({ roomId }: Props) {
       }}
     >
       <ConfettiBurst active={ended && iWon && Boolean(winnerUid)} />
-      <MatchVsIntroOverlay
-        open={vsIntroOpen && !ended}
-        meName={displayName}
-        opponentName={opponentNameForVs}
-        myCosmetic={uid ? cosmeticsMap[uid] : undefined}
-        opponentCosmetic={opponentPlayer ? cosmeticsMap[opponentPlayer.uid] : undefined}
-        myPhotoURL={user?.photoURL}
+      <MatchupVsTransitionOverlay
+        open={matchupVsOpen && !ended && Boolean(opponentPlayer)}
+        leftName={opponentPlayer?.displayName ?? "الخصم"}
+        leftCosmetic={opponentPlayer ? cosmeticsMap[opponentPlayer.uid] : undefined}
+        rightName={displayName}
+        rightCosmetic={uid ? cosmeticsMap[uid] : undefined}
+        rightPhotoURL={user?.photoURL}
       />
 
       {/* ── Fixed ambient background ── */}

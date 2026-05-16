@@ -4,13 +4,19 @@ import { col } from "@/lib/firestore/paths";
 
 const SUBS = ["messages", "presence", "typing", "playerCards", "serverRate"] as const;
 
+/**
+ * Delete all documents in a Firestore collection in 500-doc batches.
+ * Iterative (not recursive) to avoid call-stack overflow on large subcollections.
+ */
 async function deleteCollectionInChunks(db: Firestore, coll: CollectionReference): Promise<void> {
-  const snap = await coll.limit(500).get();
-  if (snap.empty) return;
-  const batch = db.batch();
-  for (const d of snap.docs) batch.delete(d.ref);
-  await batch.commit();
-  await deleteCollectionInChunks(db, coll);
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    const snap = await coll.limit(500).get();
+    if (snap.empty) break;
+    const batch = db.batch();
+    for (const d of snap.docs) batch.delete(d.ref);
+    await batch.commit();
+  }
 }
 
 export async function clearRoomSubcollections(roomId: string): Promise<void> {
@@ -22,13 +28,46 @@ export async function clearRoomSubcollections(roomId: string): Promise<void> {
 }
 
 /**
- * Deletes room doc, join code, match doc, matchmaking result stubs, and all subcollections.
+ * Fully deletes a room and all related temporary data:
+ *   - room subcollections (messages, presence, typing, playerCards, serverRate)
+ *   - roomCodes lookup doc
+ *   - matches doc
+ *   - matchmakingResults stubs for each player
+ *   - any roomInvites across users that pointed to this room
+ *   - the room document itself
+ *
+ * Safe to call multiple times; missing docs are silently ignored.
  */
-export async function deleteRoomFully(roomId: string, roomData: FirebaseFirestore.DocumentData): Promise<void> {
+export async function deleteRoomFully(
+  roomId: string,
+  roomData: FirebaseFirestore.DocumentData,
+): Promise<void> {
   const db = getAdminDb();
   const roomRef = db.collection(col.rooms).doc(roomId);
+
+  // 1. Clear all subcollections first (messages, playerCards with data-URL images, etc.)
   await clearRoomSubcollections(roomId);
 
+  // 2. Clean up roomInvites across users that referenced this room.
+  //    These are stored at users/{toUid}/roomInvites/{inviteId} and are NOT
+  //    reachable from the room doc alone — we need a collection group query.
+  //    Note: single-field collection group queries use Firestore auto-indexes;
+  //    no explicit firestore.indexes.json entry is required.
+  try {
+    const inviteSnap = await db
+      .collectionGroup("roomInvites")
+      .where("roomId", "==", roomId)
+      .get();
+    if (!inviteSnap.empty) {
+      const invBatch = db.batch();
+      for (const d of inviteSnap.docs) invBatch.delete(d.ref);
+      await invBatch.commit();
+    }
+  } catch {
+    // Non-fatal: index may not exist yet in development; room deletion continues.
+  }
+
+  // 3. Batch-delete the join-code, match doc, matchmaking result stubs, and room.
   const batch = db.batch();
   const code = String(roomData.code ?? "");
   if (code) batch.delete(db.collection(col.roomCodes).doc(code));
@@ -42,7 +81,10 @@ export async function deleteRoomFully(roomId: string, roomData: FirebaseFirestor
   await batch.commit();
 }
 
-export async function replayEndedPrivateRoom(args: { roomId: string; actingUid: string }): Promise<void> {
+export async function replayEndedPrivateRoom(args: {
+  roomId: string;
+  actingUid: string;
+}): Promise<void> {
   const db = getAdminDb();
   const roomRef = db.collection(col.rooms).doc(args.roomId);
   const roomSnap = await roomRef.get();
@@ -57,10 +99,22 @@ export async function replayEndedPrivateRoom(args: { roomId: string; actingUid: 
 
   await clearRoomSubcollections(args.roomId);
   if (matchId) {
-    await db.collection(col.matches).doc(matchId).delete().catch(() => undefined);
+    await db
+      .collection(col.matches)
+      .doc(matchId)
+      .delete()
+      .catch(() => undefined);
   }
 
-  const players = (room.players as Array<{ uid: string; displayName: string; ready: boolean; joinedAt: unknown }>) ?? [];
+  const players = (
+    room.players as Array<{
+      uid: string;
+      displayName: string;
+      ready: boolean;
+      joinedAt: unknown;
+    }>
+  ) ?? [];
+
   await roomRef.set(
     {
       status: "lobby",

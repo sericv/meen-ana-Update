@@ -35,6 +35,11 @@ service cloud.firestore {
         allow write: if false;
       }
 
+      match /friendOutbox/{targetUid} {
+        allow read: if signedIn() && request.auth.uid == userId;
+        allow write: if false;
+      }
+
       match /roomInvites/{inviteId} {
         allow read: if signedIn() && request.auth.uid == userId;
         allow write: if false;

@@ -10,18 +10,17 @@ import { validateUsernameInput } from "@/lib/social/username";
 import { roomInviteDocId } from "@/lib/social/room-invite-id";
 import type { RoomPlayer } from "@/types";
 
-const USERNAME_COOLDOWN_MS = 24 * 60 * 60 * 1000;
-const ROOM_INVITE_TTL_MS = 3 * 60 * 1000;
+import { ROOM_INVITE_TTL_MS } from "@/lib/game/constants";
 
-/** Social APIs: Google sign-in or passwordless email link (Firebase `password` + email on user). */
+const USERNAME_COOLDOWN_MS = 24 * 60 * 60 * 1000;
+
+/** Social APIs: Google sign-in only (guests upgrade via Google). */
 export async function assertGoogleUid(uid: string): Promise<void> {
   const auth = getAdminAuth();
   const rec = await auth.getUser(uid);
   const hasGoogle = rec.providerData?.some((p) => p.providerId === "google.com") ?? false;
-  const hasEmailLink =
-    Boolean(rec.email) && (rec.providerData?.some((p) => p.providerId === "password") ?? false);
-  if (!hasGoogle && !hasEmailLink) {
-    throw new HttpError(403, "هذه الميزة متاحة بعد تسجيل الدخول بـ Google أو رابط البريد.");
+  if (!hasGoogle) {
+    throw new HttpError(403, "هذه الميزة متاحة بعد تسجيل الدخول بـ Google.");
   }
 }
 
@@ -193,12 +192,27 @@ export async function sendFriendRequest(fromUid: string, toUid: string): Promise
   const from = await readUserPublic(fromUid);
   if (!from) throw new HttpError(400, "ملف المرسل غير موجود.");
 
+  const to = await readUserPublic(toUid);
+  if (!to) throw new HttpError(400, "ملف المستلم غير موجود.");
+
+  const outboxRef = db.collection(col.users).doc(fromUid).collection(userSub.friendOutbox).doc(toUid);
+
   await inboxRef.set({
     fromUid,
     displayName: String(from.displayName ?? "لاعب"),
     photoURL: from.photoURL != null ? String(from.photoURL) : null,
     username: String(from.username ?? ""),
     usernameLower: String(from.usernameLower ?? "").toLowerCase(),
+    createdAt: FieldValue.serverTimestamp(),
+    status: "pending",
+  });
+
+  await outboxRef.set({
+    toUid,
+    displayName: String(to.displayName ?? "لاعب"),
+    photoURL: to.photoURL != null ? String(to.photoURL) : null,
+    username: String(to.username ?? ""),
+    usernameLower: String(to.usernameLower ?? "").toLowerCase(),
     createdAt: FieldValue.serverTimestamp(),
     status: "pending",
   });
@@ -220,6 +234,9 @@ export async function respondFriendRequest(
     const reverse = db.collection(col.users).doc(fromUid).collection(userSub.friendInbox).doc(toUid);
     const revSnap = await reverse.get();
     if (revSnap.exists) await reverse.delete();
+    const outbox = db.collection(col.users).doc(fromUid).collection(userSub.friendOutbox).doc(toUid);
+    const ob = await outbox.get();
+    if (ob.exists) await outbox.delete();
     return;
   }
 
@@ -227,15 +244,18 @@ export async function respondFriendRequest(
     const aFriends = db.collection(col.users).doc(fromUid).collection(userSub.friends).doc(toUid);
     const bFriends = db.collection(col.users).doc(toUid).collection(userSub.friends).doc(fromUid);
     const reverseRef = db.collection(col.users).doc(fromUid).collection(userSub.friendInbox).doc(toUid);
+    const outboxRef = db.collection(col.users).doc(fromUid).collection(userSub.friendOutbox).doc(toUid);
 
     // Firestore requires every read before any write in a transaction.
     const inbox = await tx.get(inboxRef);
     const already = await tx.get(aFriends);
     const rev = await tx.get(reverseRef);
+    const outboxSnap = await tx.get(outboxRef);
 
     if (!inbox.exists) throw new HttpError(404, "الطلب غير موجود.");
     if (already.exists) {
       tx.delete(inboxRef);
+      if (outboxSnap.exists) tx.delete(outboxRef);
       return;
     }
 
@@ -244,6 +264,7 @@ export async function respondFriendRequest(
     tx.set(bFriends, { friendUid: fromUid, since: now });
     tx.delete(inboxRef);
     if (rev.exists) tx.delete(reverseRef);
+    if (outboxSnap.exists) tx.delete(outboxRef);
   });
 }
 

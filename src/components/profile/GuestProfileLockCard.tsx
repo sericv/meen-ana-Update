@@ -3,7 +3,7 @@
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 
-/** Premium inline prompt for anonymous / non-full-account users on the profile screen. */
+/** Premium inline prompt for anonymous / guest users — Google unlocks photo, username, and friends. */
 export function GuestProfileLockCard() {
   const router = useRouter();
 
@@ -11,7 +11,7 @@ export function GuestProfileLockCard() {
     <motion.section
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="relative mb-6 overflow-hidden rounded-[1.75rem] border border-white/90 bg-gradient-to-br from-[#fffdfb] via-[#fff5e8] to-[#ffe8cf] p-6 text-center shadow-[0_18px_44px_rgba(196,134,82,0.28)]"
+      className="relative mb-6 overflow-hidden rounded-[1.75rem] border border-white/90 bg-gradient-to-br from-[#fffdfb] via-[#fff5e8] to-[#ffe8cf] p-5 text-center shadow-[0_18px_44px_rgba(196,134,82,0.28)]"
     >
       <div
         aria-hidden
@@ -36,11 +36,11 @@ export function GuestProfileLockCard() {
           />
         </svg>
       </div>
-      <p className="relative text-[15px] font-extrabold leading-relaxed text-[#5e3011]">
-        سجل دخول لحفظ شخصيتك وإظهار هويتك داخل اللعبة
+      <p className="relative text-[14px] font-extrabold leading-relaxed text-[#5e3011]">
+        سجّل عبر Google لرفع صورتك وحجز اسمك العام
       </p>
       <p className="relative mt-2 text-xs font-semibold leading-relaxed text-[#a16231]">
-        ارفع صورتك، اختر إطارك المتحرك، وظهر بنفس المظهر في الغرف والأصدقاء والدردشة.
+        يمكنك مواصلة اللعب كزائر — الارتباط بـ Google يفتح الصورة الشخصية واسم المستخدم والأصدقاء.
       </p>
       <motion.button
         type="button"
@@ -52,7 +52,7 @@ export function GuestProfileLockCard() {
           boxShadow: "inset 0 2px 0 rgba(255,255,255,0.4), 0 7px 0 #be5200, 0 14px 28px rgba(255,107,0,0.32)",
         }}
       >
-        تسجيل الدخول
+        المتابعة عبر Google
       </motion.button>
     </motion.section>
   );

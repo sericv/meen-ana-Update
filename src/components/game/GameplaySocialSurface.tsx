@@ -68,7 +68,7 @@ const CardImage = memo(function CardImageInner({
       alt={alt}
       fill
       className="object-cover object-center"
-      sizes="132px"
+      sizes="(max-width: 640px) 42vw, (max-width: 1024px) 28vw, 220px"
       unoptimized
       onError={() => setErrored(true)}
     />
@@ -180,11 +180,11 @@ function SecretCardVisual({
   return (
     <motion.div
       layout={false}
-      className="relative mx-0 w-[min(132px,30vw)] max-w-[132px] shrink-0"
+      className="relative mx-0 w-[min(184px,46vw)] max-w-[184px] shrink-0 sm:w-[min(208px,36vw)] sm:max-w-[208px] md:max-w-[228px] lg:max-w-[244px]"
     >
       <motion.div
         aria-hidden
-        className="pointer-events-none absolute -inset-3.5 rounded-[28px]"
+        className="pointer-events-none absolute -inset-4 rounded-[28px] sm:-inset-5 sm:rounded-[32px]"
         style={{
           background: `radial-gradient(ellipse, ${ORANGE}33 0%, transparent 70%)`,
           filter: "blur(8px)",
@@ -194,7 +194,7 @@ function SecretCardVisual({
       />
       <motion.div
         layout
-        className="gameplay-secret-card relative flex h-[min(168px,38vw)] w-full flex-col items-center justify-between overflow-hidden rounded-[22px] px-2.5 pb-2.5 pt-3.5"
+        className="gameplay-secret-card relative flex h-[min(210px,47vw)] w-full flex-col items-center justify-between overflow-hidden rounded-[24px] px-3 pb-3 pt-4 sm:h-[min(238px,41vw)] sm:rounded-[26px] sm:px-3.5 sm:pb-3.5 sm:pt-4 md:h-[min(258px,35vw)] lg:h-[min(272px,30vw)]"
       >
         <div
           aria-hidden
@@ -206,7 +206,7 @@ function SecretCardVisual({
         />
 
         <motion.div
-          className="relative flex w-full flex-1 items-center justify-center"
+          className="relative flex w-full flex-1 flex-col items-center justify-center py-0.5"
           animate={hasImage ? undefined : { y: [0, -3, 0] }}
           transition={
             hasImage
@@ -217,9 +217,9 @@ function SecretCardVisual({
           {hasImage ? (
             <motion.div
               layout
-              className="relative h-[min(88px,20vw)] w-[min(88px,20vw)] overflow-hidden rounded-2xl"
+              className="relative aspect-square w-[min(124px,40vw)] max-w-[154px] overflow-hidden rounded-2xl sm:w-[min(144px,32vw)] sm:max-w-[172px] md:max-w-[188px] lg:max-w-[198px]"
               style={{
-                boxShadow: `inset 0 -4px 8px rgba(0,0,0,0.12), 0 6px 14px ${ORANGE}33`,
+                boxShadow: `inset 0 -4px 10px rgba(0,0,0,0.14), 0 8px 18px ${ORANGE}38`,
               }}
             >
               <CardImage
@@ -231,14 +231,14 @@ function SecretCardVisual({
             <>
               <div
                 aria-hidden
-                className="absolute top-2 h-[70px] w-[70px] rounded-full"
+                className="absolute top-1 h-[min(5.5rem,30vw)] w-[min(5.5rem,30vw)] max-h-[100px] max-w-[100px] rounded-full sm:top-2 sm:max-h-[112px] sm:max-w-[112px]"
                 style={{
                   background: `linear-gradient(160deg, ${ORANGE_DEEP} 0%, #8E3F12 100%)`,
                   boxShadow: `inset 0 -6px 10px rgba(0,0,0,0.25), inset 0 4px 6px ${ORANGE}88`,
                 }}
               />
               <span
-                className="relative z-[2] mt-3 text-[64px] font-black leading-none"
+                className="relative z-[2] mt-2 text-[clamp(3.25rem,17vw,4.5rem)] font-black leading-none sm:mt-3 sm:text-[4.5rem]"
                 style={{
                   fontFamily: "var(--font-rubik, Rubik), system-ui",
                   background: "linear-gradient(180deg, #fff 0%, #F2B544 100%)",
@@ -265,7 +265,7 @@ function SecretCardVisual({
         </motion.div>
 
         <p
-          className="relative z-[1] max-w-full truncate px-1 text-center text-[11px] font-extrabold leading-tight"
+          className="relative z-[1] max-w-full truncate px-1 text-center text-[11.5px] font-extrabold leading-snug sm:text-xs md:text-[13px]"
           style={{ color: INK }}
         >
           {opponentCard?.nameAr ?? "بطاقة الخصم"}
@@ -273,7 +273,7 @@ function SecretCardVisual({
 
         {catName ? (
           <div
-            className="relative z-[1] flex items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-extrabold text-white"
+            className="relative z-[1] flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[10px] font-extrabold text-white sm:px-3.5 sm:py-1.5 sm:text-[11px]"
             style={{
               background: `linear-gradient(180deg, ${INK} 0%, #2A1810 100%)`,
               boxShadow:
@@ -296,7 +296,8 @@ function SecretCardVisual({
   );
 }
 
-function FloatingGuessButton({
+/** زر تخمين مدمج بجانب حقل المحادثة (لا يُعرض فوق الأفاتار). */
+function InlineChatGuessButton({
   myTurn,
   onGuessClick,
 }: {
@@ -304,46 +305,35 @@ function FloatingGuessButton({
   onGuessClick: () => void;
 }) {
   return (
-    <div className="pointer-events-none absolute end-2.5 top-[52%] z-[5] -translate-y-1/2">
-      <div className="pointer-events-auto relative">
-        <div
-          aria-hidden
-          className="absolute -inset-2 rounded-[22px]"
-          style={{
-            background: `radial-gradient(circle, ${GOLD}66 0%, transparent 70%)`,
-            filter: "blur(6px)",
-          }}
-        />
-        <motion.button
-          type="button"
-          whileTap={{ scale: 0.9 }}
-          whileHover={myTurn ? { scale: 1.05 } : undefined}
-          onClick={onGuessClick}
-          aria-label="تخمين"
-          className="relative flex h-[50px] w-[50px] items-center justify-center rounded-2xl border-0"
-          style={{
-            background: myTurn
-              ? `linear-gradient(180deg, ${GOLD} 0%, #D8941F 100%)`
-              : `linear-gradient(180deg, ${CREAM} 0%, ${CREAM_DEEP} 100%)`,
-            boxShadow: myTurn
-              ? `0 8px 16px ${GOLD}66, inset 0 1.5px 0 rgba(255,255,255,0.5), inset 0 -3px 0 rgba(0,0,0,0.15)`
-              : "0 4px 12px rgba(58,37,23,0.10), inset 0 0 0 1px rgba(255,255,255,0.9)",
-            opacity: myTurn ? 1 : 0.88,
-          }}
-        >
-          <IconBulb color={myTurn ? "#fff" : INK_SOFT} />
-        </motion.button>
-        <span
-          className="absolute -bottom-1.5 -end-1.5 rounded-[10px] border-[1.5px] bg-white px-1.5 py-0.5 text-[10px] font-black"
-          style={{
-            color: INK,
-            borderColor: GOLD,
-            boxShadow: "0 3px 8px rgba(0,0,0,0.18)",
-          }}
-        >
-          تخمين
-        </span>
-      </div>
+    <div className="flex shrink-0 flex-col items-center gap-0.5 self-stretch justify-center py-0.5">
+      <motion.button
+        type="button"
+        whileTap={{ scale: 0.92 }}
+        whileHover={myTurn ? { scale: 1.04 } : undefined}
+        onClick={onGuessClick}
+        aria-label="تخمين"
+        className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border-0 sm:h-12 sm:w-12 sm:rounded-2xl"
+        style={{
+          background: myTurn
+            ? `linear-gradient(180deg, ${GOLD} 0%, #D8941F 100%)`
+            : `linear-gradient(180deg, ${CREAM} 0%, ${CREAM_DEEP} 100%)`,
+          boxShadow: myTurn
+            ? `0 6px 14px ${GOLD}55, inset 0 1.5px 0 rgba(255,255,255,0.5), inset 0 -2px 0 rgba(0,0,0,0.12)`
+            : "0 3px 10px rgba(58,37,23,0.10), inset 0 0 0 1px rgba(255,255,255,0.9)",
+          opacity: myTurn ? 1 : 0.9,
+        }}
+      >
+        <IconBulb color={myTurn ? "#fff" : INK_SOFT} />
+      </motion.button>
+      <span
+        className="max-w-[3.25rem] truncate rounded-md border border-white/90 bg-white px-1 py-0.5 text-center text-[8.5px] font-black leading-none shadow-sm sm:text-[9px]"
+        style={{
+          color: INK,
+          borderColor: GOLD,
+        }}
+      >
+        تخمين
+      </span>
     </div>
   );
 }
@@ -566,7 +556,7 @@ export function GameplaySocialSurface({
         </span>
 
         {socialMatchLive ? (
-          <motion.div layout={false} className="relative flex min-w-0 items-center justify-center gap-1 sm:gap-2">
+          <motion.div layout={false} className="relative flex min-w-0 items-center justify-center gap-1.5 sm:gap-3">
             {myTurn ? (
               <>
                 {meColumn}
@@ -588,7 +578,6 @@ export function GameplaySocialSurface({
                 {meColumn}
               </>
             )}
-            <FloatingGuessButton myTurn={myTurn} onGuessClick={onGuessClick} />
           </motion.div>
         ) : (
           <motion.div layout={false} className="flex justify-center py-1">
@@ -687,11 +676,13 @@ export function GameplaySocialSurface({
                 }}
               >
                 {myTurn ? (
-                  <motion.div
-                    layout
-                    className="gameplay-input-shell flex items-center gap-1.5 rounded-[22px] p-1.5"
-                    dir="rtl"
-                  >
+                  <div className="flex min-w-0 flex-row items-stretch gap-2" dir="ltr">
+                    <InlineChatGuessButton myTurn={myTurn} onGuessClick={onGuessClick} />
+                    <motion.div
+                      layout
+                      className="gameplay-input-shell flex min-w-0 flex-1 items-center gap-1.5 rounded-[22px] p-1.5"
+                      dir="rtl"
+                    >
                     <motion.button
                       type="button"
                       disabled={busy || !draft.trim()}
@@ -737,14 +728,17 @@ export function GameplaySocialSurface({
                       }}
                     />
                   </motion.div>
+                  </div>
                 ) : (
-                  <div
-                    className="flex min-h-[44px] items-center justify-center gap-2.5 rounded-[14px] px-3 py-2"
-                    style={{
-                      background: "rgba(255,249,240,0.96)",
-                      boxShadow: `inset 0 0 0 1px ${CREAM_DEEP}88`,
-                    }}
-                  >
+                  <div className="flex min-w-0 flex-row items-center gap-2" dir="ltr">
+                    <InlineChatGuessButton myTurn={myTurn} onGuessClick={onGuessClick} />
+                    <div
+                      className="flex min-h-[44px] min-w-0 flex-1 items-center justify-center gap-2.5 rounded-[14px] px-3 py-2"
+                      style={{
+                        background: "rgba(255,249,240,0.96)",
+                        boxShadow: `inset 0 0 0 1px ${CREAM_DEEP}88`,
+                      }}
+                    >
                     {[0, 1, 2].map((i) => (
                       <motion.span
                         key={i}
@@ -765,6 +759,7 @@ export function GameplaySocialSurface({
                     <span className="text-[11px] font-semibold" style={{ color: INK_SOFT }}>
                       بانتظار دورك…
                     </span>
+                  </div>
                   </div>
                 )}
               </footer>
