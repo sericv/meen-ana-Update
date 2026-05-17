@@ -1,4 +1,5 @@
 import { FRAME_REGISTRY, type FrameId } from "@/lib/profile/cosmetics";
+import { normalizeTacticalInventory, type TacticalInventory } from "@/lib/profile/tactical-tools";
 
 /** Single soft currency — spent in the frame shop and on hints. */
 export const SHOP_FRAME_PRICE = 50;
@@ -34,6 +35,8 @@ export type PlayerProgress = {
   legacyFullCatalog: boolean;
   /** Present shop frames for accounts created under the economy (empty = none bought yet). */
   ownedShopFrameIds: Set<string>;
+  /** Tactical tools inventory (shop purchases, consumed in matches). */
+  tacticalInventory: TacticalInventory;
 };
 
 export function normalizePlayerProgress(raw: Record<string, unknown> | undefined): PlayerProgress {
@@ -78,6 +81,7 @@ export function normalizePlayerProgress(raw: Record<string, unknown> | undefined
     matchWins,
     legacyFullCatalog,
     ownedShopFrameIds,
+    tacticalInventory: normalizeTacticalInventory(raw),
   };
 }
 

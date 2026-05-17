@@ -4,7 +4,11 @@ import { useState } from "react";
 import { GameplayVoiceLayout } from "@/components/game/play/GameplayVoiceLayout";
 import { MyHiddenCardSheet } from "@/components/game/play/GameplaySheets";
 import { useLiveUserProfile } from "@/hooks/useLiveUserProfile";
+import { TacticalToolsBar } from "@/components/game/play/TacticalToolsBar";
 import { useMatchHints } from "@/hooks/useMatchHints";
+import type { TacticalInventory } from "@/lib/profile/tactical-tools";
+import type { TacticalToolId } from "@/lib/profile/tactical-tools";
+import type { MatchState } from "@/types";
 import { getCategoryById } from "@/lib/game/categories";
 import type { PlayerCosmetic } from "@/lib/profile/cosmetics";
 import type { GameCard } from "@/types";
@@ -27,6 +31,11 @@ export type VoiceModePlayingPanelProps = {
   opponentCosmetic?: PlayerCosmetic | null;
   myPhotoURL?: string | null;
   roomHintsEnabled?: boolean;
+  match?: MatchState | null;
+  tacticalInventory?: TacticalInventory;
+  tacticalBusy?: TacticalToolId | null;
+  onUseTactical?: (toolId: TacticalToolId) => void;
+  tacticalError?: string | null;
 };
 
 export function VoiceModePlayingPanel({
@@ -36,6 +45,7 @@ export function VoiceModePlayingPanel({
   uid,
   displayName,
   opponentName,
+  phase = "question",
   myTurn,
   secLeft,
   opponentCard,
@@ -46,6 +56,11 @@ export function VoiceModePlayingPanel({
   opponentCosmetic,
   myPhotoURL,
   roomHintsEnabled = true,
+  match = null,
+  tacticalInventory,
+  tacticalBusy = null,
+  onUseTactical,
+  tacticalError = null,
 }: VoiceModePlayingPanelProps) {
   const [cardSheetOpen, setCardSheetOpen] = useState(false);
   const [passing, setPassing] = useState(false);
@@ -85,6 +100,22 @@ export function VoiceModePlayingPanel({
 
   return (
     <>
+      {tacticalInventory && onUseTactical ? (
+        <div className="shrink-0">
+          {tacticalError ? (
+            <p className="mx-4 mb-1 text-center text-[10px] font-bold text-[#B8332E]">{tacticalError}</p>
+          ) : null}
+          <TacticalToolsBar
+            match={match}
+            uid={uid}
+            myTurn={myTurn}
+            phase={phase}
+            inventory={tacticalInventory}
+            busy={tacticalBusy}
+            onUse={onUseTactical}
+          />
+        </div>
+      ) : null}
       <GameplayVoiceLayout
         banner={banner}
         myName={displayName}

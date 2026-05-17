@@ -1,4 +1,5 @@
 import type { Timestamp } from "firebase/firestore";
+import type { TacticalToolId } from "@/lib/profile/tactical-tools";
 
 export type RoomStatus = "lobby" | "playing" | "ended";
 
@@ -69,6 +70,27 @@ export interface Room {
 
 export type ChatPhase = "question" | "answer";
 
+export type MatchTacticalPlayerState = {
+  usedExtraTime?: boolean;
+  usedTimePressure?: boolean;
+  usedExtraQuestion?: boolean;
+  usedShield?: boolean;
+  shieldActiveUntil?: Timestamp | null;
+  extraQuestionPending?: boolean;
+};
+
+export type TacticalGameplayEvent = {
+  id: string;
+  at: Timestamp | null;
+  actorUid: string;
+  actorName: string;
+  toolId: TacticalToolId;
+  titleAr: string;
+  bodyAr: string;
+  blocked?: boolean;
+  targetUid?: string;
+};
+
 export interface MatchState {
   id: string;
   roomId: string;
@@ -85,6 +107,14 @@ export interface MatchState {
   winReason: "guess" | "forfeit" | null;
   startedAt: Timestamp | null;
   endedAt: Timestamp | null;
+  /** Per-player tactical tool usage this match. */
+  tacticalByUid?: Record<string, MatchTacticalPlayerState>;
+  /** Total questions posted (for final-round time-pressure gate). */
+  questionCountTotal?: number;
+  /** Opponent uid whose next question phase uses time pressure. */
+  timePressureTargetUid?: string | null;
+  /** Latest tactical activation for cinematic UI sync. */
+  lastTacticalEvent?: TacticalGameplayEvent | null;
 }
 
 export type ChatMessageType = "chat" | "question" | "guess" | "system";

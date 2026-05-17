@@ -15,6 +15,11 @@ import { col } from "@/lib/firestore/paths";
 import { DEFAULT_AVATAR_ID, DEFAULT_FRAME_ID, isValidAvatarId, isValidFrameId } from "@/lib/profile/cosmetics";
 import { getHintShopItem } from "@/lib/profile/hints";
 import { SHOP_FRAME_ID_SET, SHOP_FRAME_PRICE } from "@/lib/profile/progression";
+import {
+  getTacticalShopItem,
+  TACTICAL_INVENTORY_FIELDS,
+  type TacticalToolId,
+} from "@/lib/profile/tactical-tools";
 
 export async function upsertUserDocument(user: User) {
   const db = getFirebaseDb();
@@ -38,6 +43,10 @@ export async function upsertUserDocument(user: User) {
         coins: 0,
         hintLetterCredits: 0,
         hintCountCredits: 0,
+        tacticalExtraTime: 0,
+        tacticalTimePressure: 0,
+        tacticalExtraQuestion: 0,
+        tacticalShield: 0,
         xp: 0,
         matchWins: 0,
         ownedFrameIds: [] as string[],
@@ -93,7 +102,8 @@ export type ShopPurchaseErrorCode =
   | "insufficient_funds"
   | "invalid_frame"
   | "guest"
-  | "invalid_hint";
+  | "invalid_hint"
+  | "invalid_tactical";
 
 export class ShopPurchaseError extends Error {
   code: ShopPurchaseErrorCode;
@@ -168,6 +178,34 @@ export async function purchaseHintItem(uid: string, itemId: string): Promise<voi
     transaction.update(ref, {
       coins: increment(-item.price),
       [field]: increment(item.amount),
+      lastSeen: serverTimestamp(),
+    });
+  });
+}
+
+/** Buy a tactical tool (single inventory unit). */
+export async function purchaseTacticalTool(uid: string, toolId: TacticalToolId): Promise<void> {
+  const item = getTacticalShopItem(toolId);
+  if (!item) {
+    throw new ShopPurchaseError("هذا المنتج غير متوفر.", "invalid_tactical");
+  }
+  const db = getFirebaseDb();
+  const ref = doc(db, col.users, uid);
+  const field = TACTICAL_INVENTORY_FIELDS[toolId];
+  await runTransaction(db, async (transaction) => {
+    const snap = await transaction.get(ref);
+    if (!snap.exists()) {
+      throw new ShopPurchaseError("لا يوجد ملف لاعب بعد.", "insufficient_funds");
+    }
+    const data = snap.data() as Record<string, unknown>;
+    assertNotGuest(data);
+    const coins = typeof data.coins === "number" && Number.isFinite(data.coins) ? data.coins : 0;
+    if (coins < item.price) {
+      throw new ShopPurchaseError("عملاتك غير كافية لشراء الأداة.", "insufficient_funds");
+    }
+    transaction.update(ref, {
+      coins: increment(-item.price),
+      [field]: increment(1),
       lastSeen: serverTimestamp(),
     });
   });

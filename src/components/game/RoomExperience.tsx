@@ -57,6 +57,11 @@ import {
 import { MatchResultScreen } from "@/components/game/MatchResultScreen";
 import { GameplaySocialSurface } from "@/components/game/GameplaySocialSurface";
 import { VoiceModePlayingPanel } from "@/components/game/VoiceModePlayingPanel";
+import { TacticalEventBanner } from "@/components/game/play/TacticalEventBanner";
+import { useLiveUserProfile } from "@/hooks/useLiveUserProfile";
+import { useMatchTactical } from "@/hooks/useMatchTactical";
+import { TIME_PRESSURE_QUESTION_SEC } from "@/lib/profile/tactical-tools";
+import type { TacticalToolId } from "@/lib/profile/tactical-tools";
 import { RoomInviteFriendsPanel } from "@/components/social/RoomInviteFriendsPanel";
 import { LobbyShellBridge } from "@/components/game/LobbyShellBridge";
 
@@ -92,6 +97,14 @@ export function RoomExperience({ roomId }: Props) {
   const displayName = user?.displayName || user?.email || "زائر";
 
   const { room, match, messages, opponentCard, wireError } = useRoomWire(roomId, uid);
+  const liveProfile = useLiveUserProfile(uid);
+  const tacticalInv = liveProfile?.progress.tacticalInventory;
+  const {
+    useTool: activateTactical,
+    busy: tacticalBusy,
+    error: tacticalError,
+    clearError: clearTacticalError,
+  } = useMatchTactical(roomId, match?.id ?? null);
 
   const cosmeticUids = useMemo(
     () => (room?.players ?? []).map((p) => p.uid).filter(Boolean) as string[],
@@ -307,7 +320,22 @@ export function RoomExperience({ roomId }: Props) {
   const secLeft = msLeft !== null ? Math.max(0, Math.ceil(msLeft / 1000)) : null;
   const qSec = match?.questionSeconds ?? QUESTION_PHASE_SECONDS;
   const aSec = match?.answerSeconds ?? ANSWER_PHASE_SECONDS;
-  const maxPhaseSec = phase === "answer" ? aSec : qSec;
+  const timePressureOnActor =
+    phase === "question" &&
+    match?.actorUid &&
+    match.timePressureTargetUid === match.actorUid;
+  const maxPhaseSec =
+    phase === "answer" ? aSec : timePressureOnActor ? TIME_PRESSURE_QUESTION_SEC : qSec;
+
+  const onUseTactical = useCallback(
+    (toolId: TacticalToolId) => {
+      resumeAudioContext();
+      playUIButton();
+      clearTacticalError();
+      void activateTactical(toolId, displayName);
+    },
+    [activateTactical, displayName, clearTacticalError],
+  );
 
   useEffect(() => {
     firedTimeoutForDeadline.current = null;
@@ -1539,6 +1567,7 @@ export function RoomExperience({ roomId }: Props) {
             : undefined
         }
       >
+        <TacticalEventBanner event={match?.lastTacticalEvent} />
 
         {voiceAwaitMatchUI ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-5 px-4 py-10">
@@ -1575,6 +1604,12 @@ export function RoomExperience({ roomId }: Props) {
             myCosmetic={uid ? cosmeticsMap[uid] : undefined}
             opponentCosmetic={opponent ? cosmeticsMap[opponent.uid] : undefined}
             myPhotoURL={user?.photoURL}
+            match={match}
+            phase={phase}
+            tacticalInventory={tacticalInv}
+            tacticalBusy={tacticalBusy}
+            onUseTactical={onUseTactical}
+            tacticalError={tacticalError}
           />
         ) : (
           <GameplaySocialSurface
@@ -1616,6 +1651,11 @@ export function RoomExperience({ roomId }: Props) {
               el.style.boxShadow =
                 "inset 0 0 0 1.5px rgba(244,196,141,0.55), inset 0 2px 6px rgba(196,134,82,0.06)";
             }}
+            match={match}
+            tacticalInventory={tacticalInv}
+            tacticalBusy={tacticalBusy}
+            onUseTactical={onUseTactical}
+            tacticalError={tacticalError}
           />
         )}
 

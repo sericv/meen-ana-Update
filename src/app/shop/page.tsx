@@ -20,14 +20,17 @@ import {
 } from "@/lib/profile/cosmetics";
 import { HINT_SHOP_ITEMS } from "@/lib/profile/hints";
 import { ownsShopFrame, SHOP_FRAME_PRICE } from "@/lib/profile/progression";
+import { TACTICAL_SHOP_ITEMS } from "@/lib/profile/tactical-tools";
 import {
   purchaseHintItem,
   purchaseShopFrame,
+  purchaseTacticalTool,
   ShopPurchaseError,
   updateUserCosmetics,
 } from "@/lib/firestore/users.client";
+import { TacticalToolIcon } from "@/components/game/play/TacticalToolIcons";
 
-type ShopTab = "frames" | "hints";
+type ShopTab = "frames" | "hints" | "tactical";
 
 function ShopInner() {
   const router = useRouter();
@@ -53,6 +56,26 @@ function ShopInner() {
   const cosmetic = live?.cosmetic;
   const progress = live?.progress;
   const shopFrames = FRAME_REGISTRY.filter((f) => f.id !== "none");
+
+  const buyTactical = useCallback(
+    async (toolId: (typeof TACTICAL_SHOP_ITEMS)[number]["id"]) => {
+      if (!uid || !google) return;
+      resumeAudioContext();
+      playUIButton();
+      setBusyId(toolId);
+      setToast(null);
+      try {
+        await purchaseTacticalTool(uid, toolId);
+        const item = TACTICAL_SHOP_ITEMS.find((i) => i.id === toolId);
+        setToast(item ? `تم شراء ${item.nameAr}!` : "تم الشراء!");
+      } catch (e: unknown) {
+        setToast(e instanceof ShopPurchaseError ? e.message : e instanceof Error ? e.message : "تعذر الشراء.");
+      } finally {
+        setBusyId(null);
+      }
+    },
+    [uid, google],
+  );
 
   const buyHint = useCallback(
     async (itemId: string) => {
@@ -163,6 +186,7 @@ function ShopInner() {
             [
               { k: "frames" as const, l: "الإطارات" },
               { k: "hints" as const, l: "التلميحات" },
+              { k: "tactical" as const, l: "أدوات" },
             ] as const
           ).map((t) => (
             <button
@@ -315,6 +339,67 @@ function ShopInner() {
                 محفوظ: {progress.hintLetterCredits} حرف · {progress.hintCountCredits} عدد
               </p>
             ) : null}
+          </div>
+        )}
+
+        {tab === "tactical" && (
+          <div className="col gap-3">
+            <div className="surf" style={{ padding: 14 }}>
+              <p className="h-display fw-7 text-md">التلميحات والأدوات التكتيكية</p>
+              <p className="text-xs muted mt-2 leading-relaxed">
+                أدوات لمرة واحدة داخل المباراة — لا مكافآت دائمة. اشترِها هنا، خزّنها في حسابك، وفعّلها في
+                اللحظة المناسبة لقلب موازين الجولة.
+              </p>
+            </div>
+            {TACTICAL_SHOP_ITEMS.map((item) => {
+              const busy = busyId === item.id;
+              const owned = progress?.tacticalInventory[item.id] ?? 0;
+              const canBuy = google && progress && progress.coins >= item.price;
+              return (
+                <article key={item.id} className="surf col gap-2" style={{ padding: 14 }}>
+                  <div className="row gap-3" style={{ alignItems: "flex-start" }}>
+                    <div
+                      style={{
+                        width: 52,
+                        height: 52,
+                        borderRadius: 14,
+                        background: "linear-gradient(180deg, var(--amber), var(--amber-2))",
+                        display: "grid",
+                        placeItems: "center",
+                        color: "oklch(0.22 0.04 35)",
+                        flexShrink: 0,
+                      }}
+                    >
+                      <TacticalToolIcon id={item.id} size={26} />
+                    </div>
+                    <div className="f-1" style={{ minWidth: 0 }}>
+                      <div className="row between gap-2">
+                        <span className="h-display fw-7 text-md">{item.nameAr}</span>
+                        <span className="chip" style={{ fontSize: 10 }}>
+                          ×{owned}
+                        </span>
+                      </div>
+                      <p className="text-xs muted mt-1">{item.subtitleAr}</p>
+                      <p className="text-sm mt-2 leading-relaxed">{item.descriptionAr}</p>
+                      <p className="text-xs muted mt-2" style={{ fontStyle: "italic" }}>
+                        {item.rulesAr}
+                      </p>
+                      <div className="mt-2">
+                        <ShellCoin value={item.price} />
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-block"
+                    disabled={!canBuy || busy}
+                    onClick={() => void buyTactical(item.id)}
+                  >
+                    {busy ? "…" : google ? "شراء أداة" : "—"}
+                  </button>
+                </article>
+              );
+            })}
           </div>
         )}
       </div>

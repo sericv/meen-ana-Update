@@ -11,11 +11,14 @@ import { MyHiddenCardSheet } from "@/components/game/play/GameplaySheets";
 import { GameplayTopBar } from "@/components/game/play/GameplayTopBar";
 import { useLiveUserProfile } from "@/hooks/useLiveUserProfile";
 import { GP } from "@/components/game/play/tokens";
+import { TacticalToolsBar } from "@/components/game/play/TacticalToolsBar";
 import { useMatchHints } from "@/hooks/useMatchHints";
 import { useOpponentTyping } from "@/hooks/useOpponentTyping";
+import type { TacticalInventory } from "@/lib/profile/tactical-tools";
+import type { TacticalToolId } from "@/lib/profile/tactical-tools";
 import { getCategoryById } from "@/lib/game/categories";
 import type { PlayerCosmetic } from "@/lib/profile/cosmetics";
-import type { ChatMessage, GameCard } from "@/types";
+import type { ChatMessage, GameCard, MatchState } from "@/types";
 
 const VISIBLE_CHAT_MESSAGE_COUNT = 3;
 
@@ -85,6 +88,11 @@ export type GameplaySocialSurfaceProps = {
   keyboardOverlapPx?: number;
   /** When false, in-match hints from the shop are disabled for this room. */
   roomHintsEnabled?: boolean;
+  match?: MatchState | null;
+  tacticalInventory?: TacticalInventory;
+  tacticalBusy?: TacticalToolId | null;
+  onUseTactical?: (toolId: TacticalToolId) => void;
+  tacticalError?: string | null;
 };
 
 export function GameplaySocialSurface({
@@ -117,6 +125,11 @@ export function GameplaySocialSurface({
   onComposerBlur,
   keyboardOverlapPx = 0,
   roomHintsEnabled = true,
+  match = null,
+  tacticalInventory,
+  tacticalBusy = null,
+  onUseTactical,
+  tacticalError = null,
 }: GameplaySocialSurfaceProps) {
   const [cardSheetOpen, setCardSheetOpen] = useState(false);
   const [hintBusy, setHintBusy] = useState(false);
@@ -297,6 +310,28 @@ export function GameplaySocialSurface({
                 </motion.div>
               </div>
             </GameplayChatFadeViewport>
+
+            {tacticalInventory && onUseTactical ? (
+              <>
+                {tacticalError ? (
+                  <p
+                    className="mx-2 mb-1 rounded-lg px-2 py-1 text-center text-[10px] font-bold"
+                    style={{ color: GP.rose, background: "rgba(255,240,235,0.95)" }}
+                  >
+                    {tacticalError}
+                  </p>
+                ) : null}
+                <TacticalToolsBar
+                  match={match}
+                  uid={uid}
+                  myTurn={myTurn}
+                  phase={phase}
+                  inventory={tacticalInventory}
+                  busy={tacticalBusy}
+                  onUse={onUseTactical}
+                />
+              </>
+            ) : null}
 
             <GameplayChatActionBar
               myTurn={myTurn}

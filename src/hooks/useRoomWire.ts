@@ -22,7 +22,17 @@ import {
   QUESTION_PHASE_SECONDS,
 } from "@/lib/game/constants";
 import { isOpponentCustomCardComplete } from "@/lib/custom-cards/opponent-card-gate";
-import type { ChatMessage, GameCard, MatchState, Room, StoredCustomRoomCard } from "@/types";
+import type {
+  ChatMessage,
+  GameCard,
+  MatchState,
+  MatchTacticalPlayerState,
+  Room,
+  StoredCustomRoomCard,
+  TacticalGameplayEvent,
+} from "@/types";
+import type { TacticalToolId } from "@/lib/profile/tactical-tools";
+import { TACTICAL_TOOL_IDS } from "@/lib/profile/tactical-tools";
 
 function parseCustomOpponentAssigned(raw: unknown): Room["customOpponentCardAssigned"] | undefined {
   if (raw == null || typeof raw !== "object" || Array.isArray(raw)) return undefined;
@@ -133,6 +143,46 @@ function roomWireSignature(r: Room): string {
   });
 }
 
+function parseTacticalByUid(raw: unknown): MatchState["tacticalByUid"] {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return undefined;
+  const out: Record<string, MatchTacticalPlayerState> = {};
+  for (const [uid, val] of Object.entries(raw as Record<string, unknown>)) {
+    if (!val || typeof val !== "object" || Array.isArray(val)) continue;
+    const o = val as Record<string, unknown>;
+    out[uid] = {
+      usedExtraTime: o.usedExtraTime === true,
+      usedTimePressure: o.usedTimePressure === true,
+      usedExtraQuestion: o.usedExtraQuestion === true,
+      usedShield: o.usedShield === true,
+      extraQuestionPending: o.extraQuestionPending === true,
+      shieldActiveUntil:
+        o.shieldActiveUntil && typeof (o.shieldActiveUntil as Timestamp).toMillis === "function"
+          ? (o.shieldActiveUntil as Timestamp)
+          : null,
+    };
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
+function parseLastTacticalEvent(raw: unknown): TacticalGameplayEvent | null {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const o = raw as Record<string, unknown>;
+  const toolId = String(o.toolId ?? "");
+  if (!TACTICAL_TOOL_IDS.includes(toolId as TacticalToolId)) return null;
+  return {
+    id: String(o.id ?? ""),
+    at:
+      o.at && typeof (o.at as Timestamp).toMillis === "function" ? (o.at as Timestamp) : null,
+    actorUid: String(o.actorUid ?? ""),
+    actorName: String(o.actorName ?? ""),
+    toolId: toolId as TacticalToolId,
+    titleAr: String(o.titleAr ?? ""),
+    bodyAr: String(o.bodyAr ?? ""),
+    blocked: o.blocked === true ? true : undefined,
+    targetUid: o.targetUid != null ? String(o.targetUid) : undefined,
+  };
+}
+
 function matchWireSignature(m: MatchState): string {
   return JSON.stringify({
     id: m.id,
@@ -148,6 +198,12 @@ function matchWireSignature(m: MatchState): string {
     winReason: m.winReason,
     startedAt: tsMillis(m.startedAt),
     endedAt: tsMillis(m.endedAt),
+    questionCountTotal: m.questionCountTotal ?? 0,
+    timePressureTargetUid: m.timePressureTargetUid ?? null,
+    lastTacticalEvent: m.lastTacticalEvent
+      ? { id: m.lastTacticalEvent.id, at: tsMillis(m.lastTacticalEvent.at) }
+      : null,
+    tacticalByUid: m.tacticalByUid ?? null,
   });
 }
 
@@ -231,6 +287,7 @@ export function useRoomWire(roomId: string | null, myUid: string | null) {
           leftByUid: d.leftByUid !== undefined ? String(d.leftByUid) : undefined,
           lobbyLeftByUid: d.lobbyLeftByUid !== undefined ? String(d.lobbyLeftByUid) : undefined,
           voiceMode: d.voiceMode !== undefined ? Boolean(d.voiceMode) : undefined,
+          hintsEnabled: d.hintsEnabled !== undefined ? Boolean(d.hintsEnabled) : undefined,
           customCardsEnabled:
             d.customCardsEnabled !== undefined ? Boolean(d.customCardsEnabled) : undefined,
           customOpponentSelections: parseOpponentSelections(d.customOpponentSelections),
@@ -317,6 +374,12 @@ export function useRoomWire(roomId: string | null, myUid: string | null) {
         winReason: (d.winReason as MatchState["winReason"]) ?? null,
         startedAt: (d.startedAt as Timestamp | null) ?? null,
         endedAt: (d.endedAt as Timestamp | null) ?? null,
+        tacticalByUid: parseTacticalByUid(d.tacticalByUid),
+        questionCountTotal:
+          d.questionCountTotal !== undefined ? Number(d.questionCountTotal) : undefined,
+        timePressureTargetUid:
+          d.timePressureTargetUid != null ? String(d.timePressureTargetUid) : undefined,
+        lastTacticalEvent: parseLastTacticalEvent(d.lastTacticalEvent),
       };
       const sig = matchWireSignature(next);
       if (sig === matchSigRef.current) return;

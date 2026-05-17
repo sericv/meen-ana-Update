@@ -10,6 +10,13 @@ import {
 import { ALL_CARDS, pickTwoCards } from "@/lib/game/cards";
 import { generateGuessAliases } from "@/lib/game/guess-alias-generator";
 import { guessMatchesCard } from "@/lib/game/validation";
+import {
+  applyExtraQuestionAfterQuestion,
+  buildQuestionDeadline,
+  incrementQuestionCountPatch,
+} from "@/lib/server/tactical-tools-server";
+
+export { handleTacticalTool } from "@/lib/server/tactical-tools-server";
 
 /** Synthetic bot uids always start with this prefix. */
 export const BOT_UID_PREFIX = "bot:";
@@ -252,6 +259,8 @@ export async function startMatchForRoom(args: {
     startedAt: now,
     endedAt: null,
     hintByUid: {},
+    tacticalByUid: {},
+    questionCountTotal: 0,
   });
 
   // New contract: `playerCards/{uid}` holds the card that `uid` must guess
@@ -334,15 +343,21 @@ export async function handleChat(args: {
         text: args.text,
         createdAt: FieldValue.serverTimestamp(),
       });
-      tx.set(
-        matchRef,
-        {
-          chatPhase: "answer",
-          actorUid: opp,
-          turnDeadline: Timestamp.fromMillis(Date.now() + aSec * 1000),
-        },
-        { merge: true },
-      );
+      const extra = applyExtraQuestionAfterQuestion({ m, uid: args.uid, baseQSec: qSec });
+      if (extra.stayInQuestionPhase) {
+        tx.set(matchRef, { ...incrementQuestionCountPatch(m), ...extra.patch }, { merge: true });
+      } else {
+        tx.set(
+          matchRef,
+          {
+            ...incrementQuestionCountPatch(m),
+            chatPhase: "answer",
+            actorUid: opp,
+            turnDeadline: Timestamp.fromMillis(Date.now() + aSec * 1000),
+          },
+          { merge: true },
+        );
+      }
     } else {
       tx.set(msgRef, {
         senderUid: args.uid,
@@ -351,12 +366,13 @@ export async function handleChat(args: {
         text: args.text,
         createdAt: FieldValue.serverTimestamp(),
       });
+      const qPatch = buildQuestionDeadline(m, args.uid, qSec);
       tx.set(
         matchRef,
         {
           chatPhase: "question",
           actorUid: args.uid,
-          turnDeadline: Timestamp.fromMillis(Date.now() + qSec * 1000),
+          ...qPatch.patch,
         },
         { merge: true },
       );
@@ -410,12 +426,13 @@ export async function handleTurnTimeout(args: {
         text: "انتهى وقت السؤال — انتقل الدور للخصم.",
         createdAt: FieldValue.serverTimestamp(),
       });
+      const qPatch = buildQuestionDeadline(m, opp, qSec);
       tx.set(
         matchRef,
         {
           chatPhase: "question",
           actorUid: opp,
-          turnDeadline: Timestamp.fromMillis(Date.now() + qSec * 1000),
+          ...qPatch.patch,
         },
         { merge: true },
       );
@@ -429,12 +446,13 @@ export async function handleTurnTimeout(args: {
         text: "انتهى وقت الإجابة — دور سؤال جديد.",
         createdAt: FieldValue.serverTimestamp(),
       });
+      const qPatch = buildQuestionDeadline(m, opp, qSec);
       tx.set(
         matchRef,
         {
           chatPhase: "question",
           actorUid: opp,
-          turnDeadline: Timestamp.fromMillis(Date.now() + qSec * 1000),
+          ...qPatch.patch,
         },
         { merge: true },
       );
