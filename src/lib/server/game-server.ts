@@ -10,6 +10,7 @@ import {
 import { ALL_CARDS, pickTwoCards } from "@/lib/game/cards";
 import { generateGuessAliases } from "@/lib/game/guess-alias-generator";
 import { guessMatchesCard } from "@/lib/game/validation";
+import { HINT_COIN_PRICE } from "@/lib/profile/progression";
 
 /** Synthetic bot uids always start with this prefix. */
 export const BOT_UID_PREFIX = "bot:";
@@ -251,6 +252,7 @@ export async function startMatchForRoom(args: {
     winReason: null,
     startedAt: now,
     endedAt: null,
+    hintByUid: {},
   });
 
   // New contract: `playerCards/{uid}` holds the card that `uid` must guess
@@ -967,4 +969,116 @@ export async function enforceChatRate(roomId: string, uid: string, minIntervalMs
     throw new Error("RATE_LIMIT");
   }
   await ref.set({ lastAt: FieldValue.serverTimestamp() }, { merge: true });
+}
+
+type StoredHintState = {
+  hintsLeft: number;
+  revealedIndices: number[];
+  nameLength: number;
+  revealedLetters: Record<string, string>;
+};
+
+function parseHintState(raw: unknown): StoredHintState {
+  const o = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  const revealedIndices = Array.isArray(o.revealedIndices)
+    ? o.revealedIndices.map((x) => Number(x)).filter((n) => Number.isFinite(n))
+    : [];
+  const revealedLetters: Record<string, string> = {};
+  if (o.revealedLetters && typeof o.revealedLetters === "object") {
+    for (const [k, v] of Object.entries(o.revealedLetters as Record<string, unknown>)) {
+      revealedLetters[k] = String(v);
+    }
+  }
+  return {
+    hintsLeft: typeof o.hintsLeft === "number" ? Math.max(0, o.hintsLeft) : 2,
+    revealedIndices,
+    nameLength: typeof o.nameLength === "number" ? o.nameLength : 0,
+    revealedLetters,
+  };
+}
+
+/** Spend a hint: reveals letter count or one random letter of the player's hidden card. */
+export async function handleHint(args: {
+  roomId: string;
+  matchId: string;
+  uid: string;
+  kind: "letter" | "count";
+}) {
+  const db = getAdminDb();
+  const matchRef = db.collection(col.matches).doc(args.matchId);
+  const pcRef = db.doc(`${roomPlayerCardsCol(args.roomId)}/${args.uid}`);
+
+  return db.runTransaction(async (tx) => {
+    const [matchSnap, pcSnap] = await Promise.all([tx.get(matchRef), tx.get(pcRef)]);
+    if (!matchSnap.exists) throw new Error("MATCH_NOT_FOUND");
+    const m = matchSnap.data()!;
+    if (m.status !== "active") throw new Error("MATCH_ENDED");
+    const order = (m.playerOrder as string[]) ?? [];
+    if (!order.includes(args.uid)) throw new Error("NOT_IN_MATCH");
+    if (!pcSnap.exists) throw new Error("CARD_NOT_FOUND");
+
+    const nameAr = String(pcSnap.data()?.nameAr ?? "").trim();
+    const letters = [...nameAr.replace(/\s/g, "")];
+    if (!letters.length) throw new Error("CARD_NOT_FOUND");
+
+    const hintByUid = { ...((m.hintByUid as Record<string, unknown>) ?? {}) };
+    const st = parseHintState(hintByUid[args.uid]);
+    const userRef = db.collection(col.users).doc(args.uid);
+    const userSnap = await tx.get(userRef);
+    const userData = userSnap.exists ? userSnap.data()! : {};
+    let hintCredits =
+      typeof userData.hintCredits === "number" && Number.isFinite(userData.hintCredits)
+        ? Math.max(0, Math.floor(userData.hintCredits))
+        : 0;
+    const userCoins =
+      typeof userData.coins === "number" && Number.isFinite(userData.coins) ? userData.coins : 0;
+
+    let paidWith: "free" | "credit" | "coins" = "free";
+    if (st.hintsLeft > 0) {
+      st.hintsLeft -= 1;
+      paidWith = "free";
+    } else if (hintCredits > 0) {
+      hintCredits -= 1;
+      paidWith = "credit";
+    } else if (userCoins >= HINT_COIN_PRICE) {
+      paidWith = "coins";
+    } else {
+      throw new Error("NO_HINTS_LEFT");
+    }
+
+    if (args.kind === "count") {
+      if (st.nameLength > 0) {
+        throw new Error("COUNT_ALREADY");
+      }
+      st.nameLength = letters.length;
+    } else {
+      const available = letters
+        .map((_, i) => i)
+        .filter((i) => !st.revealedIndices.includes(i));
+      if (!available.length) throw new Error("ALL_REVEALED");
+      const pick = available[Math.floor(Math.random() * available.length)]!;
+      st.revealedIndices = [...st.revealedIndices, pick];
+      st.revealedLetters[String(pick)] = letters[pick]!;
+    }
+
+    hintByUid[args.uid] = st;
+    tx.update(matchRef, { hintByUid });
+
+    if (paidWith === "credit") {
+      tx.update(userRef, { hintCredits });
+    } else if (paidWith === "coins") {
+      tx.update(userRef, { coins: FieldValue.increment(-HINT_COIN_PRICE) });
+    }
+
+    const revealedLettersNum: Record<number, string> = {};
+    for (const [k, v] of Object.entries(st.revealedLetters)) {
+      revealedLettersNum[Number(k)] = v;
+    }
+    return {
+      hintsLeft: st.hintsLeft,
+      revealedIndices: st.revealedIndices,
+      nameLength: st.nameLength,
+      revealedLetters: revealedLettersNum,
+    };
+  });
 }

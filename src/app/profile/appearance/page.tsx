@@ -2,10 +2,9 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { AuthGate } from "@/components/auth/AuthGate";
 import { AccountSubpageLayout } from "@/components/profile/AccountSubpageLayout";
-import { DefaultAvatarIllustration } from "@/components/profile/DefaultAvatarIllustration";
-import { FramePicker } from "@/components/profile/FramePicker";
 import { GuestProfileLockCard } from "@/components/profile/GuestProfileLockCard";
 import { ProfileAvatar } from "@/components/profile/ProfileAvatar";
 import { useAuth } from "@/components/providers/AuthProvider";
@@ -14,14 +13,11 @@ import { useLiveUserProfile } from "@/hooks/useLiveUserProfile";
 import { uploadProfileAvatarImage } from "@/lib/api/profile-client";
 import { isFullAccountUser } from "@/lib/auth/google-user";
 import { playUIButton, resumeAudioContext } from "@/lib/audio/game-sounds";
-import { updateUserCosmetics, updateUserPhotoURL } from "@/lib/firestore/users.client";
+import { updateUserPhotoURL } from "@/lib/firestore/users.client";
 import { compressAvatarImageFromFile } from "@/lib/profile/avatar-compress";
-import {
-  AVATAR_PRESETS,
-  normalizeCosmetic,
-  type FrameId,
-} from "@/lib/profile/cosmetics";
-import { normalizePlayerProgress, ownsShopFrame } from "@/lib/profile/progression";
+import { DEFAULT_AVATAR_ID, normalizeCosmetic } from "@/lib/profile/cosmetics";
+import { normalizePlayerProgress } from "@/lib/profile/progression";
+import { PlayerLevelBadge } from "@/components/ui/PlayerLevelBadge";
 import { postSocial } from "@/lib/api/social-client";
 import { validateUsernameInput } from "@/lib/social/username";
 import { useLiveUserProfiles } from "@/hooks/useLiveUserProfiles";
@@ -30,6 +26,7 @@ import { Input } from "@/components/ui/Input";
 import { Panel } from "@/components/ui/Panel";
 
 function AppearanceInner() {
+  const router = useRouter();
   const { user, setDisplayName } = useAuth();
   const uid = user?.uid ?? null;
   const google = isFullAccountUser(user);
@@ -44,27 +41,17 @@ function AppearanceInner() {
     () => live?.progress ?? normalizePlayerProgress(undefined),
     [
       live?.progress.coins,
+      live?.progress.xp,
       live?.progress.matchWins,
       live?.progress.legacyFullCatalog,
       live?.progress.ownedShopFrameIds.size,
     ],
   );
 
-  const ownedKey = useMemo(() => {
-    const p = live?.progress;
-    if (!p) return "";
-    return `${p.legacyFullCatalog}:${[...p.ownedShopFrameIds].sort().join(",")}`;
-  }, [live?.progress]);
-
-  const [avatarId, setAvatarId] = useState(resolved.avatarId);
-  const [frameId, setFrameId] = useState<FrameId>(resolved.avatarFrameId as FrameId);
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
   const [photoBusy, setPhotoBusy] = useState(false);
   const [photoErr, setPhotoErr] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [uploadPhase, setUploadPhase] = useState<"idle" | "compressing" | "uploading">("idle");
-  const [photoMode, setPhotoMode] = useState<"photo" | "avatar">("photo");
   const [nameModalOpen, setNameModalOpen] = useState(false);
   const [nameDraft, setNameDraft] = useState("");
   const [nameBusy, setNameBusy] = useState(false);
@@ -82,47 +69,19 @@ function AppearanceInner() {
     if (myUsername) setUsernameDraft(myUsername);
   }, [myUsername]);
 
-  useEffect(() => {
-    setAvatarId(resolved.avatarId);
-    const fid = resolved.avatarFrameId as FrameId;
-    if (!ownsShopFrame(progress, fid)) setFrameId("none");
-    else setFrameId(fid);
-  }, [resolved.avatarId, resolved.avatarFrameId, ownedKey]);
-
   const displayName =
     user?.displayName || (user?.isAnonymous ? "زائر" : (user?.email?.split("@")[0] ?? "لاعب"));
 
-  const previewCosmetic = useMemo(
-    () => ({
-      avatarId,
-      avatarFrameId: frameId,
-      photoURL: photoMode === "photo" ? resolved.photoURL : null,
-    }),
-    [avatarId, frameId, resolved.photoURL, photoMode],
-  );
-
-  const save = useCallback(async () => {
-    if (!uid) return;
-    resumeAudioContext();
-    playUIButton();
-    if (!ownsShopFrame(progress, frameId)) {
-      setErr("لا يمكن حفظ إطار غير مملوك.");
-      return;
+  const previewCosmetic = useMemo(() => {
+    if (!google) {
+      return {
+        avatarId: DEFAULT_AVATAR_ID,
+        avatarFrameId: resolved.avatarFrameId,
+        photoURL: null as string | null,
+      };
     }
-    setBusy(true);
-    setErr(null);
-    try {
-      const ops: Promise<void>[] = [updateUserCosmetics(uid, { avatarId, avatarFrameId: frameId })];
-      if (google && photoMode === "avatar" && resolved.photoURL) {
-        ops.push(updateUserPhotoURL(uid, null));
-      }
-      await Promise.all(ops);
-    } catch {
-      setErr("تعذر الحفظ — تحقق من الاتصال.");
-    } finally {
-      setBusy(false);
-    }
-  }, [uid, google, avatarId, frameId, photoMode, resolved.photoURL, progress]);
+    return resolved;
+  }, [google, resolved]);
 
   const saveUsername = async () => {
     if (!uid || !google) return;
@@ -152,7 +111,6 @@ function AppearanceInner() {
     setPhotoErr(null);
     try {
       await updateUserPhotoURL(uid, user.photoURL);
-      setPhotoMode("photo");
     } catch {
       setPhotoErr("تعذر مزامنة صورة الحساب.");
     } finally {
@@ -177,7 +135,6 @@ function AppearanceInner() {
         setUploadProgress(12);
         await uploadProfileAvatarImage(b64, (p) => setUploadProgress(p));
         setUploadProgress(100);
-        setPhotoMode("photo");
       } catch (ex) {
         setPhotoErr(ex instanceof Error ? ex.message : "تعذر رفع الصورة.");
       } finally {
@@ -212,17 +169,35 @@ function AppearanceInner() {
         animate={{ opacity: 1, y: 0 }}
         className="mb-5 overflow-hidden rounded-[1.75rem] border border-white/75 bg-gradient-to-b from-white/95 to-[#fff8ee]/95 p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.92),0_14px_36px_rgba(196,134,82,0.14)]"
       >
-        <div className="flex flex-col items-center">
+        <motion.div className="flex flex-col items-center">
           <ProfileAvatar
             cosmetic={previewCosmetic}
-            fallbackPhotoURL={user?.photoURL}
+            fallbackPhotoURL={google ? user?.photoURL : null}
             displayName={displayName}
             size="xl"
             idle
             active
           />
           <p className="mt-3 text-center text-sm font-black text-[#8a3f16]">{displayName}</p>
-        </div>
+          <PlayerLevelBadge xp={progress.xp} size="md" showBar className="mt-3 items-center" />
+          {google ? (
+            <p className="mt-3 max-w-[280px] text-center text-[11px] font-semibold leading-relaxed text-[#a16231]">
+              لتغيير الإطار، ادخل إلى{" "}
+              <button
+                type="button"
+                onClick={() => router.push("/profile/purchases")}
+                className="font-extrabold text-[#c2530c] underline-offset-2 hover:underline"
+              >
+                المشتريات
+              </button>
+              .
+            </p>
+          ) : (
+            <p className="mt-3 max-w-[260px] text-center text-[11px] font-semibold leading-relaxed text-[#bc7a45]">
+              الزائر يظهر بصورة موحّدة. سجّل الدخول لرفع صورة وتخصيص الإطار من المشتريات.
+            </p>
+          )}
+        </motion.div>
       </motion.section>
 
       <section className="mb-5 overflow-hidden rounded-[1.75rem] glass-card p-5">
@@ -275,124 +250,33 @@ function AppearanceInner() {
       {!google ? <GuestProfileLockCard /> : null}
 
       {google ? (
-        <>
-          <section className="mb-5 overflow-hidden rounded-[1.75rem] glass-card p-5">
-            <p className="mb-3 text-sm font-black text-[#8a3f16]">صورة الملف</p>
-            <div className="flex flex-wrap gap-2.5">
-              <Button
-                type="button"
-                disabled={photoBusy}
-                onClick={() => fileRef.current?.click()}
-                className="min-h-[48px] flex-1"
-              >
-                {photoBusy && uploadPhase === "compressing"
-                  ? "جاري التجهيز…"
-                  : photoBusy && uploadPhase === "uploading"
-                    ? "جاري الرفع…"
-                    : "رفع صورة"}
+        <section className="mb-10 overflow-hidden rounded-[1.75rem] glass-card p-5">
+          <p className="mb-3 text-sm font-black text-[#8a3f16]">صورة الملف</p>
+          <p className="mb-3 text-[11px] font-semibold text-[#bc7a45]">
+            بدون صورة مرفوعة يظهر الشكل الافتراضي الموحّد للزائر.
+          </p>
+          <div className="flex flex-wrap gap-2.5">
+            <Button
+              type="button"
+              disabled={photoBusy}
+              onClick={() => fileRef.current?.click()}
+              className="min-h-[48px] flex-1"
+            >
+              {photoBusy && uploadPhase === "compressing"
+                ? "جاري التجهيز…"
+                : photoBusy && uploadPhase === "uploading"
+                  ? `جاري الرفع…${uploadProgress != null ? ` ${uploadProgress}%` : ""}`
+                  : "رفع صورة"}
+            </Button>
+            {user?.photoURL ? (
+              <Button type="button" variant="ghost" disabled={photoBusy} onClick={() => void applyProviderPhoto()}>
+                صورة Google
               </Button>
-              {user?.photoURL ? (
-                <Button type="button" variant="ghost" disabled={photoBusy} onClick={() => void applyProviderPhoto()}>
-                  صورة Google
-                </Button>
-              ) : null}
-            </div>
-            <AnimatePresence>
-              {resolved.photoURL ? (
-                <motion.div
-                  key="mode"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="mt-3 flex justify-center"
-                >
-                  <Button type="button" variant="ghost" size="sm" onClick={() => setPhotoMode(photoMode === "photo" ? "avatar" : "photo")}>
-                    {photoMode === "photo" ? "عرض الشكل الافتراضي" : "عرض الصورة"}
-                  </Button>
-                </motion.div>
-              ) : null}
-            </AnimatePresence>
-            {photoErr ? <p className="mt-2 text-xs font-bold text-red-700">{photoErr}</p> : null}
-          </section>
-
-          <section className="mb-5 overflow-hidden rounded-[1.75rem] glass-card p-5">
-            <p className="mb-4 text-sm font-black text-[#8a3f16]">الشكل الافتراضي</p>
-            <div className="grid grid-cols-4 gap-2">
-              {AVATAR_PRESETS.map((a, i) => (
-                <motion.button
-                  key={a.id}
-                  type="button"
-                  whileTap={{ scale: 0.94 }}
-                  onClick={() => {
-                    playUIButton();
-                    setAvatarId(a.id);
-                    setPhotoMode("avatar");
-                  }}
-                  className={`rounded-2xl p-1.5 ring-1 ${
-                    avatarId === a.id ? "ring-[#FF9F0A] bg-orange-50" : "ring-[#f4d4af]/60 bg-white/80"
-                  }`}
-                >
-                  <DefaultAvatarIllustration avatarId={a.id} size={40} />
-                </motion.button>
-              ))}
-            </div>
-          </section>
-        </>
-      ) : (
-        <section className="mb-5 overflow-hidden rounded-[1.75rem] glass-card p-5">
-          <p className="mb-4 text-sm font-black text-[#8a3f16]">الشكل الافتراضي</p>
-          <div className="grid grid-cols-4 gap-2">
-            {AVATAR_PRESETS.map((a) => (
-              <motion.button
-                key={a.id}
-                type="button"
-                whileTap={{ scale: 0.94 }}
-                onClick={() => {
-                  playUIButton();
-                  setAvatarId(a.id);
-                }}
-                className={`rounded-2xl p-1.5 ring-1 ${
-                  avatarId === a.id ? "ring-[#FF9F0A] bg-orange-50" : "ring-[#f4d4af]/60 bg-white/80"
-                }`}
-              >
-                <DefaultAvatarIllustration avatarId={a.id} size={40} />
-              </motion.button>
-            ))}
+            ) : null}
           </div>
+          {photoErr ? <p className="mt-2 text-xs font-bold text-red-700">{photoErr}</p> : null}
         </section>
-      )}
-
-      <section className="mb-5 overflow-hidden rounded-[1.75rem] glass-card p-5">
-        <p className="mb-3 text-sm font-black text-[#8a3f16]">الإطار المجهّز</p>
-        <p className="mb-3 text-[11px] font-semibold text-[#bc7a45]">
-          يظهر فقط إطاراتك المكسوبة. المتجر يضيف المزيد إلى «المشتريات».
-        </p>
-        <FramePicker
-          previewCosmetic={previewCosmetic}
-          selectedFrameId={frameId}
-          onSelect={setFrameId}
-          fallbackPhotoURL={user?.photoURL}
-          displayName={user?.displayName ?? undefined}
-          playerProgress={progress}
-          showLabels={false}
-        />
-      </section>
-
-      <AnimatePresence>
-        {err ? (
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-2.5 text-center text-sm font-bold text-red-800"
-          >
-            {err}
-          </motion.p>
-        ) : null}
-      </AnimatePresence>
-
-      <Button type="button" className="mb-10 w-full min-h-[52px] text-lg font-black" disabled={busy} onClick={() => void save()}>
-        {busy ? "جاري الحفظ…" : "حفظ المظهر"}
-      </Button>
+      ) : null}
 
       <AnimatePresence>
         {nameModalOpen ? (
@@ -412,7 +296,7 @@ function AppearanceInner() {
             >
               <Panel className="text-center">
                 <h2 className="text-xl font-black text-[#8a3f16]">الاسم الظاهر</h2>
-                <div className="mt-4 text-right">
+                <motion.div className="mt-4 text-right">
                   <Input
                     value={nameDraft}
                     onChange={(e) => setNameDraft(e.target.value)}
@@ -422,7 +306,7 @@ function AppearanceInner() {
                     disabled={nameBusy}
                   />
                   {nameErr ? <p className="mt-2 text-sm text-[#c74d3d]">{nameErr}</p> : null}
-                </div>
+                </motion.div>
                 <div className="mt-5 flex flex-wrap gap-3">
                   <Button
                     type="button"
@@ -439,7 +323,13 @@ function AppearanceInner() {
                   >
                     حفظ
                   </Button>
-                  <Button type="button" variant="ghost" className="min-h-[48px] flex-1" disabled={nameBusy} onClick={() => setNameModalOpen(false)}>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="min-h-[48px] flex-1"
+                    disabled={nameBusy}
+                    onClick={() => setNameModalOpen(false)}
+                  >
                     إلغاء
                   </Button>
                 </div>

@@ -13,7 +13,12 @@ import {
 import { getFirebaseDb } from "@/lib/firebase/client";
 import { col } from "@/lib/firestore/paths";
 import { DEFAULT_AVATAR_ID, DEFAULT_FRAME_ID, isValidAvatarId, isValidFrameId } from "@/lib/profile/cosmetics";
-import { SHOP_FRAME_ID_SET, SHOP_FRAME_PRICE } from "@/lib/profile/progression";
+import {
+  HINT_PACK_PRICE,
+  HINT_PACK_SIZE,
+  SHOP_FRAME_ID_SET,
+  SHOP_FRAME_PRICE,
+} from "@/lib/profile/progression";
 
 export async function upsertUserDocument(user: User) {
   const db = getFirebaseDb();
@@ -35,6 +40,8 @@ export async function upsertUserDocument(user: User) {
       {
         ...base,
         coins: 0,
+        hintCredits: 0,
+        xp: 0,
         matchWins: 0,
         ownedFrameIds: [] as string[],
       },
@@ -132,29 +139,26 @@ export async function purchaseShopFrame(uid: string, frameId: string): Promise<v
   });
 }
 
-/** +1 coin and +1 win tally after a match victory (client-side; best paired with session de-dupe). */
-export async function awardMatchWinRewards(uid: string): Promise<void> {
+/** Buy a pack of bonus hint credits (usable when per-match free hints run out). */
+export async function purchaseHintPack(uid: string): Promise<void> {
   const db = getFirebaseDb();
   const ref = doc(db, col.users, uid);
   await runTransaction(db, async (transaction) => {
     const snap = await transaction.get(ref);
     if (!snap.exists()) {
-      transaction.set(
-        ref,
-        {
-          coins: 1,
-          matchWins: 1,
-          ownedFrameIds: [] as string[],
-          lastSeen: serverTimestamp(),
-        },
-        { merge: true },
-      );
-      return;
+      throw new ShopPurchaseError("لا يوجد ملف لاعب بعد.", "insufficient_funds");
+    }
+    const data = snap.data() as Record<string, unknown>;
+    const coins = typeof data.coins === "number" && Number.isFinite(data.coins) ? data.coins : 0;
+    if (coins < HINT_PACK_PRICE) {
+      throw new ShopPurchaseError("عملاتك غير كافية لشراء التلميحات.", "insufficient_funds");
     }
     transaction.update(ref, {
-      coins: increment(1),
-      matchWins: increment(1),
+      coins: increment(-HINT_PACK_PRICE),
+      hintCredits: increment(HINT_PACK_SIZE),
       lastSeen: serverTimestamp(),
     });
   });
 }
+
+export { awardMatchEndRewards, awardMatchWinRewards } from "@/lib/firestore/match-rewards.client";

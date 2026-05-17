@@ -15,8 +15,15 @@ import {
   getFrameDefinition,
   preloadFrameAssets,
 } from "@/lib/profile/cosmetics";
-import { ownsShopFrame, SHOP_FRAME_PRICE } from "@/lib/profile/progression";
+import { CoinDisplay } from "@/components/ui/CoinDisplay";
 import {
+  HINT_PACK_PRICE,
+  HINT_PACK_SIZE,
+  ownsShopFrame,
+  SHOP_FRAME_PRICE,
+} from "@/lib/profile/progression";
+import {
+  purchaseHintPack,
   purchaseShopFrame,
   ShopPurchaseError,
   updateUserCosmetics,
@@ -43,6 +50,26 @@ function ShopInner() {
 
   const cosmetic = live?.cosmetic;
   const progress = live?.progress;
+
+  const buyHintPack = useCallback(async () => {
+    if (!uid) return;
+    resumeAudioContext();
+    playUIButton();
+    setBusyId("hint-pack");
+    setToast(null);
+    try {
+      await purchaseHintPack(uid);
+      setToast(`تم شراء ${HINT_PACK_SIZE} تلميحات محفوظة!`);
+    } catch (e: unknown) {
+      if (e instanceof ShopPurchaseError) {
+        setToast(e.message);
+      } else {
+        setToast(e instanceof Error ? e.message : "تعذر الشراء.");
+      }
+    } finally {
+      setBusyId(null);
+    }
+  }, [uid]);
 
   const buyFrame = useCallback(
     async (frameId: string) => {
@@ -146,20 +173,18 @@ function ShopInner() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="text-[11px] font-bold text-[#a16231]">رصيدك</p>
-              <p className="mt-1 flex items-center gap-2 text-2xl font-black tabular-nums text-[#8a3f16]">
-                <span
-                  className="grid h-9 w-9 place-items-center rounded-xl text-lg"
-                  style={{
-                    background: "linear-gradient(180deg,#FFE8A8 0%,#F2C14E 100%)",
-                    boxShadow:
-                      "inset 0 1px 0 rgba(255,255,255,0.65),0 4px 10px rgba(200,130,20,0.25)",
-                  }}
-                  aria-hidden
-                >
-                  🪙
-                </span>
-                {progress ? progress.coins : "…"}
-              </p>
+              <div className="mt-1">
+                {progress ? (
+                  <CoinDisplay amount={progress.coins} size="lg" />
+                ) : (
+                  <span className="text-2xl font-black text-[#8a3f16]">…</span>
+                )}
+              </div>
+              {progress && progress.hintCredits > 0 ? (
+                <p className="mt-1 text-[11px] font-bold text-[#a16231]">
+                  تلميحات محفوظة: {progress.hintCredits}
+                </p>
+              ) : null}
             </div>
             <motion.button
               type="button"
@@ -219,6 +244,39 @@ function ShopInner() {
             </motion.p>
           ) : null}
         </AnimatePresence>
+
+        <h2 className="mb-3 px-1 text-sm font-black text-[#8a3f16]">تلميحات</h2>
+        <section className="mb-6 overflow-hidden rounded-[1.5rem] border border-white/80 bg-gradient-to-b from-white/95 to-[#fff7ea]/95 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.92),0_10px_28px_rgba(196,134,82,0.14)]">
+          <motion.div className="flex items-start gap-3">
+            <div
+              className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl text-2xl"
+              style={{
+                background: "linear-gradient(180deg,#FFE8A8,#F2C14E)",
+                boxShadow: "inset 0 1px 0 rgba(255,255,255,0.6),0 4px 12px rgba(200,130,20,0.2)",
+              }}
+              aria-hidden
+            >
+              💡
+            </div>
+            <div className="min-w-0 flex-1">
+              <h3 className="text-sm font-extrabold text-[#5e3011]">حزمة تلميحات</h3>
+              <p className="mt-1 text-[11px] font-semibold leading-relaxed text-[#a16231]">
+                {HINT_PACK_SIZE} تلميحات محفوظة — تُستخدم بعد التلميحات المجانية في كل مباراة، أو بعملات
+                أثناء اللعب.
+              </p>
+              <p className="mt-2 text-sm font-black text-[#c2530c]">{HINT_PACK_PRICE} 🪙</p>
+            </div>
+          </motion.div>
+          <motion.button
+            type="button"
+            whileTap={{ scale: 0.97 }}
+            disabled={busyId === "hint-pack" || !progress || progress.coins < HINT_PACK_PRICE}
+            onClick={() => void buyHintPack()}
+            className="mt-4 w-full rounded-xl bg-gradient-to-b from-[#4EA3FF] to-[#2D7CFF] py-3 text-sm font-extrabold text-white shadow-[inset_0_1.5px_0_rgba(255,255,255,0.4),0_5px_0_#1B5EC6] disabled:opacity-50"
+          >
+            {busyId === "hint-pack" ? "…" : "شراء الحزمة"}
+          </motion.button>
+        </section>
 
         <h2 className="mb-3 px-1 text-sm font-black text-[#8a3f16]">إطارات المجموعة</h2>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-2">

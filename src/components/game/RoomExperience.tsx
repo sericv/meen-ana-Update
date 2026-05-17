@@ -2113,20 +2113,13 @@ export function RoomExperience({ roomId }: Props) {
         ) : voicePlayingUI ? (
           <VoiceModePlayingPanel
             banner={banner}
+            roomId={room.id}
+            matchId={match?.id ?? null}
+            uid={uid}
             displayName={displayName}
             opponentName={opponentName}
-            opponent={opponent}
-            uid={uid}
-            hostUid={room.hostUid}
-            isHost={isHost}
-            phase={phase}
             myTurn={myTurn}
-            activeActorUid={activeActorUid}
-            activeActorName={activeActorName}
-            voiceTurnHeadline={voiceTurnHeadline}
-            voiceTurnSub={voiceTurnSub}
             secLeft={secLeft}
-            maxPhaseSec={maxPhaseSec}
             opponentCard={opponentCard}
             busy={busy}
             sendVoiceAck={sendVoiceAck}
@@ -2138,18 +2131,19 @@ export function RoomExperience({ roomId }: Props) {
         ) : (
           <GameplaySocialSurface
             banner={banner}
+            roomId={room.id}
+            matchId={match?.id ?? null}
             keyboardOverlapPx={keyboardOverlapPx}
             matchSyncWaiting={room.status === "playing" && !match}
             socialMatchLive={Boolean(match?.status === "active" && !ended)}
             myTurn={myTurn}
             phase={phase}
-            turnAction={turnAction}
             secLeft={secLeft}
             maxPhaseSec={maxPhaseSec}
             displayName={displayName}
             opponentName={opponentName}
             uid={uid}
-            opponent={opponent}
+            opponentUid={opponent?.uid ?? null}
             cosmeticsMap={cosmeticsMap}
             userPhotoURL={user?.photoURL}
             opponentCard={opponentCard}

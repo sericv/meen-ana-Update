@@ -7,7 +7,10 @@ import { GameAppBottomNav } from "@/components/nav/GameAppBottomNav";
 import { ProfileAvatar } from "@/components/profile/ProfileAvatar";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { useDefaultOnlinePresence } from "@/hooks/useDefaultOnlinePresence";
+import { useLiveUserProfile } from "@/hooks/useLiveUserProfile";
 import { usePlayerCosmetics } from "@/hooks/usePlayerCosmetics";
+import { CoinDisplay } from "@/components/ui/CoinDisplay";
+import { PlayerLevelBadge } from "@/components/ui/PlayerLevelBadge";
 import { isFullAccountUser } from "@/lib/auth/google-user";
 
 /* ─── tiny inline SVG icons (no emoji dependency) ─── */
@@ -63,6 +66,7 @@ export default function HomePage() {
   const profileUid = user?.uid ?? null;
   const profileCosmetics = usePlayerCosmetics(profileUid ? [profileUid] : []);
   const myProfileCosmetic = profileUid ? profileCosmetics[profileUid] : undefined;
+  const liveProfile = useLiveUserProfile(profileUid);
 
   function navTo(href: string) {
     if (!user) {
@@ -82,8 +86,24 @@ export default function HomePage() {
       <div className="relative z-10 mx-auto flex min-h-[100dvh] w-full max-w-md flex-col items-center px-5 pb-[calc(5.5rem+env(safe-area-inset-bottom))] pt-[max(1.25rem,env(safe-area-inset-top))] sm:max-w-lg sm:px-8 lg:max-w-xl lg:px-10">
 
         {/* ── Top bar: static player pill (account lives under «حسابي») ── */}
-        <header className="flex w-full items-center justify-end pt-2">
-          <div
+        <header className="flex w-full items-center justify-between gap-2 pt-2">
+          {user && liveProfile ? (
+            <motion.div className="flex flex-col items-start gap-1">
+              <motion.button
+                type="button"
+                whileTap={{ scale: 0.96 }}
+                onClick={() => navTo("/shop")}
+                className="flex items-center rounded-full border border-white/70 bg-white/92 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_6px_18px_rgba(196,134,82,0.22)] backdrop-blur"
+                aria-label={`رصيد العملات: ${liveProfile.progress.coins}`}
+              >
+                <CoinDisplay amount={liveProfile.progress.coins} size="sm" />
+              </motion.button>
+              <PlayerLevelBadge xp={liveProfile.progress.xp} size="sm" />
+            </motion.div>
+          ) : (
+            <span className="w-12 shrink-0" aria-hidden />
+          )}
+          <motion.div
             role="status"
             aria-label={displayName ? `اللاعب: ${displayName}` : "لم يتم تسجيل الدخول"}
             className="pointer-events-none flex items-center gap-2 rounded-full border border-white/70 bg-white/92 px-4 py-2.5 text-sm font-extrabold text-[#8a3f16] shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_6px_18px_rgba(196,134,82,0.22)] backdrop-blur"
@@ -102,7 +122,7 @@ export default function HomePage() {
             <span className="max-w-[110px] truncate">
               {loading ? "…" : (displayName ?? "دخول")}
             </span>
-          </div>
+          </motion.div>
         </header>
 
         {/* ── Logo ───────────────────────────────────────────── */}

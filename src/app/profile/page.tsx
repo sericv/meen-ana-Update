@@ -8,6 +8,9 @@ import { useAuth } from "@/components/providers/AuthProvider";
 import { isFullAccountUser } from "@/lib/auth/google-user";
 import { playUIButton, resumeAudioContext } from "@/lib/audio/game-sounds";
 import { useIncomingFriendRequestCount } from "@/hooks/useIncomingFriendRequestCount";
+import { useLiveUserProfile } from "@/hooks/useLiveUserProfile";
+import { CoinDisplay } from "@/components/ui/CoinDisplay";
+import { PlayerLevelBadge } from "@/components/ui/PlayerLevelBadge";
 
 function MenuCard({
   title,
@@ -75,6 +78,7 @@ function ProfileHubInner() {
   const { user, logout } = useAuth();
   const google = isFullAccountUser(user);
   const pendingIncoming = useIncomingFriendRequestCount(user?.uid ?? null, google);
+  const liveProfile = useLiveUserProfile(user?.uid ?? null);
 
   return (
     <div
@@ -116,14 +120,26 @@ function ProfileHubInner() {
           <span className="w-14" />
         </header>
 
-        <p className="mb-5 px-0.5 text-center text-xs font-semibold text-[#a16231]">
+        <p className="mb-4 px-0.5 text-center text-xs font-semibold text-[#a16231]">
           كل إعداداتك في مكان واحد — بهدوء ولطافة لعبة الجوال.
         </p>
+
+        {liveProfile ? (
+          <section className="mb-5 rounded-[1.35rem] border border-white/80 bg-white/92 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.92),0_10px_28px_rgba(196,134,82,0.14)]">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <PlayerLevelBadge xp={liveProfile.progress.xp} size="md" showBar />
+              <CoinDisplay amount={liveProfile.progress.coins} size="md" />
+            </div>
+            <p className="mt-3 text-center text-[11px] font-semibold text-[#a16231]">
+              انتصارات: {liveProfile.progress.matchWins} — الخبرة تُحفظ تلقائياً في حسابك
+            </p>
+          </section>
+        ) : null}
 
         <div className="flex flex-col gap-3">
           <MenuCard
             title="المظهر والاسم"
-            subtitle="الاسم الظاهر، اسم المستخدم، الصورة، والإطار المجهّز"
+            subtitle="الاسم الظاهر، اسم المستخدم، والصورة"
             tone="cream"
             onClick={() => router.push("/profile/appearance")}
           />
