@@ -29,17 +29,18 @@ function LoginInner() {
   return (
     <div
       dir="rtl"
-      className="relative min-h-[100dvh] w-full overflow-x-hidden px-4 py-10 sm:px-6"
+      className="app-page relative w-full"
       style={{
         background: "radial-gradient(120% 70% at 50% 0%, #FFF1DF 0%, #FCE8D2 55%, #FFEFD8 100%)",
       }}
     >
-      <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+      <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
         <div className="absolute -right-16 top-20 h-56 w-56 rounded-full bg-[#FFCB8A]/40 blur-3xl" />
         <div className="absolute -left-20 bottom-24 h-72 w-72 rounded-full bg-[#FFB574]/35 blur-3xl" />
       </div>
 
-      <div className="relative z-10 mx-auto w-full max-w-md sm:max-w-lg">
+      <div className="app-scroll-y relative z-10 px-4 py-10 sm:px-6">
+      <div className="mx-auto w-full max-w-md sm:max-w-lg">
         <div className="mb-6 text-center">
           <h1
             className="text-3xl font-black tracking-tight sm:text-4xl"
@@ -114,6 +115,7 @@ function LoginInner() {
           </Link>
         </div>
       </div>
+      </div>
     </div>
   );
 }
@@ -123,7 +125,7 @@ export default function LoginPage() {
     <Suspense
       fallback={
         <div
-          className="flex min-h-[100dvh] items-center justify-center text-sm font-bold text-[#a16231]"
+          className="app-page flex items-center justify-center text-sm font-bold text-[#a16231]"
           style={{
             background: "radial-gradient(120% 70% at 50% 0%, #FFF1DF 0%, #FCE8D2 55%, #FFEFD8 100%)",
           }}

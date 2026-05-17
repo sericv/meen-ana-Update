@@ -51,28 +51,67 @@ html {
   --font-sans: var(--font-tajawal), system-ui, -apple-system, Segoe UI, Arial, sans-serif;
 }
 
-/* ─── App-shell: lock the page to the viewport and silence rubber-banding
-       so the game feels fixed (no rubber bounce, no chrome-bar shift). ─── */
-html,
+/* ─── App-shell: lock document to the visible viewport (native-app feel).
+       The page/body must never scroll; only `.scroll-y` / `.app-scroll-y`
+       regions scroll internally. ─── */
+html {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
 body {
-  min-height: 100dvh;
+  width: 100%;
+  height: 100%;
+  max-height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
 }
 
 .app-shell {
+  height: 100%;
+  max-height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
   background:
     radial-gradient(circle at 10% 20%, #ffe4c8 0%, transparent 30%),
     radial-gradient(circle at 90% 15%, #ffd7ab 0%, transparent 28%),
     radial-gradient(circle at 85% 80%, #ffe9cf 0%, transparent 24%),
     linear-gradient(180deg, #fff7ef 0%, #ffefdb 100%);
   color: var(--foreground);
-  /* Stop iOS rubber-band overscroll inside the game shell. */
-  overscroll-behavior-y: contain;
   -webkit-tap-highlight-color: transparent;
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
-  /* Allow horizontal touch on chat scroll but prevent diagonal browser
-     gestures from hijacking the game. */
   touch-action: manipulation;
+}
+
+/* Primary route host — fills body flex column, never grows past viewport. */
+.app-main {
+  position: relative;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  width: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+/* Standalone pages (login, tutorial) without shell-screen. */
+.app-page {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  width: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
 }
 
 ::selection {
@@ -138,14 +177,22 @@ label {
   background: #fff8ee;
 }
 
-/* ─── Scroll containers — gentle inertia, no chain ────────────────── */
-.scroll-y {
+/* ─── Scroll containers — gentle inertia, no chain to document ─────── */
+.scroll-y,
+.app-scroll-y {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
   scroll-behavior: smooth;
-  /* Reduce layout jumps when the composer/viewport height changes on mobile. */
   overflow-anchor: none;
+  touch-action: pan-y;
+}
+
+.app-scroll-y {
+  width: 100%;
 }
 
 /* Hide native scrollbar while preserving scroll (used in chat lists). */
@@ -159,12 +206,15 @@ label {
 
 /* Chat message list: no smooth scroll (reduces jank with mobile keyboard). */
 .scroll-y-chat {
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
   scroll-behavior: auto;
   overflow-anchor: none;
   scrollbar-width: none;
+  touch-action: pan-y;
 }
 .scroll-y-chat::-webkit-scrollbar {
   width: 0;

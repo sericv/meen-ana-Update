@@ -87,7 +87,8 @@ export default function TutorialPage() {
   };
 
   return (
-    <div className="mx-auto w-full max-w-5xl space-y-4 px-4 py-10">
+    <div className="app-page w-full">
+    <div className="app-scroll-y mx-auto w-full max-w-5xl space-y-4 px-4 py-10">
       {/* Header */}
       <Panel>
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -245,6 +246,7 @@ export default function TutorialPage() {
           )}
         </Panel>
       </div>
+    </div>
     </div>
   );
 }
