@@ -104,6 +104,7 @@ function roomWireSignature(r: Room): string {
     leftByUid: r.leftByUid,
     lobbyLeftByUid: r.lobbyLeftByUid,
     voiceMode: r.voiceMode,
+    hintsEnabled: r.hintsEnabled !== false,
     customCardsEnabled: r.customCardsEnabled,
     customOpponentSelections: r.customOpponentSelections
       ? Object.fromEntries(

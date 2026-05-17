@@ -13,12 +13,8 @@ import {
 import { getFirebaseDb } from "@/lib/firebase/client";
 import { col } from "@/lib/firestore/paths";
 import { DEFAULT_AVATAR_ID, DEFAULT_FRAME_ID, isValidAvatarId, isValidFrameId } from "@/lib/profile/cosmetics";
-import {
-  HINT_PACK_PRICE,
-  HINT_PACK_SIZE,
-  SHOP_FRAME_ID_SET,
-  SHOP_FRAME_PRICE,
-} from "@/lib/profile/progression";
+import { getHintShopItem } from "@/lib/profile/hints";
+import { SHOP_FRAME_ID_SET, SHOP_FRAME_PRICE } from "@/lib/profile/progression";
 
 export async function upsertUserDocument(user: User) {
   const db = getFirebaseDb();
@@ -40,7 +36,8 @@ export async function upsertUserDocument(user: User) {
       {
         ...base,
         coins: 0,
-        hintCredits: 0,
+        hintLetterCredits: 0,
+        hintCountCredits: 0,
         xp: 0,
         matchWins: 0,
         ownedFrameIds: [] as string[],
@@ -94,7 +91,9 @@ export type ShopPurchaseErrorCode =
   | "legacy_catalog"
   | "already_owned"
   | "insufficient_funds"
-  | "invalid_frame";
+  | "invalid_frame"
+  | "guest"
+  | "invalid_hint";
 
 export class ShopPurchaseError extends Error {
   code: ShopPurchaseErrorCode;
@@ -102,6 +101,12 @@ export class ShopPurchaseError extends Error {
     super(message);
     this.name = "ShopPurchaseError";
     this.code = code;
+  }
+}
+
+function assertNotGuest(data: Record<string, unknown>) {
+  if (data.isGuest === true) {
+    throw new ShopPurchaseError("الزائر يمكنه المعاينة فقط — سجّل الدخول للشراء.", "guest");
   }
 }
 
@@ -118,6 +123,7 @@ export async function purchaseShopFrame(uid: string, frameId: string): Promise<v
       throw new Error("لا يوجد ملف لاعب بعد — حاول مجدداً بعد لحظات.");
     }
     const data = snap.data() as Record<string, unknown>;
+    assertNotGuest(data);
     if (!Object.prototype.hasOwnProperty.call(data, "ownedFrameIds")) {
       throw new ShopPurchaseError("تمتلك بالفعل كل الإطارات على هذا الحساب.", "legacy_catalog");
     }
@@ -139,26 +145,37 @@ export async function purchaseShopFrame(uid: string, frameId: string): Promise<v
   });
 }
 
-/** Buy a pack of bonus hint credits (usable when per-match free hints run out). */
-export async function purchaseHintPack(uid: string): Promise<void> {
+/** Buy hint credits from the shop (letter or count type). */
+export async function purchaseHintItem(uid: string, itemId: string): Promise<void> {
+  const item = getHintShopItem(itemId);
+  if (!item) {
+    throw new ShopPurchaseError("هذا المنتج غير متوفر.", "invalid_hint");
+  }
   const db = getFirebaseDb();
   const ref = doc(db, col.users, uid);
+  const field = item.kind === "letter" ? "hintLetterCredits" : "hintCountCredits";
   await runTransaction(db, async (transaction) => {
     const snap = await transaction.get(ref);
     if (!snap.exists()) {
       throw new ShopPurchaseError("لا يوجد ملف لاعب بعد.", "insufficient_funds");
     }
     const data = snap.data() as Record<string, unknown>;
+    assertNotGuest(data);
     const coins = typeof data.coins === "number" && Number.isFinite(data.coins) ? data.coins : 0;
-    if (coins < HINT_PACK_PRICE) {
+    if (coins < item.price) {
       throw new ShopPurchaseError("عملاتك غير كافية لشراء التلميحات.", "insufficient_funds");
     }
     transaction.update(ref, {
-      coins: increment(-HINT_PACK_PRICE),
-      hintCredits: increment(HINT_PACK_SIZE),
+      coins: increment(-item.price),
+      [field]: increment(item.amount),
       lastSeen: serverTimestamp(),
     });
   });
+}
+
+/** @deprecated Use purchaseHintItem */
+export async function purchaseHintPack(uid: string): Promise<void> {
+  return purchaseHintItem(uid, "letter_3");
 }
 
 export { awardMatchEndRewards, awardMatchWinRewards } from "@/lib/firestore/match-rewards.client";

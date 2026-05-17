@@ -112,7 +112,8 @@ export type GameplayVoiceLayoutProps = {
   letters: string[];
   revealedIdx: number[];
   hintsLeft: number;
-  bonusHints?: number;
+  bonusLetterHints?: number;
+  bonusCountHints?: number;
   busy: boolean;
   passing: boolean;
   onPassTurn: () => void;
@@ -134,7 +135,8 @@ export function GameplayVoiceLayout({
   letters,
   revealedIdx,
   hintsLeft,
-  bonusHints = 0,
+  bonusLetterHints = 0,
+  bonusCountHints = 0,
   busy,
   passing,
   onPassTurn,
@@ -199,7 +201,8 @@ export function GameplayVoiceLayout({
           <motion.div className="absolute bottom-0 left-0 z-20">
             <GameplayMyHiddenCard
               hintsLeft={hintsLeft}
-              bonusHints={bonusHints}
+              bonusLetterHints={bonusLetterHints}
+              bonusCountHints={bonusCountHints}
               revealedIdx={revealedIdx}
               letters={letters}
               size="voice"

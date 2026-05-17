@@ -26,6 +26,7 @@ export type VoiceModePlayingPanelProps = {
   myCosmetic?: PlayerCosmetic | null;
   opponentCosmetic?: PlayerCosmetic | null;
   myPhotoURL?: string | null;
+  roomHintsEnabled?: boolean;
 };
 
 export function VoiceModePlayingPanel({
@@ -44,13 +45,14 @@ export function VoiceModePlayingPanel({
   myCosmetic,
   opponentCosmetic,
   myPhotoURL,
+  roomHintsEnabled = true,
 }: VoiceModePlayingPanelProps) {
   const [cardSheetOpen, setCardSheetOpen] = useState(false);
   const [passing, setPassing] = useState(false);
   const [hintBusy, setHintBusy] = useState(false);
   const liveProfile = useLiveUserProfile(uid);
 
-  const hintsEnabled = Boolean(roomId && matchId && uid);
+  const hintsEnabled = roomHintsEnabled && Boolean(roomId && matchId && uid);
   const { hintsLeft, revealedIdx, letters, countRevealed, useHint } = useMatchHints(
     roomId,
     matchId,
@@ -97,7 +99,8 @@ export function VoiceModePlayingPanel({
         letters={letters}
         revealedIdx={revealedIdx}
         hintsLeft={hintsLeft}
-        bonusHints={liveProfile?.progress.hintCredits ?? 0}
+        bonusLetterHints={liveProfile?.progress.hintLetterCredits ?? 0}
+        bonusCountHints={liveProfile?.progress.hintCountCredits ?? 0}
         busy={busy}
         passing={passing}
         onPassTurn={() => void onPassTurn()}
@@ -110,8 +113,8 @@ export function VoiceModePlayingPanel({
         revealedIdx={revealedIdx}
         countRevealed={countRevealed}
         hintsLeft={hintsLeft}
-        bonusHints={liveProfile?.progress.hintCredits ?? 0}
-        coins={liveProfile?.progress.coins ?? 0}
+        bonusLetterHints={liveProfile?.progress.hintLetterCredits ?? 0}
+        bonusCountHints={liveProfile?.progress.hintCountCredits ?? 0}
         busy={hintBusy}
         onClose={() => setCardSheetOpen(false)}
         onUseHint={(k) => void handleUseHint(k)}

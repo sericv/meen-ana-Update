@@ -38,6 +38,7 @@ function baseRoomFields(args: {
   questionTimerSec?: number;
   answerTimerSec?: number;
   voiceMode?: boolean;
+  hintsEnabled?: boolean;
   customCardsEnabled?: boolean;
   vsBot?: boolean;
   botUid?: string;
@@ -81,6 +82,7 @@ function baseRoomFields(args: {
     matchId: null,
     openJoin: args.openJoin && !args.vsBot,
     voiceMode: args.voiceMode ?? false,
+    hintsEnabled: args.hintsEnabled !== false,
     customCardsEnabled: Boolean(args.customCardsEnabled),
     customOpponentSelections: {},
     customOpponentCardAssigned: {},
@@ -101,6 +103,7 @@ export async function createPrivateRoom(args: {
   questionTimerSec?: number;
   answerTimerSec?: number;
   voiceMode?: boolean;
+  hintsEnabled?: boolean;
   customCardsEnabled?: boolean;
   vsBot?: boolean;
 }): Promise<{ roomId: string; code: string }> {

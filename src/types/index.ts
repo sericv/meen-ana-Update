@@ -47,6 +47,8 @@ export interface Room {
   lobbyLeftByUid?: string;
   /** Private room only: hide chat, use voice action buttons instead */
   voiceMode?: boolean;
+  /** When false, in-match hints are disabled (shop-purchased hints unused). Default true. */
+  hintsEnabled?: boolean;
   /** Premium: each player picks one image card for their opponent in lobby */
   customCardsEnabled?: boolean;
   /** Solo mode: the second player is an automated bot (uid starts with "bot:") */

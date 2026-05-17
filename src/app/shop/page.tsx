@@ -1,42 +1,44 @@
 "use client";
 
-import { AnimatePresence, motion } from "framer-motion";
-import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { AuthGate } from "@/components/auth/AuthGate";
-import { GameAppBottomNav } from "@/components/nav/GameAppBottomNav";
 import { ProfileAvatar } from "@/components/profile/ProfileAvatar";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { useLiveUserProfile } from "@/hooks/useLiveUserProfile";
+import { ShellCoin } from "@/components/shell/ShellCoin";
+import { ShellIcon } from "@/components/shell/ShellIcons";
+import { ShellScreen } from "@/components/shell/ShellScreen";
+import { rarityColor, rarityLabel } from "@/components/shell/shell-rarity";
 import { playUIButton, resumeAudioContext } from "@/lib/audio/game-sounds";
+import { isFullAccountUser } from "@/lib/auth/google-user";
 import {
   FRAME_REGISTRY,
-  frameCardSurfaceClass,
   getFrameDefinition,
   preloadFrameAssets,
+  type FrameId,
 } from "@/lib/profile/cosmetics";
-import { CoinDisplay } from "@/components/ui/CoinDisplay";
+import { HINT_SHOP_ITEMS } from "@/lib/profile/hints";
+import { ownsShopFrame, SHOP_FRAME_PRICE } from "@/lib/profile/progression";
 import {
-  HINT_PACK_PRICE,
-  HINT_PACK_SIZE,
-  ownsShopFrame,
-  SHOP_FRAME_PRICE,
-} from "@/lib/profile/progression";
-import {
-  purchaseHintPack,
+  purchaseHintItem,
   purchaseShopFrame,
   ShopPurchaseError,
   updateUserCosmetics,
 } from "@/lib/firestore/users.client";
 
+type ShopTab = "frames" | "hints";
+
 function ShopInner() {
   const router = useRouter();
   const { user } = useAuth();
   const uid = user?.uid ?? null;
+  const google = isFullAccountUser(user);
   const live = useLiveUserProfile(uid);
+
+  const [tab, setTab] = useState<ShopTab>("frames");
   const [busyId, setBusyId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
-  const [buyCoinsBanner, setBuyCoinsBanner] = useState(false);
 
   useEffect(() => {
     preloadFrameAssets();
@@ -50,56 +52,53 @@ function ShopInner() {
 
   const cosmetic = live?.cosmetic;
   const progress = live?.progress;
+  const shopFrames = FRAME_REGISTRY.filter((f) => f.id !== "none");
 
-  const buyHintPack = useCallback(async () => {
-    if (!uid) return;
-    resumeAudioContext();
-    playUIButton();
-    setBusyId("hint-pack");
-    setToast(null);
-    try {
-      await purchaseHintPack(uid);
-      setToast(`تم شراء ${HINT_PACK_SIZE} تلميحات محفوظة!`);
-    } catch (e: unknown) {
-      if (e instanceof ShopPurchaseError) {
-        setToast(e.message);
-      } else {
-        setToast(e instanceof Error ? e.message : "تعذر الشراء.");
+  const buyHint = useCallback(
+    async (itemId: string) => {
+      if (!uid || !google) return;
+      resumeAudioContext();
+      playUIButton();
+      setBusyId(itemId);
+      setToast(null);
+      try {
+        await purchaseHintItem(uid, itemId);
+        const item = HINT_SHOP_ITEMS.find((i) => i.id === itemId);
+        setToast(item ? `تم شراء ${item.nameAr}!` : "تم الشراء!");
+      } catch (e: unknown) {
+        setToast(e instanceof ShopPurchaseError ? e.message : e instanceof Error ? e.message : "تعذر الشراء.");
+      } finally {
+        setBusyId(null);
       }
-    } finally {
-      setBusyId(null);
-    }
-  }, [uid]);
+    },
+    [uid, google],
+  );
 
   const buyFrame = useCallback(
     async (frameId: string) => {
-      if (!uid) return;
+      if (!uid || !google) return;
       resumeAudioContext();
       playUIButton();
       setBusyId(frameId);
       setToast(null);
       try {
         await purchaseShopFrame(uid, frameId);
-        setToast("تم شراء الإطار بنجاح!");
+        setToast("تم شراء الإطار!");
       } catch (e: unknown) {
-        if (e instanceof ShopPurchaseError) {
-          setToast(e.message);
-        } else {
-          setToast(e instanceof Error ? e.message : "تعذر الشراء.");
-        }
+        setToast(e instanceof ShopPurchaseError ? e.message : e instanceof Error ? e.message : "تعذر الشراء.");
       } finally {
         setBusyId(null);
       }
     },
-    [uid],
+    [uid, google],
   );
 
   const equipFrame = useCallback(
-    async (frameId: string) => {
-      if (!uid) return;
+    async (frameId: FrameId) => {
+      if (!uid || !google) return;
       resumeAudioContext();
       playUIButton();
-      setBusyId(frameId);
+      setBusyId(`eq:${frameId}`);
       setToast(null);
       try {
         await updateUserCosmetics(uid, { avatarFrameId: frameId });
@@ -110,257 +109,216 @@ function ShopInner() {
         setBusyId(null);
       }
     },
-    [uid],
+    [uid, google],
   );
 
-  const shopFrames = FRAME_REGISTRY.filter((f) => f.id !== "none");
+  function tapTab(next: ShopTab) {
+    resumeAudioContext();
+    playUIButton();
+    setTab(next);
+  }
 
   return (
-    <div
-      dir="rtl"
-      className="relative min-h-[100dvh] w-full overflow-x-hidden select-none pb-[calc(5.5rem+env(safe-area-inset-bottom))] pt-[max(0.75rem,env(safe-area-inset-top))]"
-      style={{
-        background:
-          "radial-gradient(120% 65% at 50% -5%, #fff5e8 0%, #fce8d2 45%, #ffefdb 100%)",
-      }}
-    >
-      <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
-        <div
-          className="absolute -right-20 top-10 h-64 w-64 rounded-full opacity-50 blur-3xl"
-          style={{ background: "radial-gradient(circle,rgba(255,190,120,0.45),transparent 68%)" }}
-        />
-        <div
-          className="absolute -left-16 bottom-1/4 h-56 w-56 rounded-full opacity-40 blur-3xl"
-          style={{ background: "radial-gradient(circle,rgba(255,140,90,0.35),transparent 70%)" }}
-        />
+    <ShellScreen activeTab="shop">
+      <div className="topbar">
+        <button
+          type="button"
+          className="btn btn-ghost btn-sm"
+          onClick={() => router.push("/")}
+          style={{ padding: 8, borderRadius: 12 }}
+          aria-label="رجوع"
+        >
+          <ShellIcon name="back" size={18} />
+        </button>
+        <div className="h-display fw-7">المتجر</div>
+        <div style={{ width: 40 }}>
+          {progress ? <ShellCoin value={progress.coins} /> : null}
+        </div>
       </div>
 
-      <div className="relative z-10 mx-auto w-full max-w-md px-4 sm:max-w-lg sm:px-6">
-        <header className="mb-5 flex items-center justify-between gap-2">
-          <motion.button
-            type="button"
-            whileTap={{ scale: 0.93 }}
-            onClick={() => router.push("/")}
-            className="flex items-center gap-1.5 rounded-2xl bg-white/92 px-3.5 py-2.5 text-sm font-extrabold text-[#8a3f16] shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_4px_14px_rgba(196,134,82,0.18)] ring-1 ring-[#f4d4b0]/60"
-          >
-            <svg viewBox="0 0 10 16" fill="none" className="h-3.5 w-3.5 shrink-0" aria-hidden>
-              <path
-                d="M8 2L2 8l6 6"
-                stroke="currentColor"
-                strokeWidth="2.2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-            رجوع
-          </motion.button>
-          <h1
-            className="text-lg font-black sm:text-xl"
-            style={{
-              background: "linear-gradient(180deg,#FF9F0A 0%,#E0660A 100%)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-              filter: "drop-shadow(0 2px 6px rgba(224,102,10,0.28))",
-            }}
-          >
-            المتجر
-          </h1>
-          <span className="w-14" />
-        </header>
-
-        {/* Balance + buy coins */}
-        <section className="mb-6 overflow-hidden rounded-[1.75rem] border border-white/80 bg-gradient-to-b from-white/95 to-[#fff7ea]/95 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.92),0_14px_36px_rgba(196,134,82,0.18)]">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <p className="text-[11px] font-bold text-[#a16231]">رصيدك</p>
-              <div className="mt-1">
-                {progress ? (
-                  <CoinDisplay amount={progress.coins} size="lg" />
-                ) : (
-                  <span className="text-2xl font-black text-[#8a3f16]">…</span>
-                )}
-              </div>
-              {progress && progress.hintCredits > 0 ? (
-                <p className="mt-1 text-[11px] font-bold text-[#a16231]">
-                  تلميحات محفوظة: {progress.hintCredits}
-                </p>
-              ) : null}
-            </div>
-            <motion.button
-              type="button"
-              whileTap={{ scale: 0.97 }}
-              onClick={() => {
-                resumeAudioContext();
-                playUIButton();
-                setBuyCoinsBanner(true);
-              }}
-              className="rounded-2xl px-5 py-3 text-sm font-extrabold text-white"
-              style={{
-                background: "linear-gradient(180deg,#B05CFF 0%,#7A3CFF 100%)",
-                boxShadow:
-                  "inset 0 1.5px 0 rgba(255,255,255,0.38),0 6px 0 #5B22D6,0 12px 24px rgba(122,60,255,0.28)",
-              }}
-            >
-              شراء عملات
-            </motion.button>
+      <div className="f-1 scroll-y" style={{ padding: "0 16px 12px" }}>
+        {!google ? (
+          <div className="surf mb-3" style={{ padding: 12, textAlign: "center" }}>
+            <p className="text-sm fw-7">وضع المعاينة للزائر</p>
+            <p className="text-xs muted mt-1">يمكنك مشاهدة الأسعار فقط. سجّل الدخول بـ Google للشراء والتجهيز.</p>
           </div>
-          <p className="mt-3 text-[11px] font-semibold leading-relaxed text-[#bc7a45]">
-            كل إطار — {SHOP_FRAME_PRICE} عملات. الفوز في كل مباراة يمنحك +1 عملة.
+        ) : null}
+
+        {toast ? (
+          <p className="surf text-center text-sm fw-7 mb-3" style={{ padding: 10 }}>
+            {toast}
           </p>
-        </section>
+        ) : null}
 
-        <AnimatePresence>
-          {buyCoinsBanner ? (
-            <motion.div
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 8 }}
-              className="mb-5 rounded-2xl border border-[#e9d5ff] bg-gradient-to-br from-[#faf5ff] to-[#f3e8ff] px-4 py-3 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_8px_22px_rgba(139,92,246,0.12)]"
-            >
-              <p className="text-sm font-extrabold text-[#5b21b6]">شراء العملات قادم قريبًا</p>
-              <p className="mt-1 text-xs font-semibold text-[#7c3aed]/90">
-                نجهّز لك طرق دفع آمنة ومريحة — ترقب التحديث.
-              </p>
-              <button
-                type="button"
-                onClick={() => setBuyCoinsBanner(false)}
-                className="mt-3 text-xs font-bold text-[#6d28d9] underline-offset-2 hover:underline"
-              >
-                حسناً
-              </button>
-            </motion.div>
-          ) : null}
-        </AnimatePresence>
-
-        <AnimatePresence>
-          {toast ? (
-            <motion.p
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              className="mb-4 rounded-2xl border border-[#f4d4b0]/80 bg-[#fffaf3] px-4 py-2.5 text-center text-sm font-bold text-[#8a3f16]"
-            >
-              {toast}
-            </motion.p>
-          ) : null}
-        </AnimatePresence>
-
-        <h2 className="mb-3 px-1 text-sm font-black text-[#8a3f16]">تلميحات</h2>
-        <section className="mb-6 overflow-hidden rounded-[1.5rem] border border-white/80 bg-gradient-to-b from-white/95 to-[#fff7ea]/95 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.92),0_10px_28px_rgba(196,134,82,0.14)]">
-          <motion.div className="flex items-start gap-3">
-            <div
-              className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl text-2xl"
+        <div
+          className="row gap-1 mb-4"
+          style={{
+            padding: 4,
+            borderRadius: 14,
+            background: "oklch(0.92 0.03 75 / .8)",
+            border: "1px solid oklch(0.78 0.05 65 / .4)",
+          }}
+        >
+          {(
+            [
+              { k: "frames" as const, l: "الإطارات" },
+              { k: "hints" as const, l: "التلميحات" },
+            ] as const
+          ).map((t) => (
+            <button
+              key={t.k}
+              type="button"
+              onClick={() => tapTab(t.k)}
+              className="f-1"
               style={{
-                background: "linear-gradient(180deg,#FFE8A8,#F2C14E)",
-                boxShadow: "inset 0 1px 0 rgba(255,255,255,0.6),0 4px 12px rgba(200,130,20,0.2)",
+                padding: "10px 0",
+                borderRadius: 10,
+                background:
+                  tab === t.k
+                    ? "linear-gradient(180deg, oklch(0.98 0.02 80), oklch(0.94 0.03 76))"
+                    : "transparent",
+                color: tab === t.k ? "var(--fg-0)" : "var(--fg-3)",
+                fontFamily: "var(--display)",
+                fontWeight: 700,
+                fontSize: 14,
               }}
-              aria-hidden
             >
-              💡
-            </div>
-            <div className="min-w-0 flex-1">
-              <h3 className="text-sm font-extrabold text-[#5e3011]">حزمة تلميحات</h3>
-              <p className="mt-1 text-[11px] font-semibold leading-relaxed text-[#a16231]">
-                {HINT_PACK_SIZE} تلميحات محفوظة — تُستخدم بعد التلميحات المجانية في كل مباراة، أو بعملات
-                أثناء اللعب.
-              </p>
-              <p className="mt-2 text-sm font-black text-[#c2530c]">{HINT_PACK_PRICE} 🪙</p>
-            </div>
-          </motion.div>
-          <motion.button
-            type="button"
-            whileTap={{ scale: 0.97 }}
-            disabled={busyId === "hint-pack" || !progress || progress.coins < HINT_PACK_PRICE}
-            onClick={() => void buyHintPack()}
-            className="mt-4 w-full rounded-xl bg-gradient-to-b from-[#4EA3FF] to-[#2D7CFF] py-3 text-sm font-extrabold text-white shadow-[inset_0_1.5px_0_rgba(255,255,255,0.4),0_5px_0_#1B5EC6] disabled:opacity-50"
-          >
-            {busyId === "hint-pack" ? "…" : "شراء الحزمة"}
-          </motion.button>
-        </section>
+              {t.l}
+            </button>
+          ))}
+        </div>
 
-        <h2 className="mb-3 px-1 text-sm font-black text-[#8a3f16]">إطارات المجموعة</h2>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-2">
-          {shopFrames.map((f) => {
-            const def = getFrameDefinition(f.id);
-            const owned = progress ? ownsShopFrame(progress, f.id) : false;
-            const equipped = cosmetic?.avatarFrameId === f.id;
-            const canBuy = progress && !progress.legacyFullCatalog && !owned;
-            const busy = busyId === f.id;
+        {tab === "frames" && (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10 }}>
+            {shopFrames.map((f) => {
+              const def = getFrameDefinition(f.id);
+              const owned = progress ? ownsShopFrame(progress, f.id) : false;
+              const equipped = cosmetic?.avatarFrameId === f.id;
+              const canBuy = google && progress && !progress.legacyFullCatalog && !owned;
+              const busy = busyId === f.id || busyId === `eq:${f.id}`;
+              const preview = cosmetic ? { ...cosmetic, avatarFrameId: f.id } : undefined;
 
-            const previewCosmetic = cosmetic
-              ? { ...cosmetic, avatarFrameId: f.id }
-              : undefined;
-
-            return (
-              <article
-                key={f.id}
-                className={`flex flex-col overflow-hidden rounded-[1.25rem] ring-2 ring-[#f0d5b0]/75 shadow-[0_10px_28px_rgba(196,134,82,0.14)] ${frameCardSurfaceClass(f.rarity)}`}
-              >
-                <div className="relative flex min-h-[7.5rem] items-center justify-center border-b border-[#f4e0c8]/80 bg-gradient-to-b from-white/50 to-transparent px-2 pt-3 pb-2">
-                  {previewCosmetic ? (
+              return (
+                <article
+                  key={f.id}
+                  className="surf"
+                  style={{
+                    padding: 12,
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    gap: 8,
+                    position: "relative",
+                  }}
+                >
+                  <span
+                    style={{
+                      position: "absolute",
+                      top: 8,
+                      right: 8,
+                      fontSize: 9,
+                      fontFamily: "var(--mono)",
+                      fontWeight: 700,
+                      color: rarityColor(f.rarity),
+                    }}
+                  >
+                    {rarityLabel(f.rarity)}
+                  </span>
+                  {preview ? (
                     <ProfileAvatar
-                      cosmetic={previewCosmetic}
+                      cosmetic={preview}
                       fallbackPhotoURL={user?.photoURL}
                       displayName={user?.displayName ?? undefined}
                       size="lg"
                       idle
                     />
-                  ) : (
-                    <div className="flex h-20 w-20 items-center justify-center text-sm font-bold text-[#bc7a45]">
-                      …
-                    </div>
-                  )}
-                </div>
-                <div className="flex flex-1 flex-col gap-2 p-3">
-                  <h3 className="line-clamp-2 min-h-[2.5rem] text-center text-[12.5px] font-extrabold leading-snug text-[#5e3011]">
-                    {def.displayNameAr}
-                  </h3>
-                  <p className="text-center text-sm font-black tabular-nums text-[#c2530c]">
-                    {owned || progress?.legacyFullCatalog ? "تمتلكه" : `${SHOP_FRAME_PRICE} 🪙`}
-                  </p>
-                  <div className="mt-auto flex flex-col gap-2">
-                    {owned ? (
-                      <motion.button
+                  ) : null}
+                  <div className="text-sm fw-7 text-center">{def.displayNameAr}</div>
+                  {owned || progress?.legacyFullCatalog ? (
+                    google ? (
+                      <button
                         type="button"
-                        whileTap={{ scale: 0.97 }}
+                        className="btn btn-primary btn-sm btn-block"
                         disabled={busy || equipped}
                         onClick={() => void equipFrame(f.id)}
-                        className="w-full rounded-xl py-2.5 text-sm font-extrabold text-white disabled:cursor-not-allowed disabled:opacity-55"
-                        style={{
-                          background: equipped
-                            ? "linear-gradient(180deg,#94a3b8 0%,#64748b 100%)"
-                            : "linear-gradient(180deg,#FF9F0A 0%,#FF6B00 100%)",
-                          boxShadow: equipped
-                            ? "none"
-                            : "inset 0 1.5px 0 rgba(255,255,255,0.42),0 5px 0 #be5200",
-                        }}
                       >
-                        {busy ? "…" : equipped ? "مجهّز الآن" : "تجهيز"}
-                      </motion.button>
-                    ) : canBuy ? (
-                      <motion.button
-                        type="button"
-                        whileTap={{ scale: 0.97 }}
-                        disabled={busy || (progress !== undefined && progress.coins < SHOP_FRAME_PRICE)}
-                        onClick={() => void buyFrame(f.id)}
-                        className="w-full rounded-xl bg-gradient-to-b from-[#4EA3FF] to-[#2D7CFF] py-2.5 text-sm font-extrabold text-white shadow-[inset_0_1.5px_0_rgba(255,255,255,0.4),0_5px_0_#1B5EC6] disabled:opacity-50"
-                      >
-                        {busy ? "…" : "شراء"}
-                      </motion.button>
+                        {busy ? "…" : equipped ? "مفعّل" : "تجهيز"}
+                      </button>
                     ) : (
-                      <p className="py-2 text-center text-[11px] font-bold text-[#a16231]">
-                        ادّخر العملات للشراء
-                      </p>
-                    )}
+                      <span className="chip chip-amber" style={{ fontSize: 10 }}>
+                        تمتلكه
+                      </span>
+                    )
+                  ) : (
+                    <>
+                      <ShellCoin value={SHOP_FRAME_PRICE} />
+                      <button
+                        type="button"
+                        className="btn btn-primary btn-sm btn-block"
+                        disabled={!canBuy || busy || (progress !== undefined && progress.coins < SHOP_FRAME_PRICE)}
+                        onClick={() => void buyFrame(f.id)}
+                      >
+                        {busy ? "…" : google ? "شراء" : "معاينة"}
+                      </button>
+                    </>
+                  )}
+                </article>
+              );
+            })}
+          </div>
+        )}
+
+        {tab === "hints" && (
+          <div className="col gap-2">
+            <p className="text-xs muted px-1">
+              اشترِ التلميحات هنا فقط — تُحفظ في حسابك وتُستخدم داخل المباراة بعد التلميحات المجانية.
+            </p>
+            {HINT_SHOP_ITEMS.map((item) => {
+              const busy = busyId === item.id;
+              const canBuy = google && progress && progress.coins >= item.price;
+              return (
+                <div key={item.id} className="surf row gap-3" style={{ padding: 14, alignItems: "center" }}>
+                  <div
+                    style={{
+                      width: 48,
+                      height: 48,
+                      borderRadius: 12,
+                      background: "linear-gradient(180deg, var(--amber), var(--amber-2))",
+                      display: "grid",
+                      placeItems: "center",
+                      color: "oklch(0.22 0.04 35)",
+                      flexShrink: 0,
+                    }}
+                  >
+                    <ShellIcon name={item.kind === "letter" ? "lightbulb" : "search"} size={24} />
                   </div>
+                  <div className="f-1" style={{ minWidth: 0 }}>
+                    <div className="h-display fw-7 text-md">{item.nameAr}</div>
+                    <div className="text-xs muted">{item.subtitleAr}</div>
+                    <div className="mt-1">
+                      <ShellCoin value={item.price} />
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm"
+                    disabled={!canBuy || busy}
+                    onClick={() => void buyHint(item.id)}
+                  >
+                    {busy ? "…" : google ? "شراء" : "—"}
+                  </button>
                 </div>
-              </article>
-            );
-          })}
-        </div>
+              );
+            })}
+            {progress ? (
+              <p className="text-xs muted text-center mt-2">
+                محفوظ: {progress.hintLetterCredits} حرف · {progress.hintCountCredits} عدد
+              </p>
+            ) : null}
+          </div>
+        )}
       </div>
-      <GameAppBottomNav />
-    </div>
+    </ShellScreen>
   );
 }
 

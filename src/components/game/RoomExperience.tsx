@@ -58,6 +58,7 @@ import { MatchResultScreen } from "@/components/game/MatchResultScreen";
 import { GameplaySocialSurface } from "@/components/game/GameplaySocialSurface";
 import { VoiceModePlayingPanel } from "@/components/game/VoiceModePlayingPanel";
 import { RoomInviteFriendsPanel } from "@/components/social/RoomInviteFriendsPanel";
+import { LobbyShellBridge } from "@/components/game/LobbyShellBridge";
 
 type Props = { roomId: string };
 
@@ -957,61 +958,276 @@ export function RoomExperience({ roomId }: Props) {
     const showCardSuccessVisual = mePickDone && !dirtyAgainstServer;
     const showDraftEditVisual = mePickDone && dirtyAgainstServer;
 
-    return (
-      <div
+    const lobbyCustomPanels = (
+      <>
+        {customModeActive && !randomLobby ? (
+        <div
+        className="mt-5 rounded-2xl border border-[#f5dcc8] bg-[#FFFBF6]/95 px-4 py-3 shadow-[0_8px_22px_rgba(196,134,82,0.12)]"
         dir="rtl"
-        className="relative flex h-full min-h-0 w-full flex-1 flex-col overflow-x-hidden overflow-y-auto select-none"
-        style={{
-          background:
-            "radial-gradient(120% 70% at 50% 0%, #FFF1DD 0%, #FCE9D4 55%, #FFEED8 100%)",
-        }}
-      >
-        {/* ── ambient decor ── */}
-        <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
-          <motion.div
-            animate={{ y: [0, -22, 0], x: [0, 12, 0] }}
-            transition={{ duration: 14, repeat: Infinity, ease: "easeInOut" }}
-            className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-[#FFCB8A]/50 blur-3xl"
-          />
-          <motion.div
-            animate={{ y: [0, 18, 0], x: [0, -10, 0] }}
-            transition={{ duration: 17, repeat: Infinity, ease: "easeInOut", delay: 2 }}
-            className="absolute -left-28 top-1/3 h-80 w-80 rounded-full bg-[#FFB574]/38 blur-3xl"
-          />
-          <motion.div
-            animate={{ y: [0, -14, 0] }}
-            transition={{ duration: 11, repeat: Infinity, ease: "easeInOut", delay: 5 }}
-            className="absolute bottom-28 right-1/4 h-56 w-56 rounded-full bg-[#FFD9A6]/46 blur-3xl"
-          />
-          {([
-            { char: "؟", top: "6%",  left: "4%",   delay: 0,   size: 52, tint: "rgba(176,92,255,0.11)" },
-            { char: "؟", top: "28%", right: "5%",  delay: 1.4, size: 42, tint: "rgba(255,138,30,0.16)" },
-            { char: "؟", top: "65%", left: "7%",   delay: 3,   size: 48, tint: "rgba(78,163,255,0.12)" },
-            { char: "✦", top: "15%", right: "13%", delay: 0.7, size: 18, tint: "rgba(255,180,90,0.68)"  },
-            { char: "✦", top: "48%", left: "17%",  delay: 2.6, size: 14, tint: "rgba(155,89,255,0.58)"  },
-            { char: "✦", top: "80%", right: "19%", delay: 4.3, size: 20, tint: "rgba(78,163,255,0.54)"  },
-          ] as const).map((s, i) => (
-            <motion.span
-              key={i}
-              aria-hidden
-              style={{
-                position: "absolute",
-                top: s.top,
-                left: "left" in s ? s.left : undefined,
-                right: "right" in s ? s.right : undefined,
-                fontSize: s.size,
-                color: s.tint,
-                fontWeight: 900,
-                userSelect: "none",
-              }}
-              animate={{ y: [0, -10, 0], rotate: [0, 6, 0] }}
-              transition={{ duration: 6 + s.delay, repeat: Infinity, ease: "easeInOut", delay: s.delay }}
-            >
-              {s.char}
-            </motion.span>
-          ))}
+        >
+        <p className="mb-2.5 text-center text-[13px] font-extrabold text-[#8a3f16]">جاهزية الغرفة</p>
+        <div className="grid grid-cols-2 gap-3 text-[11px] font-bold sm:text-xs">
+        <div
+        className={`relative rounded-xl bg-white/90 px-2.5 py-2 transition-shadow duration-300 ${
+        mePickDone
+        ? "ring-2 ring-emerald-400/75 shadow-[0_0_22px_rgba(52,211,153,0.38)]"
+        : "ring-1 ring-[#f4e0cc]"
+        }`}
+        >
+        {mePickDone ? (
+        <span
+        className="absolute -top-1.5 end-1.5 grid h-6 w-6 place-items-center rounded-full bg-emerald-500 text-[11px] text-white shadow-md shadow-emerald-600/35 ring-2 ring-white"
+        aria-hidden
+        >
+        ✓
+        </span>
+        ) : null}
+        <p className="truncate text-[#bc7a45]">أنت</p>
+        <p className={`mt-1 ${myReadyOptimistic ? "text-emerald-700" : "text-amber-700"}`}>
+        {myReadyOptimistic ? "✓ جاهز" : "⋯ لم يُعلَن الجاهز بعد"}
+        </p>
+        <p className={`mt-0.5 ${mePickDone ? "text-emerald-700" : "text-amber-700"}`}>
+        {mePickDone ? "✓ تم اختيار بطاقة للخصم" : "⋯ بانتظار بطاقة للخصم"}
+        </p>
         </div>
+        <div
+        className={`relative rounded-xl bg-white/90 px-2.5 py-2 transition-shadow duration-300 ${
+        oppPickDone
+        ? "ring-2 ring-emerald-400/75 shadow-[0_0_22px_rgba(52,211,153,0.38)]"
+        : "ring-1 ring-[#f4e0cc]"
+        }`}
+        >
+        {oppPickDone ? (
+        <span
+        className="absolute -top-1.5 end-1.5 grid h-6 w-6 place-items-center rounded-full bg-emerald-500 text-[11px] text-white shadow-md shadow-emerald-600/35 ring-2 ring-white"
+        aria-hidden
+        >
+        ✓
+        </span>
+        ) : null}
+        <p className="truncate text-[#bc7a45]">
+        {opponent ? opponent.displayName : "بانتظار خصم"}
+        </p>
+        <p className={`mt-1 ${opponent?.ready ? "text-emerald-700" : "text-amber-700"}`}>
+        {opponent
+        ? opponent.ready
+        ? "✓ جاهز"
+        : "⋯ بانتظار الجاهز"
+        : "⋯ لم ينضم بعد"}
+        </p>
+        <p className={`mt-0.5 ${oppPickDone ? "text-emerald-700" : "text-amber-700"}`}>
+        {oppPickDone ? "✓ اختار بطاقتك" : "⋯ ينتظر أن يختار بطاقتك"}
+        </p>
+        </div>
+        </div>
+        {isHost && bothReady && !bothPickedCustom ? (
+        <p className="mt-3 text-center text-[11px] font-bold text-[#c2530c]">
+        كل اللاعبين جاهزون — بقي أن يحفظ كلٌ بطاقته للخصم ثم يظهر زر «ابدأ المباراة».
+        </p>
+        ) : null}
+        </div>
+        ) : null}
+        {customLobby ? (
+        <section
+        className={`mt-6 overflow-hidden rounded-2xl bg-gradient-to-br from-[#FFF9FF] via-[#FFF7EE] to-[#FFF2DE] p-4 shadow-[0_10px_28px_rgba(168,85,247,0.12)] ${
+        showCardSuccessVisual
+        ? "border-2 border-emerald-400/55 ring-1 ring-emerald-300/40"
+        : "border border-[#f0dce8]"
+        }`}
+        >
+        <div className="mb-3 flex items-start gap-3">
+        <span
+        className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-lg font-black text-white"
+        style={{
+        background: "linear-gradient(135deg,#c084fc 0%,#FF9F0A 100%)",
+        boxShadow: "0 4px 12px rgba(168,85,247,0.35)",
+        }}
+        aria-hidden
+        >
+        ★
+        </span>
+        <div className="min-w-0 flex-1">
+        <p className="text-[15px] font-extrabold text-[#8a3f16]">اختر بطاقة لخصمك</p>
+        <p className="mt-1 text-xs font-semibold leading-relaxed text-[#a16231]">
+        صورة واحدة وإجابة صحيحة — الخصم هو من سيخمنها. يمكنك التعديل بدلًا منها في أي وقت قبل البدء.
+        </p>
+        {showCardSuccessVisual ? (
+        <motion.p
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-emerald-500/12 px-3 py-1 text-[11px] font-extrabold text-emerald-800 ring-1 ring-emerald-400/35"
+        >
+        <span className="text-emerald-600">✓</span>
+        تم اختيار بطاقة خصمك
+        </motion.p>
+        ) : null}
+        </div>
+        </div>
+        {dirtyAgainstServer ? (
+        <p className="mb-3 rounded-xl border border-amber-200/90 bg-amber-50/95 px-3 py-2 text-center text-[11px] font-bold leading-relaxed text-amber-950">
+        عدّلت الصورة أو الاسم — اضغط «حفظ بطاقة خصمك» لتحديث اختيارك على الخادم.
+        </p>
+        ) : null}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-stretch">
+        <motion.div
+        key={customSavePulse}
+        initial={customSavePulse === 0 ? false : { scale: 0.93, opacity: 0.86 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ type: "spring", stiffness: 400, damping: 24 }}
+        className="relative flex aspect-square w-full max-w-[168px] shrink-0 self-center sm:h-[156px] sm:w-[156px]"
+        >
+        {showCardSuccessVisual ? (
+        <motion.div
+        aria-hidden
+        className="pointer-events-none absolute inset-[-10px] -z-10 rounded-[24px] blur-2xl"
+        animate={{ opacity: [0.4, 0.75, 0.4], scale: [0.96, 1.03, 0.96] }}
+        transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
+        style={{
+        background:
+        "radial-gradient(closest-side,rgba(52,211,153,0.55),rgba(16,185,129,0.15),transparent 72%)",
+        }}
+        />
+        ) : null}
+        <motion.div
+        className="h-full w-full"
+        animate={
+        showCardSuccessVisual
+        ? { scale: [1, 1.02, 1] }
+        : { scale: 1 }
+        }
+        transition={{ duration: 0.55, ease: "easeOut" }}
+        >
+        <motion.button
+        type="button"
+        disabled={lobbyCustomBusy}
+        onClick={() => lobbyCustomFileRef.current?.click()}
+        whileTap={{ scale: 0.98 }}
+        className={`relative flex h-full w-full flex-col items-center justify-center overflow-hidden rounded-2xl ${
+        showCardSuccessVisual
+        ? "border-2 border-emerald-400 shadow-[0_12px_32px_rgba(34,197,94,0.32),inset_0_2px_0_rgba(255,255,255,0.55)]"
+        : showDraftEditVisual
+        ? "border-2 border-amber-400/90 bg-gradient-to-br from-[#FFFBF0] to-[#FFF4D6] shadow-[0_8px_22px_rgba(245,158,11,0.2)]"
+        : "border-2 border-dashed border-[#f4c49a] bg-gradient-to-br from-[#FFF9F0] to-[#FFE8CC]"
+        }`}
+        style={
+        showCardSuccessVisual
+        ? {
+        background:
+        "linear-gradient(155deg,#ecfdf5 0%,#d1fae5 42%,#ecfccb 100%)",
+        }
+        : !showDraftEditVisual
+        ? {
+        boxShadow:
+        "inset 0 2px 0 rgba(255,255,255,0.65), 0 8px 20px rgba(255,149,0,0.14)",
+        }
+        : undefined
+        }
+        >
+        {showCardSuccessVisual ? (
+        <span className="absolute end-2 top-2 z-20 grid h-8 w-8 place-items-center rounded-full bg-emerald-500 text-white shadow-lg shadow-emerald-700/30 ring-2 ring-white">
+        <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden>
+        <path
+        d="M5 13l4 4L19 7"
+        stroke="currentColor"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        />
+        </svg>
+        </span>
+        ) : null}
+        {lobbyCustomBusy ? (
+        <span className="text-sm font-bold text-[#c2530c]">جاري المعالجة…</span>
+        ) : tileImageSrc ? (
+        <>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+        src={tileImageSrc}
+        alt=""
+        className="absolute inset-0 h-full w-full object-cover"
+        />
+        <div
+        className={`absolute inset-0 rounded-2xl ring-2 ring-inset ${
+        showCardSuccessVisual ? "ring-emerald-200/90" : "ring-white/40"
+        }`}
+        />
+        <span className="relative z-10 mt-auto mb-2 rounded-full bg-black/55 px-2 py-1 text-[10px] font-bold text-white backdrop-blur-sm">
+        {showCardSuccessVisual ? "تغيير البطاقة" : "تغيير الصورة"}
+        </span>
+        </>
+        ) : (
+        <>
+        <span className="text-3xl">📷</span>
+        <span className="mt-2 px-3 text-center text-sm font-black text-[#c2530c]">
+        رفع صورة
+        </span>
+        <span className="mt-1 px-2 text-center text-[9px] font-semibold text-[#a16231]/90">
+        PNG · JPG · WEBP
+        </span>
+        </>
+        )}
+        </motion.button>
+        </motion.div>
+        </motion.div>
+        <div className="min-w-0 flex-1 space-y-2">
+        <label className="block text-[11px] font-bold text-[#a16231]">
+        الإجابة الصحيحة التي سيخمنها خصمك
+        </label>
+        <Input
+        dir="rtl"
+        value={lobbyCustomName}
+        onChange={(ev) => setLobbyCustomName(ev.target.value)}
+        placeholder="اكتب اسم الإجابة التي سيخمنها خصمك"
+        className="font-bold text-[#8a3f16]"
+        />
+        {lobbyCustomName.trim().length > 0 && (
+        <div className="flex flex-wrap gap-1.5 pt-1">
+        {generateGuessAliases(lobbyCustomName.trim())
+        .slice(0, 8)
+        .map((h) => (
+        <span
+        key={h}
+        className="rounded-full bg-[#FFF1DF] px-2 py-0.5 text-[10px] font-bold text-[#9a4f1d] ring-1 ring-[#f4d4b0]/80"
+        >
+        {h}
+        </span>
+        ))}
+        </div>
+        )}
+        <motion.button
+        type="button"
+        disabled={
+        lobbyCustomBusy ||
+        !lobbyCustomPreview ||
+        !lobbyCustomName.trim()
+        }
+        onClick={() => void submitLobbyOpponentCard()}
+        whileHover={{ y: -2 }}
+        whileTap={{ scale: 0.98 }}
+        className="mt-2 w-full rounded-2xl py-3 text-base font-black text-white disabled:opacity-55"
+        style={{
+        background: "linear-gradient(180deg,#FF9F0A 0%,#FF5F00 100%)",
+        boxShadow:
+        "inset 0 2px 0 rgba(255,255,255,0.42), 0 8px 0 #be5200, 0 14px 28px rgba(255,107,0,0.35)",
+        textShadow: "0 1px 0 rgba(0,0,0,0.2)",
+        }}
+        >
+        حفظ بطاقة خصمك
+        </motion.button>
+        </div>
+        </div>
+        {!bothPickedCustom ? (
+        <p className="mt-3 text-center text-xs font-bold text-[#c2530c]">
+        انتظر حتى يختار كلٌ منكما بطاقة للآخر، ثم يمكن للمضيف بدء المباراة.
+        </p>
+        ) : null}
+        </section>
+        ) : null}
+      </>
+    );
 
+    return (
+      <>
         <input
           ref={lobbyCustomFileRef}
           type="file"
@@ -1019,808 +1235,36 @@ export function RoomExperience({ roomId }: Props) {
           className="hidden"
           onChange={(ev) => void onLobbyCustomFile(ev)}
         />
-
-        {/* ── scroll container ── */}
-        <div className="relative z-10 mx-auto w-full max-w-md px-4 pb-[max(2.5rem,env(safe-area-inset-bottom))] pt-[max(1.25rem,env(safe-area-inset-top))] sm:max-w-lg sm:px-6 lg:max-w-2xl lg:px-10">
-
-          {/* ── Banner (copy success / error) ── */}
-          <AnimatePresence>
-            {banner ? (
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                className="mb-3 rounded-2xl border border-[#f4c48d] bg-[#fff2de] px-4 py-3 text-center text-sm font-bold text-[#9a5f2d]"
-              >
-                {banner}
-              </motion.div>
-            ) : null}
-          </AnimatePresence>
-
-          {/* ── Hero title ── */}
-          <motion.div
-            initial={{ opacity: 0, y: -16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ type: "spring", stiffness: 220, damping: 24 }}
-            className="mb-1 text-center"
-          >
-            <h1
-              className="text-5xl font-black sm:text-6xl lg:text-7xl"
-              style={{
-                background: "linear-gradient(180deg,#FF9F0A 0%,#E0660A 100%)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-                filter: "drop-shadow(0 4px 12px rgba(224,102,10,0.4))",
-              }}
-            >
-              غرفة اللعب
-            </h1>
-            <p className="mt-2 text-sm font-semibold text-[#bc7a45] sm:text-base">
-              بانتظار استعداد اللاعبين
-            </p>
-          </motion.div>
-
-          {/* ── Super card ── */}
-          <motion.div
-            initial={{ opacity: 0, y: 28 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ type: "spring", stiffness: 190, damping: 22, delay: 0.08 }}
-            className="relative mt-5 overflow-hidden rounded-[2rem] border border-white/80 bg-white/95 shadow-[0_20px_60px_rgba(196,134,82,0.28),0_6px_16px_rgba(196,134,82,0.12)] backdrop-blur-sm"
-          >
-            {/* warm inner top glow */}
-            <div
-              aria-hidden
-              className="pointer-events-none absolute -top-12 left-1/2 h-32 w-3/4 -translate-x-1/2 rounded-full blur-3xl"
-              style={{ background: "rgba(255,175,60,0.18)" }}
-            />
-
-            <div className="px-5 py-7 sm:px-7 sm:py-8">
-
-              {/* ── Room code row (private rooms only) ── */}
-              {!randomLobby ? (
-                <div
-                  className="mb-6 flex items-center gap-3 rounded-2xl px-4 py-3"
-                  style={{
-                    background: "linear-gradient(135deg,#FFF8EE 0%,#FFEDD8 100%)",
-                    boxShadow: "0 4px 14px rgba(196,134,82,0.14), inset 0 0 0 1.5px rgba(244,196,141,0.6)",
-                  }}
-                >
-                  {/* lock icon */}
-                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-white shadow-[0_3px_10px_rgba(196,134,82,0.18)]">
-                    <svg viewBox="0 0 20 20" fill="none" className="h-4 w-4" aria-hidden>
-                      <rect x="3" y="9" width="14" height="9" rx="2.5" stroke="#bc7a45" strokeWidth="1.7" fill="rgba(255,149,0,0.1)" />
-                      <path d="M6 9V6.5a4 4 0 018 0V9" stroke="#bc7a45" strokeWidth="1.7" strokeLinecap="round" />
-                    </svg>
-                  </span>
-                  {/* code */}
-                  <span className="min-w-0 flex-1 text-center text-2xl font-black tracking-[0.3em] text-[#8a3f16] sm:text-3xl">
-                    {room.code}
-                  </span>
-                  {/* copy button */}
-                  <motion.button
-                    type="button"
-                    onClick={() => void copyCode()}
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.92 }}
-                    aria-label="نسخ الرمز"
-                    className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-white shadow-[0_3px_10px_rgba(196,134,82,0.18)]"
-                  >
-                    <svg viewBox="0 0 20 20" fill="none" className="h-4 w-4" aria-hidden>
-                      <rect x="7" y="7" width="10" height="10" rx="2" stroke="#bc7a45" strokeWidth="1.7" />
-                      <path d="M5 13H4a1 1 0 01-1-1V4a1 1 0 011-1h8a1 1 0 011 1v1" stroke="#bc7a45" strokeWidth="1.7" strokeLinecap="round" />
-                    </svg>
-                  </motion.button>
-                </div>
-              ) : (
-                /* random match badge */
-                <div className="mb-6 flex items-center justify-center gap-2 rounded-2xl bg-[#FFF8EE] px-4 py-2.5">
-                  <span className="h-2 w-2 rounded-full bg-emerald-400" />
-                  <p className="text-sm font-extrabold text-[#8a3f16]">مطابقة عشوائية · خصمك جاهز</p>
-                </div>
-              )}
-
-              {!randomLobby && isHost && googleSoc ? (
-                <motion.button
-                  type="button"
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.96 }}
-                  onClick={() => {
-                    resumeAudioContext();
-                    playUIButton();
-                    setFriendInviteOpen(true);
-                  }}
-                  className="mb-6 flex w-full items-center justify-center gap-2 rounded-2xl py-3.5 text-sm font-black text-white sm:text-base"
-                  style={{
-                    background: "linear-gradient(180deg,#B05CFF 0%,#7A3CFF 100%)",
-                    boxShadow:
-                      "inset 0 2px 0 rgba(255,255,255,0.38), 0 8px 0 #5B22D6, 0 14px 28px rgba(122,60,255,0.38)",
-                  }}
-                >
-                  <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5 shrink-0" aria-hidden>
-                    <path
-                      d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.48 0-2.75.81-3.45 2H8c-.55 0-1 .45-1 1v5.09c0 .05.01.1.02.15C7.72 15.4 8.85 16 10 16h5v-1h-3.45c1.18-.69 2-1.95 2-3.44 0-1.48-.81-2.75-2-3.45V11h5z"
-                      fill="white"
-                      fillOpacity=".92"
-                    />
-                    <circle cx="8.5" cy="8.5" r="1.5" fill="white" />
-                  </svg>
-                  دعوة الأصدقاء
-                </motion.button>
-              ) : null}
-
-              {/* ── Player visual row ── */}
-              <div className="flex items-center justify-center gap-2 sm:gap-4">
-
-                {/* ── My avatar ── */}
-                <div className="flex flex-col items-center gap-2">
-                  <div className="relative">
-                    <motion.div
-                      aria-hidden
-                      animate={{ opacity: [0.5, 1, 0.5], scale: [0.92, 1.06, 0.92] }}
-                      transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
-                      className="absolute inset-0 -z-10 rounded-full blur-xl"
-                      style={{ background: "rgba(255,149,0,0.5)" }}
-                    />
-                    <div className="relative flex items-center justify-center">
-                      <ProfileAvatar
-                        cosmetic={uid ? cosmeticsMap[uid] : undefined}
-                        fallbackPhotoURL={user?.photoURL}
-                        displayName={displayName}
-                        size="lg"
-                        idle
-                        active={myReadyOptimistic}
-                      />
-                    </div>
-                    {/* crown for host */}
-                    {isHost && (
-                      <span className="absolute -top-3 left-1/2 -translate-x-1/2 text-lg leading-none" aria-label="مضيف">
-                        👑
-                      </span>
-                    )}
-                    {/* ready dot */}
-                    <motion.span
-                      animate={myReadyOptimistic
-                        ? { scale: [1, 1.3, 1], opacity: [1, 0.7, 1] }
-                        : { scale: [1, 1.2, 1], opacity: [0.7, 1, 0.7] }}
-                      transition={{ duration: 1.4, repeat: Infinity }}
-                      className={`absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full ring-2 ring-white ${myReadyOptimistic ? "bg-emerald-400" : "bg-amber-400"}`}
-                    />
-                  </div>
-                  <div className="text-center">
-                    <p className="max-w-[72px] truncate text-xs font-extrabold text-[#8a3f16] sm:max-w-[88px] sm:text-sm">
-                      {displayName}
-                    </p>
-                    <p className={`mt-0.5 text-[10px] font-bold sm:text-xs ${myReadyOptimistic ? "text-emerald-600" : "text-amber-600"}`}>
-                      {myReadyOptimistic ? "جاهز" : "بانتظار"}
-                    </p>
-                  </div>
-                </div>
-
-                {/* connection dots + center ؟ */}
-                <div className="flex flex-1 items-center justify-center gap-1.5 sm:gap-2.5">
-                  {/* left dots */}
-                  {[0, 1, 2].map((i) => (
-                    <motion.span
-                      key={`l${i}`}
-                      className="h-1.5 w-1.5 rounded-full bg-[#FFB300]"
-                      animate={{ scale: [1, 1.6, 1], opacity: [0.4, 1, 0.4] }}
-                      transition={{ duration: 1, repeat: Infinity, ease: "easeInOut", delay: i * 0.22 }}
-                    />
-                  ))}
-                  {/* center disc */}
-                  <div className="relative flex h-14 w-14 shrink-0 items-center justify-center sm:h-16 sm:w-16">
-                    <motion.div
-                      aria-hidden
-                      animate={{ opacity: [0.4, 0.9, 0.4], scale: [0.85, 1.05, 0.85] }}
-                      transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-                      className="absolute inset-0 rounded-full blur-xl"
-                      style={{ background: "rgba(255,159,10,0.55)" }}
-                    />
-                    <motion.div
-                      aria-hidden
-                      animate={{ scale: [1, 1.2, 1], opacity: [0.25, 0.08, 0.25] }}
-                      transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
-                      className="absolute inset-0 rounded-full border-2 border-[#FF9F0A]/70"
-                    />
-                    <div
-                      className="relative z-10 flex h-10 w-10 items-center justify-center overflow-hidden rounded-full sm:h-12 sm:w-12"
-                      style={{
-                        background: "linear-gradient(160deg,#FF9F0A 0%,#FF6B00 100%)",
-                        boxShadow: "inset 0 2px 0 rgba(255,255,255,0.45), 0 6px 0 #be5200, 0 10px 22px rgba(255,122,0,0.5)",
-                      }}
-                    >
-                      <span className="text-2xl font-black text-white sm:text-3xl" style={{ textShadow: "0 2px 0 rgba(0,0,0,0.22)" }}>
-                        ؟
-                      </span>
-                      <span aria-hidden className="pointer-events-none absolute inset-x-1.5 top-1 h-2 rounded-full bg-white/40 blur-[1px]" />
-                    </div>
-                  </div>
-                  {/* right dots */}
-                  {[0, 1, 2].map((i) => (
-                    <motion.span
-                      key={`r${i}`}
-                      className="h-1.5 w-1.5 rounded-full bg-[#FFB300]"
-                      animate={{ scale: [1, 1.6, 1], opacity: [0.4, 1, 0.4] }}
-                      transition={{ duration: 1, repeat: Infinity, ease: "easeInOut", delay: 0.66 + i * 0.22 }}
-                    />
-                  ))}
-                </div>
-
-                {/* ── Opponent slot ── */}
-                <div className="flex flex-col items-center gap-2">
-                  <div className="relative">
-                    {opponent ? (
-                      <>
-                        <motion.div
-                          aria-hidden
-                          animate={{ opacity: [0.4, 0.85, 0.4], scale: [0.9, 1.05, 0.9] }}
-                          transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
-                          className="absolute inset-0 -z-10 rounded-full blur-xl"
-                          style={{ background: "rgba(255,149,0,0.4)" }}
-                        />
-                        <div className="relative flex items-center justify-center">
-                          <ProfileAvatar
-                            cosmetic={cosmeticsMap[opponent.uid]}
-                            displayName={opponent.displayName}
-                            size="lg"
-                            idle
-                            active={opponent.ready}
-                          />
-                        </div>
-                        {opponent.uid === room.hostUid && (
-                          <span className="absolute -top-3 left-1/2 -translate-x-1/2 text-lg leading-none">👑</span>
-                        )}
-                        <motion.span
-                          animate={opponent.ready
-                            ? { scale: [1, 1.3, 1], opacity: [1, 0.7, 1] }
-                            : { scale: [1, 1.2, 1], opacity: [0.7, 1, 0.7] }}
-                          transition={{ duration: 1.4, repeat: Infinity, delay: 0.3 }}
-                          className={`absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full ring-2 ring-white ${opponent.ready ? "bg-emerald-400" : "bg-amber-400"}`}
-                        />
-                      </>
-                    ) : (
-                      /* silhouette waiting slot */
-                      <>
-                        <motion.div
-                          aria-hidden
-                          animate={{ opacity: [0.3, 0.6, 0.3], scale: [0.9, 1.07, 0.9] }}
-                          transition={{ duration: 2.6, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
-                          className="absolute inset-0 -z-10 rounded-full blur-xl"
-                          style={{ background: "rgba(255,179,0,0.3)" }}
-                        />
-                        <motion.div
-                          animate={{ rotate: 360 }}
-                          transition={{ duration: 14, repeat: Infinity, ease: "linear" }}
-                          className="absolute inset-0 rounded-full"
-                          style={{ background: "conic-gradient(rgba(255,179,0,0.5) 0deg, transparent 110deg, rgba(255,122,0,0.35) 240deg, transparent 360deg)" }}
-                        />
-                        <div
-                          className="relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-full sm:h-20 sm:w-20"
-                          style={{ background: "linear-gradient(135deg,#F5E0C0 0%,#EAC898 100%)", boxShadow: "0 0 0 3px rgba(255,179,0,0.3), 0 6px 20px rgba(196,134,82,0.28)" }}
-                        >
-                          <svg viewBox="0 0 56 56" fill="none" className="h-10 w-10 sm:h-12 sm:w-12" aria-hidden>
-                            <circle cx="28" cy="22" r="10" fill="rgba(139,100,50,0.22)" />
-                            <ellipse cx="28" cy="44" rx="14" ry="9" fill="rgba(139,100,50,0.18)" />
-                          </svg>
-                          <motion.div
-                            aria-hidden
-                            animate={{ opacity: [0.1, 0.3, 0.1] }}
-                            transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
-                            className="absolute inset-0 rounded-full"
-                            style={{ background: "radial-gradient(circle at 40% 35%, rgba(255,220,150,0.45), transparent 65%)" }}
-                          />
-                        </div>
-                        <motion.span
-                          animate={{ scale: [1, 1.4, 1], opacity: [0.8, 0.4, 0.8] }}
-                          transition={{ duration: 1.6, repeat: Infinity }}
-                          className="absolute -bottom-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-[#FFB300] ring-2 ring-white text-[8px] font-black text-white"
-                        >
-                          ?
-                        </motion.span>
-                      </>
-                    )}
-                  </div>
-                  <div className="text-center">
-                    <p className="max-w-[72px] truncate text-xs font-extrabold text-[#8a3f16] sm:max-w-[88px] sm:text-sm">
-                      {opponent ? opponent.displayName : "خصمك؟"}
-                    </p>
-                    {opponent ? (
-                      <p className={`mt-0.5 text-[10px] font-bold sm:text-xs ${opponent.ready ? "text-emerald-600" : "text-amber-600"}`}>
-                        {opponent.ready ? "جاهز" : "بانتظار"}
-                      </p>
-                    ) : (
-                      <p className="mt-0.5 text-[10px] font-bold text-[#bc7a45] sm:text-xs">في الطريق…</p>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* ── Match settings chips ── */}
-              <div className="mt-6 flex flex-wrap justify-center gap-2.5">
-                {/* question timer */}
-                <div
-                  className="flex items-center gap-2 rounded-2xl px-3.5 py-2.5"
-                  style={{ background: "#FFF8EE", boxShadow: "0 3px 10px rgba(196,134,82,0.14), inset 0 0 0 1.5px rgba(244,196,141,0.55)" }}
-                >
-                  <span className="grid h-7 w-7 place-items-center rounded-xl bg-[#FFF1DF]">
-                    <svg viewBox="0 0 20 20" fill="none" className="h-4 w-4" aria-hidden>
-                      <circle cx="10" cy="10" r="7" stroke="#c2530c" strokeWidth="1.7" />
-                      <path d="M10 6.5v3.5l2 2" stroke="#c2530c" strokeWidth="1.7" strokeLinecap="round" />
-                    </svg>
-                  </span>
-                  <div>
-                    <p className="text-[10px] font-semibold text-[#bc7a45]">سؤال</p>
-                    <p className="text-xs font-extrabold text-[#8a3f16]">{room.questionTimerSec ?? 20} ثانية</p>
-                  </div>
-                </div>
-                {/* answer timer */}
-                <div
-                  className="flex items-center gap-2 rounded-2xl px-3.5 py-2.5"
-                  style={{ background: "#FFF8EE", boxShadow: "0 3px 10px rgba(196,134,82,0.14), inset 0 0 0 1.5px rgba(244,196,141,0.55)" }}
-                >
-                  <span className="grid h-7 w-7 place-items-center rounded-xl bg-[#FFF1DF]">
-                    <svg viewBox="0 0 20 20" fill="none" className="h-4 w-4" aria-hidden>
-                      <circle cx="10" cy="10" r="7" stroke="#c2530c" strokeWidth="1.7" />
-                      <path d="M7 10l2 2 4-4" stroke="#c2530c" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  </span>
-                  <div>
-                    <p className="text-[10px] font-semibold text-[#bc7a45]">إجابة</p>
-                    <p className="text-xs font-extrabold text-[#8a3f16]">{room.answerTimerSec ?? 15} ثانية</p>
-                  </div>
-                </div>
-                {/* voice mode */}
-                {voiceMode && (
-                  <div
-                    className="flex items-center gap-2 rounded-2xl px-3.5 py-2.5"
-                    style={{ background: "#F0FDF4", boxShadow: "0 3px 10px rgba(22,163,74,0.14), inset 0 0 0 1.5px rgba(134,239,172,0.55)" }}
-                  >
-                    <span className="grid h-7 w-7 place-items-center rounded-xl bg-emerald-100">
-                      <svg viewBox="0 0 20 20" fill="none" className="h-4 w-4" aria-hidden>
-                        <path d="M6 8c0-2.21 1.79-4 4-4s4 1.79 4 4" stroke="#16a34a" strokeWidth="1.7" strokeLinecap="round" />
-                        <rect x="4" y="7.5" width="4" height="6" rx="2" fill="#16a34a" opacity=".5" />
-                        <rect x="12" y="7.5" width="4" height="6" rx="2" fill="#16a34a" opacity=".5" />
-                        <path d="M10 15v2" stroke="#16a34a" strokeWidth="1.7" strokeLinecap="round" />
-                      </svg>
-                    </span>
-                    <div>
-                      <p className="text-[10px] font-semibold text-emerald-700">وضع المكالمة</p>
-                      <p className="text-xs font-extrabold text-emerald-800">مفعل</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {customModeActive && !randomLobby ? (
-                <div
-                  className="mt-5 rounded-2xl border border-[#f5dcc8] bg-[#FFFBF6]/95 px-4 py-3 shadow-[0_8px_22px_rgba(196,134,82,0.12)]"
-                  dir="rtl"
-                >
-                  <p className="mb-2.5 text-center text-[13px] font-extrabold text-[#8a3f16]">جاهزية الغرفة</p>
-                  <div className="grid grid-cols-2 gap-3 text-[11px] font-bold sm:text-xs">
-                    <div
-                      className={`relative rounded-xl bg-white/90 px-2.5 py-2 transition-shadow duration-300 ${
-                        mePickDone
-                          ? "ring-2 ring-emerald-400/75 shadow-[0_0_22px_rgba(52,211,153,0.38)]"
-                          : "ring-1 ring-[#f4e0cc]"
-                      }`}
-                    >
-                      {mePickDone ? (
-                        <span
-                          className="absolute -top-1.5 end-1.5 grid h-6 w-6 place-items-center rounded-full bg-emerald-500 text-[11px] text-white shadow-md shadow-emerald-600/35 ring-2 ring-white"
-                          aria-hidden
-                        >
-                          ✓
-                        </span>
-                      ) : null}
-                      <p className="truncate text-[#bc7a45]">أنت</p>
-                      <p className={`mt-1 ${myReadyOptimistic ? "text-emerald-700" : "text-amber-700"}`}>
-                        {myReadyOptimistic ? "✓ جاهز" : "⋯ لم يُعلَن الجاهز بعد"}
-                      </p>
-                      <p className={`mt-0.5 ${mePickDone ? "text-emerald-700" : "text-amber-700"}`}>
-                        {mePickDone ? "✓ تم اختيار بطاقة للخصم" : "⋯ بانتظار بطاقة للخصم"}
-                      </p>
-                    </div>
-                    <div
-                      className={`relative rounded-xl bg-white/90 px-2.5 py-2 transition-shadow duration-300 ${
-                        oppPickDone
-                          ? "ring-2 ring-emerald-400/75 shadow-[0_0_22px_rgba(52,211,153,0.38)]"
-                          : "ring-1 ring-[#f4e0cc]"
-                      }`}
-                    >
-                      {oppPickDone ? (
-                        <span
-                          className="absolute -top-1.5 end-1.5 grid h-6 w-6 place-items-center rounded-full bg-emerald-500 text-[11px] text-white shadow-md shadow-emerald-600/35 ring-2 ring-white"
-                          aria-hidden
-                        >
-                          ✓
-                        </span>
-                      ) : null}
-                      <p className="truncate text-[#bc7a45]">
-                        {opponent ? opponent.displayName : "بانتظار خصم"}
-                      </p>
-                      <p className={`mt-1 ${opponent?.ready ? "text-emerald-700" : "text-amber-700"}`}>
-                        {opponent
-                          ? opponent.ready
-                            ? "✓ جاهز"
-                            : "⋯ بانتظار الجاهز"
-                          : "⋯ لم ينضم بعد"}
-                      </p>
-                      <p className={`mt-0.5 ${oppPickDone ? "text-emerald-700" : "text-amber-700"}`}>
-                        {oppPickDone ? "✓ اختار بطاقتك" : "⋯ ينتظر أن يختار بطاقتك"}
-                      </p>
-                    </div>
-                  </div>
-                  {isHost && bothReady && !bothPickedCustom ? (
-                    <p className="mt-3 text-center text-[11px] font-bold text-[#c2530c]">
-                      كل اللاعبين جاهزون — بقي أن يحفظ كلٌ بطاقته للخصم ثم يظهر زر «ابدأ المباراة».
-                    </p>
-                  ) : null}
-                </div>
-              ) : null}
-
-              {customLobby ? (
-                <section
-                  className={`mt-6 overflow-hidden rounded-2xl bg-gradient-to-br from-[#FFF9FF] via-[#FFF7EE] to-[#FFF2DE] p-4 shadow-[0_10px_28px_rgba(168,85,247,0.12)] ${
-                    showCardSuccessVisual
-                      ? "border-2 border-emerald-400/55 ring-1 ring-emerald-300/40"
-                      : "border border-[#f0dce8]"
-                  }`}
-                >
-                  <div className="mb-3 flex items-start gap-3">
-                    <span
-                      className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-lg font-black text-white"
-                      style={{
-                        background: "linear-gradient(135deg,#c084fc 0%,#FF9F0A 100%)",
-                        boxShadow: "0 4px 12px rgba(168,85,247,0.35)",
-                      }}
-                      aria-hidden
-                    >
-                      ★
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-[15px] font-extrabold text-[#8a3f16]">اختر بطاقة لخصمك</p>
-                      <p className="mt-1 text-xs font-semibold leading-relaxed text-[#a16231]">
-                        صورة واحدة وإجابة صحيحة — الخصم هو من سيخمنها. يمكنك التعديل بدلًا منها في أي وقت قبل البدء.
-                      </p>
-                      {showCardSuccessVisual ? (
-                        <motion.p
-                          initial={{ opacity: 0, y: 6 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-emerald-500/12 px-3 py-1 text-[11px] font-extrabold text-emerald-800 ring-1 ring-emerald-400/35"
-                        >
-                          <span className="text-emerald-600">✓</span>
-                          تم اختيار بطاقة خصمك
-                        </motion.p>
-                      ) : null}
-                    </div>
-                  </div>
-
-                  {dirtyAgainstServer ? (
-                    <p className="mb-3 rounded-xl border border-amber-200/90 bg-amber-50/95 px-3 py-2 text-center text-[11px] font-bold leading-relaxed text-amber-950">
-                      عدّلت الصورة أو الاسم — اضغط «حفظ بطاقة خصمك» لتحديث اختيارك على الخادم.
-                    </p>
-                  ) : null}
-
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-stretch">
-                    <motion.div
-                      key={customSavePulse}
-                      initial={customSavePulse === 0 ? false : { scale: 0.93, opacity: 0.86 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      transition={{ type: "spring", stiffness: 400, damping: 24 }}
-                      className="relative flex aspect-square w-full max-w-[168px] shrink-0 self-center sm:h-[156px] sm:w-[156px]"
-                    >
-                      {showCardSuccessVisual ? (
-                        <motion.div
-                          aria-hidden
-                          className="pointer-events-none absolute inset-[-10px] -z-10 rounded-[24px] blur-2xl"
-                          animate={{ opacity: [0.4, 0.75, 0.4], scale: [0.96, 1.03, 0.96] }}
-                          transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
-                          style={{
-                            background:
-                              "radial-gradient(closest-side,rgba(52,211,153,0.55),rgba(16,185,129,0.15),transparent 72%)",
-                          }}
-                        />
-                      ) : null}
-                      <motion.div
-                        className="h-full w-full"
-                        animate={
-                          showCardSuccessVisual
-                            ? { scale: [1, 1.02, 1] }
-                            : { scale: 1 }
-                        }
-                        transition={{ duration: 0.55, ease: "easeOut" }}
-                      >
-                        <motion.button
-                          type="button"
-                          disabled={lobbyCustomBusy}
-                          onClick={() => lobbyCustomFileRef.current?.click()}
-                          whileTap={{ scale: 0.98 }}
-                          className={`relative flex h-full w-full flex-col items-center justify-center overflow-hidden rounded-2xl ${
-                            showCardSuccessVisual
-                              ? "border-2 border-emerald-400 shadow-[0_12px_32px_rgba(34,197,94,0.32),inset_0_2px_0_rgba(255,255,255,0.55)]"
-                              : showDraftEditVisual
-                                ? "border-2 border-amber-400/90 bg-gradient-to-br from-[#FFFBF0] to-[#FFF4D6] shadow-[0_8px_22px_rgba(245,158,11,0.2)]"
-                                : "border-2 border-dashed border-[#f4c49a] bg-gradient-to-br from-[#FFF9F0] to-[#FFE8CC]"
-                          }`}
-                          style={
-                            showCardSuccessVisual
-                              ? {
-                                  background:
-                                    "linear-gradient(155deg,#ecfdf5 0%,#d1fae5 42%,#ecfccb 100%)",
-                                }
-                              : !showDraftEditVisual
-                                ? {
-                                    boxShadow:
-                                      "inset 0 2px 0 rgba(255,255,255,0.65), 0 8px 20px rgba(255,149,0,0.14)",
-                                  }
-                                : undefined
-                          }
-                        >
-                          {showCardSuccessVisual ? (
-                            <span className="absolute end-2 top-2 z-20 grid h-8 w-8 place-items-center rounded-full bg-emerald-500 text-white shadow-lg shadow-emerald-700/30 ring-2 ring-white">
-                              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden>
-                                <path
-                                  d="M5 13l4 4L19 7"
-                                  stroke="currentColor"
-                                  strokeWidth="2.5"
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                />
-                              </svg>
-                            </span>
-                          ) : null}
-                          {lobbyCustomBusy ? (
-                            <span className="text-sm font-bold text-[#c2530c]">جاري المعالجة…</span>
-                          ) : tileImageSrc ? (
-                            <>
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img
-                                src={tileImageSrc}
-                                alt=""
-                                className="absolute inset-0 h-full w-full object-cover"
-                              />
-                              <div
-                                className={`absolute inset-0 rounded-2xl ring-2 ring-inset ${
-                                  showCardSuccessVisual ? "ring-emerald-200/90" : "ring-white/40"
-                                }`}
-                              />
-                              <span className="relative z-10 mt-auto mb-2 rounded-full bg-black/55 px-2 py-1 text-[10px] font-bold text-white backdrop-blur-sm">
-                                {showCardSuccessVisual ? "تغيير البطاقة" : "تغيير الصورة"}
-                              </span>
-                            </>
-                          ) : (
-                            <>
-                              <span className="text-3xl">📷</span>
-                              <span className="mt-2 px-3 text-center text-sm font-black text-[#c2530c]">
-                                رفع صورة
-                              </span>
-                              <span className="mt-1 px-2 text-center text-[9px] font-semibold text-[#a16231]/90">
-                                PNG · JPG · WEBP
-                              </span>
-                            </>
-                          )}
-                        </motion.button>
-                      </motion.div>
-                    </motion.div>
-
-                    <div className="min-w-0 flex-1 space-y-2">
-                      <label className="block text-[11px] font-bold text-[#a16231]">
-                        الإجابة الصحيحة التي سيخمنها خصمك
-                      </label>
-                      <Input
-                        dir="rtl"
-                        value={lobbyCustomName}
-                        onChange={(ev) => setLobbyCustomName(ev.target.value)}
-                        placeholder="اكتب اسم الإجابة التي سيخمنها خصمك"
-                        className="font-bold text-[#8a3f16]"
-                      />
-                      {lobbyCustomName.trim().length > 0 && (
-                        <div className="flex flex-wrap gap-1.5 pt-1">
-                          {generateGuessAliases(lobbyCustomName.trim())
-                            .slice(0, 8)
-                            .map((h) => (
-                              <span
-                                key={h}
-                                className="rounded-full bg-[#FFF1DF] px-2 py-0.5 text-[10px] font-bold text-[#9a4f1d] ring-1 ring-[#f4d4b0]/80"
-                              >
-                                {h}
-                              </span>
-                            ))}
-                        </div>
-                      )}
-                      <motion.button
-                        type="button"
-                        disabled={
-                          lobbyCustomBusy ||
-                          !lobbyCustomPreview ||
-                          !lobbyCustomName.trim()
-                        }
-                        onClick={() => void submitLobbyOpponentCard()}
-                        whileHover={{ y: -2 }}
-                        whileTap={{ scale: 0.98 }}
-                        className="mt-2 w-full rounded-2xl py-3 text-base font-black text-white disabled:opacity-55"
-                        style={{
-                          background: "linear-gradient(180deg,#FF9F0A 0%,#FF5F00 100%)",
-                          boxShadow:
-                            "inset 0 2px 0 rgba(255,255,255,0.42), 0 8px 0 #be5200, 0 14px 28px rgba(255,107,0,0.35)",
-                          textShadow: "0 1px 0 rgba(0,0,0,0.2)",
-                        }}
-                      >
-                        حفظ بطاقة خصمك
-                      </motion.button>
-                    </div>
-                  </div>
-
-                  {!bothPickedCustom ? (
-                    <p className="mt-3 text-center text-xs font-bold text-[#c2530c]">
-                      انتظر حتى يختار كلٌ منكما بطاقة للآخر، ثم يمكن للمضيف بدء المباراة.
-                    </p>
-                  ) : null}
-                </section>
-              ) : null}
-
-              {/* ── Primary CTA ── */}
-              <div className="mt-7 space-y-3">
-                {/* Ready toggle — always show for non-random non-host, or non-random host pre-start */}
-                {!randomLobby && (
-                  <div className="relative">
-                    <motion.div
-                      aria-hidden
-                      animate={{ opacity: [0.55, 1, 0.55], scale: [0.95, 1.06, 0.95] }}
-                      transition={{ duration: 2.6, repeat: Infinity, ease: "easeInOut" }}
-                      className="absolute inset-0 -z-10 rounded-[26px] blur-2xl"
-                      style={{ background: myReadyOptimistic
-                        ? "radial-gradient(closest-side,rgba(22,163,74,0.4),transparent 70%)"
-                        : "radial-gradient(closest-side,rgba(255,138,30,0.6),transparent 70%)" }}
-                    />
-                    <motion.button
-                      type="button"
-                      disabled={busy}
-                      onClick={() => void toggleReady()}
-                      whileHover={{ y: -3, scale: 1.02 }}
-                      whileTap={{ y: 5, scale: 0.97 }}
-                      className="relative flex w-full items-center justify-center gap-3 overflow-hidden rounded-[24px] py-[18px] text-2xl font-black text-white disabled:opacity-60 sm:text-3xl"
-                      style={myReadyOptimistic
-                        ? {
-                            background: "linear-gradient(180deg,#22c55e 0%,#16a34a 100%)",
-                            boxShadow: "inset 0 2.5px 0 rgba(255,255,255,0.45), inset 0 -7px 14px rgba(0,100,40,0.3), 0 12px 0 #15803d, 0 22px 36px rgba(22,163,74,0.45)",
-                          }
-                        : {
-                            background: "linear-gradient(180deg,#FF9F0A 0%,#FF7A00 100%)",
-                            boxShadow: "inset 0 2.5px 0 rgba(255,255,255,0.52), inset 0 -7px 16px rgba(150,50,0,0.38), 0 13px 0 #be5200, 0 24px 40px rgba(255,122,0,0.55)",
-                          }
-                      }
-                    >
-                      <span aria-hidden className="pointer-events-none absolute inset-x-8 top-2 h-3 rounded-full bg-white/35 blur-[2.5px]" />
-                      {myReadyOptimistic ? (
-                        <svg viewBox="0 0 24 24" fill="none" className="h-6 w-6" aria-hidden>
-                          <path d="M5 13l4 4L19 7" stroke="white" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                      ) : (
-                        <svg viewBox="0 0 24 24" fill="none" className="h-6 w-6" aria-hidden>
-                          <polygon points="5,3 19,12 5,21" fill="white" />
-                        </svg>
-                      )}
-                      <span style={{ textShadow: "0 2px 0 rgba(0,0,0,0.22)" }}>
-                        {myReadyOptimistic ? "جاهز ✓" : "جاهز"}
-                      </span>
-                    </motion.button>
-                  </div>
-                )}
-
-                {/* Start match — host only, non-random.
-                    Always visible so the host knows the path to start. The button
-                    is disabled until every precondition holds; missing pieces are
-                    listed underneath. The server re-validates everything anyway. */}
-                {!randomLobby && isHost && (() => {
-                  const missing: string[] = [];
-                  if (!opponent) missing.push("انضمام اللاعب الثاني");
-                  if (customModeActive) {
-                    if (uid && !uidCardComplete(uid)) missing.push("حفظ بطاقتك للخصم");
-                    if (opponent && !uidCardComplete(opponent.uid))
-                      missing.push("اختيار الخصم لبطاقتك");
-                  }
-                  if (!myReadyOptimistic) missing.push("تضغط أنت «جاهز»");
-                  if (opponent && !opponent.ready) missing.push("الخصم يضغط «جاهز»");
-                  const canStart = missing.length === 0;
-                  return (
-                    <motion.div
-                      key="start-match-cta"
-                      initial={{ opacity: 0, scale: 0.92, y: 12 }}
-                      animate={{ opacity: 1, scale: 1, y: 0 }}
-                      transition={{ type: "spring", stiffness: 340, damping: 26 }}
-                      className="relative"
-                    >
-                      {canStart ? (
-                        <motion.div
-                          aria-hidden
-                          animate={{ opacity: [0.55, 1, 0.55], scale: [0.96, 1.08, 0.96] }}
-                          transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
-                          className="absolute inset-0 -z-10 rounded-[26px] blur-2xl"
-                          style={{
-                            background:
-                              "radial-gradient(closest-side,rgba(255,159,40,0.85),rgba(255,122,0,0.35),transparent 72%)",
-                          }}
-                        />
-                      ) : null}
-                      <motion.button
-                        type="button"
-                        disabled={busy || !canStart}
-                        onClick={() => void startMatch()}
-                        whileHover={canStart && !busy ? { y: -4, scale: 1.03 } : undefined}
-                        whileTap={canStart && !busy ? { y: 6, scale: 0.97 } : undefined}
-                        className="relative flex w-full items-center justify-center gap-3 overflow-hidden rounded-[24px] py-[18px] text-2xl font-black text-white disabled:cursor-not-allowed disabled:opacity-55 sm:text-3xl"
-                        style={{
-                          background: "linear-gradient(180deg,#FFC933 0%,#FF7A00 100%)",
-                          boxShadow:
-                            "inset 0 3px 0 rgba(255,255,255,0.55), inset 0 -8px 18px rgba(180,70,0,0.35), 0 14px 0 #b45300, 0 26px 48px rgba(255,122,0,0.55)",
-                        }}
-                      >
-                        <span aria-hidden className="pointer-events-none absolute inset-x-8 top-2 h-3 rounded-full bg-white/45 blur-[2px]" />
-                        <svg viewBox="0 0 24 24" fill="none" className="h-6 w-6" aria-hidden>
-                          <polygon points="5,3 19,12 5,21" fill="white" />
-                        </svg>
-                        <span style={{ textShadow: "0 2px 0 rgba(0,0,0,0.22)" }}>
-                          ابدأ المباراة
-                        </span>
-                      </motion.button>
-                      {!canStart ? (
-                        <p className="mt-2 text-center text-[11px] font-bold leading-relaxed text-[#c2530c]">
-                          ينقص: {missing.join(" • ")}
-                        </p>
-                      ) : null}
-                    </motion.div>
-                  );
-                })()}
-
-                {/* Guest waiting messages */}
-                {!randomLobby && !isHost && !myReadyOptimistic && (
-                  <p className="text-center text-sm font-semibold text-[#bc7a45]">
-                    اضغط جاهز، ثم انتظر المضيف ليبدأ اللعب.
-                  </p>
-                )}
-                {!randomLobby && !isHost && myReadyOptimistic && !bothReady && (
-                  <p className="text-center text-sm font-semibold text-[#bc7a45]">
-                    في انتظار جاهزية المضيف…
-                  </p>
-                )}
-                {randomLobby && !isHost && (
-                  <div className="flex items-center justify-center gap-2 text-sm font-semibold text-[#bc7a45]">
-                    <span>جاري البدء تلقائياً</span>
-                    {[0, 1, 2].map((i) => (
-                      <motion.span
-                        key={i}
-                        className="block h-1.5 w-1.5 rounded-full bg-[#bc7a45]"
-                        animate={{ y: [0, -4, 0], opacity: [0.5, 1, 0.5] }}
-                        transition={{ duration: 1, repeat: Infinity, ease: "easeInOut", delay: i * 0.2 }}
-                      />
-                    ))}
-                  </div>
-                )}
-
-                {/* Leave room */}
-                <motion.button
-                  type="button"
-                  onClick={requestExit}
-                  whileHover={{ y: -2, scale: 1.01 }}
-                  whileTap={{ y: 3, scale: 0.98 }}
-                  className="flex w-full items-center justify-center gap-2 rounded-[24px] py-4 text-base font-extrabold text-[#8a3f16]"
-                  style={{
-                    background: "linear-gradient(180deg,#FFFFFF 0%,#FFF4E4 100%)",
-                    boxShadow: "inset 0 1.5px 0 rgba(255,255,255,0.9), 0 8px 0 rgba(196,134,82,0.26), 0 14px 28px rgba(196,134,82,0.16)",
-                  }}
-                >
-                  <svg viewBox="0 0 20 20" fill="none" className="h-4 w-4 shrink-0" aria-hidden>
-                    <path d="M5 5l10 10M15 5L5 15" stroke="#8a3f16" strokeWidth="2" strokeLinecap="round" />
-                  </svg>
-                  مغادرة الغرفة
-                </motion.button>
-              </div>
-            </div>
-          </motion.div>
-        </div>
-
+        <LobbyShellBridge
+          room={room}
+          uid={uid}
+          displayName={displayName}
+          userPhotoURL={user?.photoURL}
+          cosmeticsMap={cosmeticsMap}
+          myReady={myReadyOptimistic}
+          isHost={isHost}
+          busy={busy}
+          banner={banner}
+          googleSoc={googleSoc}
+          myReadyOptimistic={myReadyOptimistic}
+          opponent={opponent}
+          customModeActive={customModeActive}
+          randomLobby={randomLobby}
+          uidCardComplete={uidCardComplete}
+          bothPickedCustom={bothPickedCustom}
+          onBack={() => router.push("/")}
+          onCopyCode={() => void copyCode()}
+          onInviteFriends={() => {
+            resumeAudioContext();
+            playUIButton();
+            setFriendInviteOpen(true);
+          }}
+          onToggleReady={() => void toggleReady()}
+          onStartMatch={() => void startMatch()}
+          onLeave={requestExit}
+          customPanels={lobbyCustomPanels}
+          overlays={
+            <>
         <AnimatePresence>
           {friendInviteOpen && uid ? (
             <RoomInviteFriendsPanel
@@ -1858,7 +1302,10 @@ export function RoomExperience({ roomId }: Props) {
             </motion.div>
           ) : null}
         </AnimatePresence>
-      </div>
+            </>
+          }
+        />
+      </>
     );
   }
 
@@ -2115,6 +1562,7 @@ export function RoomExperience({ roomId }: Props) {
             banner={banner}
             roomId={room.id}
             matchId={match?.id ?? null}
+            roomHintsEnabled={room.hintsEnabled !== false}
             uid={uid}
             displayName={displayName}
             opponentName={opponentName}
@@ -2133,6 +1581,7 @@ export function RoomExperience({ roomId }: Props) {
             banner={banner}
             roomId={room.id}
             matchId={match?.id ?? null}
+            roomHintsEnabled={room.hintsEnabled !== false}
             keyboardOverlapPx={keyboardOverlapPx}
             matchSyncWaiting={room.status === "playing" && !match}
             socialMatchLive={Boolean(match?.status === "active" && !ended)}

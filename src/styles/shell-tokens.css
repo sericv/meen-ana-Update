@@ -1,0 +1,503 @@
+/* Sunset Majlis shell — home & profile reference UI */
+:root {
+  --bg-0: oklch(0.97 0.018 80);
+  --bg-1: oklch(0.95 0.022 78);
+  --bg-2: oklch(0.92 0.028 75);
+  --fg-0: oklch(0.22 0.04 45);
+  --fg-1: oklch(0.32 0.04 48);
+  --fg-2: oklch(0.45 0.04 52);
+  --fg-3: oklch(0.58 0.04 56);
+  --amber: oklch(0.78 0.16 70);
+  --amber-2: oklch(0.68 0.17 60);
+  --amber-3: oklch(0.58 0.18 50);
+  --gold: oklch(0.8 0.14 90);
+  --teal: oklch(0.58 0.08 195);
+  --win: oklch(0.62 0.14 150);
+  --lose: oklch(0.58 0.16 25);
+  --r-3: 18px;
+  --sh-2: 0 6px 16px -6px oklch(0.5 0.08 50 / 0.22), 0 1px 3px oklch(0.5 0.06 50 / 0.12),
+    0 0 0 1px oklch(0.6 0.05 55 / 0.08);
+  --sh-card: 0 22px 36px -14px oklch(0.4 0.08 45 / 0.35), 0 8px 14px -8px oklch(0.4 0.06 45 / 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7), inset 0 -1px 0 oklch(0.6 0.06 55 / 0.15);
+  --glow-amber: 0 0 28px -2px oklch(0.78 0.18 65 / 0.45);
+  --display: var(--font-tajawal), "Readex Pro", system-ui, sans-serif;
+  --body: var(--font-tajawal), "IBM Plex Sans Arabic", system-ui, sans-serif;
+  --mono: ui-monospace, monospace;
+}
+
+.shell-screen {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  max-width: 32rem;
+  margin-inline: auto;
+  width: 100%;
+  overflow: hidden;
+  font-family: var(--body);
+  color: var(--fg-0);
+  background: transparent;
+}
+
+.shell-screen .statusbar {
+  height: 44px;
+  padding: 14px 28px 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-family: var(--mono);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--fg-0);
+  letter-spacing: -0.01em;
+  flex-shrink: 0;
+  direction: ltr;
+}
+
+.shell-screen .statusbar .icons {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  opacity: 0.85;
+}
+
+.shell-screen .tabbar {
+  flex-shrink: 0;
+  height: 76px;
+  padding: 8px 14px calc(18px + env(safe-area-inset-bottom, 0px));
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 4px;
+  background: linear-gradient(
+    180deg,
+    oklch(0.96 0.025 80 / 0) 0%,
+    oklch(0.95 0.03 78 / 0.9) 35%,
+    oklch(0.93 0.04 75) 100%
+  );
+  position: relative;
+  backdrop-filter: blur(8px);
+}
+
+.shell-screen .tabbar::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, oklch(0.7 0.06 60 / 0.4), transparent);
+}
+
+.shell-screen .tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 6px 4px;
+  border-radius: 14px;
+  color: var(--fg-3);
+  font-size: 11px;
+  font-weight: 600;
+  transition: color 0.2s, transform 0.2s;
+}
+
+.shell-screen .tab.active {
+  color: var(--amber-3);
+}
+
+.shell-screen .tab.active svg {
+  filter: drop-shadow(0 0 6px oklch(0.78 0.18 65 / 0.5));
+}
+
+.shell-screen .tab:active {
+  transform: scale(0.94);
+}
+
+.shell-screen .surf {
+  background: linear-gradient(180deg, oklch(0.98 0.012 80), oklch(0.95 0.022 78));
+  border: 1px solid oklch(0.78 0.04 65 / 0.35);
+  border-radius: var(--r-3);
+  box-shadow: var(--sh-2);
+}
+
+.shell-screen .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 20px;
+  border-radius: 999px;
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: 16px;
+  transition: transform 0.15s ease, box-shadow 0.2s ease;
+  position: relative;
+  overflow: hidden;
+  user-select: none;
+  border: none;
+  cursor: pointer;
+  background: none;
+  color: inherit;
+}
+
+.shell-screen .btn:active {
+  transform: translateY(1px) scale(0.98);
+}
+
+.shell-screen .btn-primary {
+  background: linear-gradient(180deg, oklch(0.86 0.16 75), oklch(0.7 0.18 55));
+  color: oklch(0.22 0.04 35);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65), inset 0 -2px 0 oklch(0.5 0.16 50),
+    0 12px 24px -10px oklch(0.65 0.18 55 / 0.55), 0 2px 0 oklch(0.5 0.16 45);
+}
+
+.shell-screen .btn-secondary {
+  background: linear-gradient(180deg, oklch(0.96 0.02 80), oklch(0.9 0.03 76));
+  color: var(--fg-0);
+  border: 1px solid oklch(0.72 0.05 60 / 0.5);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8), 0 4px 8px -4px oklch(0.5 0.06 50 / 0.18);
+}
+
+.shell-screen .btn-ghost {
+  background: oklch(0.98 0.012 80 / 0.55);
+  color: var(--fg-1);
+  border: 1px solid oklch(0.78 0.04 65 / 0.35);
+  backdrop-filter: blur(6px);
+}
+
+.shell-screen .btn-block {
+  width: 100%;
+}
+
+.shell-screen .btn-lg {
+  padding: 16px 24px;
+  font-size: 18px;
+}
+
+.shell-screen .btn-sm {
+  padding: 9px 14px;
+  font-size: 13px;
+}
+
+.shell-screen .chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: oklch(0.96 0.02 80 / 0.8);
+  border: 1px solid oklch(0.75 0.05 60 / 0.45);
+  color: var(--fg-1);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.shell-screen .chip-amber {
+  background: linear-gradient(180deg, oklch(0.94 0.08 75), oklch(0.88 0.1 65));
+  border-color: oklch(0.75 0.13 60 / 0.55);
+  color: oklch(0.35 0.1 50);
+}
+
+.shell-screen .chip-win {
+  background: oklch(0.9 0.08 150 / 0.8);
+  border-color: oklch(0.6 0.13 150 / 0.5);
+  color: oklch(0.3 0.12 150);
+}
+
+.shell-screen .chip-live {
+  background: oklch(0.92 0.08 25 / 0.8);
+  border-color: oklch(0.62 0.14 25 / 0.5);
+  color: oklch(0.4 0.14 25);
+}
+
+.shell-screen .screen-enter {
+  animation: shellScreenIn 0.42s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@keyframes shellScreenIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.985);
+    filter: blur(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+}
+
+.shell-screen .h-display {
+  font-family: var(--display);
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.shell-screen .h-mono {
+  font-family: var(--mono);
+  letter-spacing: 0.04em;
+}
+
+.shell-screen .frame {
+  position: relative;
+  display: inline-flex;
+  padding: 4px;
+  border-radius: 50%;
+  background: oklch(0.78 0.04 65 / 0.8);
+}
+
+.shell-screen .frame.gold {
+  background: conic-gradient(
+    from 0deg,
+    oklch(0.92 0.12 90),
+    oklch(0.72 0.16 60),
+    oklch(0.95 0.1 95),
+    oklch(0.74 0.17 50),
+    oklch(0.92 0.12 90)
+  );
+  box-shadow: 0 0 14px -4px oklch(0.85 0.16 70 / 0.55);
+}
+
+.shell-screen .frame.silver {
+  background: conic-gradient(from 0deg, oklch(0.94 0.01 240), oklch(0.72 0.02 240), oklch(0.96 0.01 240));
+}
+
+.shell-screen .frame.bronze {
+  background: conic-gradient(from 0deg, oklch(0.72 0.12 50), oklch(0.52 0.11 35), oklch(0.76 0.13 55));
+}
+
+.shell-screen .frame.simple {
+  background: oklch(0.78 0.04 65 / 0.8);
+}
+
+.shell-screen .gcard {
+  position: relative;
+  border-radius: 20px;
+  background: radial-gradient(120% 80% at 30% 0%, oklch(0.98 0.04 85), oklch(0.93 0.05 80) 60%, oklch(0.86 0.06 75)),
+    oklch(0.95 0.04 80);
+  color: oklch(0.25 0.04 40);
+  box-shadow: var(--sh-card);
+  overflow: hidden;
+  transform-style: preserve-3d;
+}
+
+.shell-screen .gcard-back {
+  background: repeating-linear-gradient(45deg, oklch(0.5 0.13 35) 0 14px, oklch(0.44 0.13 32) 14px 28px),
+    oklch(0.46 0.13 35);
+  color: oklch(0.94 0.05 80);
+}
+
+.shell-screen .bloom {
+  position: absolute;
+  pointer-events: none;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, oklch(0.78 0.18 65 / 0.3), transparent 70%);
+  filter: blur(6px);
+}
+
+.shell-screen .embers {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.shell-screen .ember {
+  position: absolute;
+  bottom: -20px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: oklch(0.78 0.16 65);
+  box-shadow: 0 0 6px 1px oklch(0.78 0.16 65 / 0.7);
+  opacity: 0;
+  animation: shellRise linear infinite;
+}
+
+@keyframes shellRise {
+  0% {
+    transform: translate(0, 0) scale(0.4);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.55;
+  }
+  90% {
+    opacity: 0.25;
+  }
+  100% {
+    transform: translate(var(--dx, 12px), -120vh) scale(1);
+    opacity: 0;
+  }
+}
+
+.shell-screen .row {
+  display: flex;
+  align-items: center;
+}
+
+.shell-screen .col {
+  display: flex;
+  flex-direction: column;
+}
+
+.shell-screen .gap-1 {
+  gap: 4px;
+}
+.shell-screen .gap-2 {
+  gap: 8px;
+}
+.shell-screen .gap-3 {
+  gap: 12px;
+}
+
+.shell-screen .f-1 {
+  flex: 1;
+}
+.shell-screen .center {
+  align-items: center;
+  justify-content: center;
+}
+.shell-screen .between {
+  justify-content: space-between;
+}
+
+.shell-screen .mt-2 {
+  margin-top: 8px;
+}
+.shell-screen .mt-3 {
+  margin-top: 12px;
+}
+.shell-screen .mt-4 {
+  margin-top: 16px;
+}
+.shell-screen .mt-5 {
+  margin-top: 20px;
+}
+
+.shell-screen .text-xs {
+  font-size: 11px;
+}
+.shell-screen .text-sm {
+  font-size: 13px;
+}
+.shell-screen .text-md {
+  font-size: 15px;
+}
+.shell-screen .text-xl {
+  font-size: 22px;
+}
+
+.shell-screen .fw-6 {
+  font-weight: 600;
+}
+.shell-screen .fw-7 {
+  font-weight: 700;
+}
+.shell-screen .fw-8 {
+  font-weight: 800;
+}
+
+.shell-screen .muted {
+  color: var(--fg-3);
+}
+
+.shell-screen .topbar {
+  padding: 6px 18px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.shell-screen .coin {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px 5px 6px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, oklch(0.96 0.025 80), oklch(0.92 0.04 75));
+  border: 1px solid oklch(0.75 0.06 60 / 0.5);
+  color: var(--fg-0);
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 13px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), 0 2px 4px oklch(0.5 0.06 50 / 0.1);
+}
+
+.shell-screen .coin-ico {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, oklch(0.96 0.13 90), oklch(0.72 0.17 60));
+  box-shadow: inset 0 -2px 0 oklch(0.52 0.15 45), 0 0 6px oklch(0.78 0.16 65 / 0.5);
+}
+
+.shell-screen .scroll-y {
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.shell-screen .scroll-y::-webkit-scrollbar {
+  display: none;
+}
+
+.shell-screen .scroll-x {
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+
+.shell-screen .scroll-x::-webkit-scrollbar {
+  display: none;
+}
+
+.shell-screen .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 6px currentColor;
+}
+
+.shell-screen .dot.pulse {
+  animation: shellPulse 1.6s ease-in-out infinite;
+}
+
+.shell-screen .loading-stripe {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--amber),
+    oklch(0.7 0.14 25),
+    var(--amber),
+    transparent
+  );
+  background-size: 50% 100%;
+  animation: shellSlide 1.4s linear infinite;
+}
+
+@keyframes shellSlide {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(-100%);
+  }
+}
+
+@keyframes shellPulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(0.85);
+  }
+}

@@ -5,8 +5,6 @@ import { AnimatePresence, motion } from "framer-motion";
 import { GameplayLetterRow } from "@/components/game/play/GameplayLetterRow";
 import { IconClose, IconHintBulb } from "@/components/game/play/icons";
 import { GP } from "@/components/game/play/tokens";
-import { CoinDisplay } from "@/components/ui/CoinDisplay";
-import { HINT_COIN_PRICE } from "@/lib/profile/progression";
 
 function Sheet({
   title,
@@ -65,8 +63,8 @@ export function MyHiddenCardSheet({
   revealedIdx,
   countRevealed,
   hintsLeft,
-  bonusHints,
-  coins,
+  bonusLetterHints,
+  bonusCountHints,
   busy,
   onClose,
   onUseHint,
@@ -76,8 +74,8 @@ export function MyHiddenCardSheet({
   revealedIdx: number[];
   countRevealed: boolean;
   hintsLeft: number;
-  bonusHints: number;
-  coins: number;
+  bonusLetterHints: number;
+  bonusCountHints: number;
   busy?: boolean;
   onClose: () => void;
   onUseHint: (kind: "letter" | "count") => void;
@@ -85,9 +83,9 @@ export function MyHiddenCardSheet({
   const freeNote =
     hintsLeft > 0
       ? `${hintsLeft} مجاني في هذه المباراة`
-      : bonusHints > 0
-        ? `${bonusHints} تلميح محفوظ`
-        : `كل تلميح — ${HINT_COIN_PRICE} عملة`;
+      : bonusLetterHints + bonusCountHints > 0
+        ? `محفوظ: ${bonusLetterHints} حرف · ${bonusCountHints} عدد`
+        : "اشترِ تلميحات من المتجر";
 
   return (
     <AnimatePresence>
@@ -97,7 +95,6 @@ export function MyHiddenCardSheet({
             <p className="text-xs font-semibold" style={{ color: GP.inkSoft }}>
               {freeNote}
             </p>
-            <CoinDisplay amount={coins} size="sm" />
           </div>
 
           <div
@@ -138,16 +135,20 @@ export function MyHiddenCardSheet({
             <HintOption
               title="عدد الأحرف"
               subtitle="يكشف عدد مربعات كرتك"
-              priceLabel={hintsLeft > 0 ? "مجاني" : bonusHints > 0 ? "محفوظ" : `${HINT_COIN_PRICE} 🪙`}
+              priceLabel={
+                hintsLeft > 0 ? "مجاني" : bonusCountHints > 0 ? "محفوظ" : "من المتجر"
+              }
               recommended
-              disabled={busy || countRevealed}
+              disabled={busy || countRevealed || (hintsLeft <= 0 && bonusCountHints <= 0)}
               onClick={() => onUseHint("count")}
             />
             <HintOption
               title="حرف واحد"
               subtitle="يكشف حرفًا عشوائيًا"
-              priceLabel={hintsLeft > 0 ? "مجاني" : bonusHints > 0 ? "محفوظ" : `${HINT_COIN_PRICE} 🪙`}
-              disabled={busy}
+              priceLabel={
+                hintsLeft > 0 ? "مجاني" : bonusLetterHints > 0 ? "محفوظ" : "من المتجر"
+              }
+              disabled={busy || (hintsLeft <= 0 && bonusLetterHints <= 0)}
               onClick={() => onUseHint("letter")}
             />
           </div>

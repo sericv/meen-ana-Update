@@ -6,7 +6,8 @@ import { GP } from "@/components/game/play/tokens";
 
 type Props = {
   hintsLeft: number;
-  bonusHints?: number;
+  bonusLetterHints?: number;
+  bonusCountHints?: number;
   /** kept for sheet — not shown on the compact button */
   revealedIdx?: number[];
   letters?: string[];
@@ -17,14 +18,15 @@ type Props = {
 /** زر تلميحات موحّد — لمبة دائماً، النتائج داخل الورقة فقط */
 export function GameplayMyHiddenCard({
   hintsLeft,
-  bonusHints = 0,
+  bonusLetterHints = 0,
+  bonusCountHints = 0,
   size = "compact",
   onPress,
 }: Props) {
   const voice = size === "voice";
   const w = voice ? 76 : 68;
   const h = voice ? 96 : 88;
-  const badge = hintsLeft + bonusHints;
+  const badge = hintsLeft + bonusLetterHints + bonusCountHints;
   const bulbSize = voice ? 34 : 30;
 
   return (

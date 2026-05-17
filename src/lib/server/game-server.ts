@@ -10,7 +10,6 @@ import {
 import { ALL_CARDS, pickTwoCards } from "@/lib/game/cards";
 import { generateGuessAliases } from "@/lib/game/guess-alias-generator";
 import { guessMatchesCard } from "@/lib/game/validation";
-import { HINT_COIN_PRICE } from "@/lib/profile/progression";
 
 /** Synthetic bot uids always start with this prefix. */
 export const BOT_UID_PREFIX = "bot:";
@@ -1026,22 +1025,29 @@ export async function handleHint(args: {
     const userRef = db.collection(col.users).doc(args.uid);
     const userSnap = await tx.get(userRef);
     const userData = userSnap.exists ? userSnap.data()! : {};
-    let hintCredits =
+    const legacyHints =
       typeof userData.hintCredits === "number" && Number.isFinite(userData.hintCredits)
         ? Math.max(0, Math.floor(userData.hintCredits))
         : 0;
-    const userCoins =
-      typeof userData.coins === "number" && Number.isFinite(userData.coins) ? userData.coins : 0;
+    let hintLetterCredits =
+      typeof userData.hintLetterCredits === "number" && Number.isFinite(userData.hintLetterCredits)
+        ? Math.max(0, Math.floor(userData.hintLetterCredits))
+        : legacyHints;
+    let hintCountCredits =
+      typeof userData.hintCountCredits === "number" && Number.isFinite(userData.hintCountCredits)
+        ? Math.max(0, Math.floor(userData.hintCountCredits))
+        : 0;
 
-    let paidWith: "free" | "credit" | "coins" = "free";
+    let paidWith: "free" | "letter_credit" | "count_credit" = "free";
     if (st.hintsLeft > 0) {
       st.hintsLeft -= 1;
       paidWith = "free";
-    } else if (hintCredits > 0) {
-      hintCredits -= 1;
-      paidWith = "credit";
-    } else if (userCoins >= HINT_COIN_PRICE) {
-      paidWith = "coins";
+    } else if (args.kind === "letter" && hintLetterCredits > 0) {
+      hintLetterCredits -= 1;
+      paidWith = "letter_credit";
+    } else if (args.kind === "count" && hintCountCredits > 0) {
+      hintCountCredits -= 1;
+      paidWith = "count_credit";
     } else {
       throw new Error("NO_HINTS_LEFT");
     }
@@ -1064,10 +1070,10 @@ export async function handleHint(args: {
     hintByUid[args.uid] = st;
     tx.update(matchRef, { hintByUid });
 
-    if (paidWith === "credit") {
-      tx.update(userRef, { hintCredits });
-    } else if (paidWith === "coins") {
-      tx.update(userRef, { coins: FieldValue.increment(-HINT_COIN_PRICE) });
+    if (paidWith === "letter_credit") {
+      tx.update(userRef, { hintLetterCredits });
+    } else if (paidWith === "count_credit") {
+      tx.update(userRef, { hintCountCredits });
     }
 
     const revealedLettersNum: Record<number, string> = {};

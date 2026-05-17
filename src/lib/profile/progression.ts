@@ -1,12 +1,13 @@
 import { FRAME_REGISTRY, type FrameId } from "@/lib/profile/cosmetics";
 
 /** Single soft currency — spent in the frame shop and on hints. */
-export const SHOP_FRAME_PRICE = 100;
-/** Hint pack in shop: +3 bonus hints stored on profile. */
-export const HINT_PACK_SIZE = 3;
-export const HINT_PACK_PRICE = 45;
-/** Per-hint coin cost when free match hints and bonus credits are exhausted. */
+export const SHOP_FRAME_PRICE = 50;
+/** @deprecated In-match coin hints removed — buy from shop only. */
 export const HINT_COIN_PRICE = 20;
+/** @deprecated Use `HINT_SHOP_ITEMS` */
+export const HINT_PACK_SIZE = 3;
+/** @deprecated Use `HINT_SHOP_ITEMS` */
+export const HINT_PACK_PRICE = 45;
 /** Free hints granted each active match. */
 export const MATCH_FREE_HINTS = 2;
 
@@ -19,8 +20,10 @@ export const SHOP_FRAME_ID_SET = new Set<string>(SHOP_FRAME_IDS);
 
 export type PlayerProgress = {
   coins: number;
-  /** Purchased hint credits usable across matches (after free per-match hints). */
+  /** @deprecated Legacy — migrated to typed credits on read. */
   hintCredits: number;
+  hintLetterCredits: number;
+  hintCountCredits: number;
   /** Lifetime experience — level is derived from this in `level.ts`. */
   xp: number;
   matchWins: number;
@@ -38,10 +41,19 @@ export function normalizePlayerProgress(raw: Record<string, unknown> | undefined
     typeof raw?.coins === "number" && Number.isFinite(raw.coins)
       ? Math.max(0, Math.floor(raw.coins))
       : 0;
-  const hintCredits =
+  const legacyHints =
     typeof raw?.hintCredits === "number" && Number.isFinite(raw.hintCredits)
       ? Math.max(0, Math.floor(raw.hintCredits))
       : 0;
+  const hintLetterCredits =
+    typeof raw?.hintLetterCredits === "number" && Number.isFinite(raw.hintLetterCredits)
+      ? Math.max(0, Math.floor(raw.hintLetterCredits))
+      : legacyHints;
+  const hintCountCredits =
+    typeof raw?.hintCountCredits === "number" && Number.isFinite(raw.hintCountCredits)
+      ? Math.max(0, Math.floor(raw.hintCountCredits))
+      : 0;
+  const hintCredits = hintLetterCredits + hintCountCredits;
   const xp =
     typeof raw?.xp === "number" && Number.isFinite(raw.xp)
       ? Math.max(0, Math.floor(raw.xp))
@@ -57,7 +69,16 @@ export function normalizePlayerProgress(raw: Record<string, unknown> | undefined
       if (typeof id === "string" && SHOP_FRAME_ID_SET.has(id)) ownedShopFrameIds.add(id);
     }
   }
-  return { coins, hintCredits, xp, matchWins, legacyFullCatalog, ownedShopFrameIds };
+  return {
+    coins,
+    hintCredits,
+    hintLetterCredits,
+    hintCountCredits,
+    xp,
+    matchWins,
+    legacyFullCatalog,
+    ownedShopFrameIds,
+  };
 }
 
 export function ownsShopFrame(p: PlayerProgress, frameId: string): boolean {
