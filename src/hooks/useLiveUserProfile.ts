@@ -10,6 +10,8 @@ import { normalizePlayerProgress, type PlayerProgress } from "@/lib/profile/prog
 export type LiveUserProfile = {
   cosmetic: PlayerCosmetic;
   progress: PlayerProgress;
+  username: string | null;
+  usernameLower: string | null;
 };
 
 /**
@@ -32,12 +34,16 @@ export function useLiveUserProfile(uid: string | null | undefined): LiveUserProf
         setState({
           cosmetic: normalizeCosmetic(raw),
           progress: normalizePlayerProgress(raw),
+          username: typeof raw?.username === "string" ? raw.username : null,
+          usernameLower: typeof raw?.usernameLower === "string" ? raw.usernameLower : null,
         });
       },
       () => {
         setState({
           cosmetic: normalizeCosmetic(undefined),
           progress: normalizePlayerProgress(undefined),
+          username: null,
+          usernameLower: null,
         });
       },
     );

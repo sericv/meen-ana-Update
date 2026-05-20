@@ -11,9 +11,10 @@ import { ALL_CARDS, pickTwoCards } from "@/lib/game/cards";
 import { generateGuessAliases } from "@/lib/game/guess-alias-generator";
 import { guessMatchesCard } from "@/lib/game/validation";
 import {
-  applyExtraQuestionAfterQuestion,
   buildQuestionDeadline,
   incrementQuestionCountPatch,
+  resolveAfterQuestionPosted,
+  tacticalPatchForNewQuestionTurn,
 } from "@/lib/server/tactical-tools-server";
 
 export { handleTacticalTool } from "@/lib/server/tactical-tools-server";
@@ -343,14 +344,15 @@ export async function handleChat(args: {
         text: args.text,
         createdAt: FieldValue.serverTimestamp(),
       });
-      const extra = applyExtraQuestionAfterQuestion({ m, uid: args.uid, baseQSec: qSec });
-      if (extra.stayInQuestionPhase) {
-        tx.set(matchRef, { ...incrementQuestionCountPatch(m), ...extra.patch }, { merge: true });
+      const afterQ = resolveAfterQuestionPosted({ m, uid: args.uid, baseQSec: qSec });
+      if (afterQ.stayInQuestionPhase) {
+        tx.set(matchRef, { ...incrementQuestionCountPatch(m), ...afterQ.patch }, { merge: true });
       } else {
         tx.set(
           matchRef,
           {
             ...incrementQuestionCountPatch(m),
+            ...afterQ.patch,
             chatPhase: "answer",
             actorUid: opp,
             turnDeadline: Timestamp.fromMillis(Date.now() + aSec * 1000),
@@ -373,6 +375,7 @@ export async function handleChat(args: {
           chatPhase: "question",
           actorUid: args.uid,
           ...qPatch.patch,
+          tacticalByUid: tacticalPatchForNewQuestionTurn(m.tacticalByUid, args.uid),
         },
         { merge: true },
       );
@@ -433,6 +436,7 @@ export async function handleTurnTimeout(args: {
           chatPhase: "question",
           actorUid: opp,
           ...qPatch.patch,
+          tacticalByUid: tacticalPatchForNewQuestionTurn(m.tacticalByUid, opp),
         },
         { merge: true },
       );
@@ -453,6 +457,7 @@ export async function handleTurnTimeout(args: {
           chatPhase: "question",
           actorUid: opp,
           ...qPatch.patch,
+          tacticalByUid: tacticalPatchForNewQuestionTurn(m.tacticalByUid, opp),
         },
         { merge: true },
       );
@@ -850,15 +855,26 @@ export async function botTick(args: {
         text,
         createdAt: FieldValue.serverTimestamp(),
       });
-      tx.set(
-        matchRef,
-        {
-          chatPhase: "answer",
-          actorUid: opp,
-          turnDeadline: Timestamp.fromMillis(Date.now() + aSec * 1000),
-        },
-        { merge: true },
-      );
+      const afterQ = resolveAfterQuestionPosted({ m: fm, uid: botUid, baseQSec: qSec });
+      if (afterQ.stayInQuestionPhase) {
+        tx.set(
+          matchRef,
+          { ...incrementQuestionCountPatch(fm), ...afterQ.patch },
+          { merge: true },
+        );
+      } else {
+        tx.set(
+          matchRef,
+          {
+            ...incrementQuestionCountPatch(fm),
+            ...afterQ.patch,
+            chatPhase: "answer",
+            actorUid: opp,
+            turnDeadline: Timestamp.fromMillis(Date.now() + aSec * 1000),
+          },
+          { merge: true },
+        );
+      }
       tx.set(roomRef, { lastActivityAt: FieldValue.serverTimestamp() }, { merge: true });
     });
     return { acted: true };
@@ -884,12 +900,14 @@ export async function botTick(args: {
       text,
       createdAt: FieldValue.serverTimestamp(),
     });
+    const qPatch = buildQuestionDeadline(fm, botUid, qSec);
     tx.set(
       matchRef,
       {
         chatPhase: "question",
         actorUid: botUid,
-        turnDeadline: Timestamp.fromMillis(Date.now() + qSec * 1000),
+        ...qPatch.patch,
+        tacticalByUid: tacticalPatchForNewQuestionTurn(fm.tacticalByUid, botUid),
       },
       { merge: true },
     );

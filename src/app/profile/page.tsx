@@ -6,7 +6,6 @@ import { AuthGate } from "@/components/auth/AuthGate";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { useDefaultOnlinePresence } from "@/hooks/useDefaultOnlinePresence";
 import { useLiveUserProfile } from "@/hooks/useLiveUserProfile";
-import { useLiveUserProfiles } from "@/hooks/useLiveUserProfiles";
 import { isFullAccountUser } from "@/lib/auth/google-user";
 import { playUIButton, resumeAudioContext } from "@/lib/audio/game-sounds";
 import { normalizeCosmetic } from "@/lib/profile/cosmetics";
@@ -38,8 +37,7 @@ function ProfileScreenInner() {
   useDefaultOnlinePresence(uid, google);
 
   const live = useLiveUserProfile(uid);
-  const selfLive = useLiveUserProfiles(uid ? [uid] : []);
-  const username = uid ? selfLive[uid]?.username : null;
+  const username = live?.username ?? null;
 
   const [tab, setTab] = useState<ProfileTab>(initialTab);
 

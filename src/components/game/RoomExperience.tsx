@@ -27,6 +27,7 @@ import {
   playReadyTap,
   playRoomJoin,
   playRoomReady,
+  playTacticalAlert,
   playTurnCue,
   playUIButton,
   playWinSparkle,
@@ -145,6 +146,7 @@ export function RoomExperience({ roomId }: Props) {
   const prevLobbyAllReady = useRef<boolean | null>(null);
   const seenGuessMessageIds = useRef(new Set<string>());
   const guessSoundBootstrapped = useRef(false);
+  const lastTacticalEventId = useRef<string | null>(null);
   const lobbyCustomFileRef = useRef<HTMLInputElement>(null);
   const [lobbyCustomName, setLobbyCustomName] = useState("");
   const [lobbyCustomPreview, setLobbyCustomPreview] = useState<string | null>(null);
@@ -332,7 +334,11 @@ export function RoomExperience({ roomId }: Props) {
       resumeAudioContext();
       playUIButton();
       clearTacticalError();
-      void activateTactical(toolId, displayName);
+      void activateTactical(toolId, displayName).then((ev) => {
+        if (!ev) return;
+        resumeAudioContext();
+        playTacticalAlert(ev.blocked === true);
+      });
     },
     [activateTactical, displayName, clearTacticalError],
   );
@@ -413,6 +419,15 @@ export function RoomExperience({ roomId }: Props) {
     }
     prevMsgCount.current = n;
   }, [messages, uid]);
+
+  useEffect(() => {
+    const ev = match?.lastTacticalEvent;
+    if (!ev?.id || ev.id === lastTacticalEventId.current) return;
+    lastTacticalEventId.current = ev.id;
+    if (ev.actorUid === uid) return;
+    resumeAudioContext();
+    playTacticalAlert(ev.blocked === true);
+  }, [match?.lastTacticalEvent, uid]);
 
   useEffect(() => {
     seenGuessMessageIds.current.clear();
@@ -1567,7 +1582,7 @@ export function RoomExperience({ roomId }: Props) {
             : undefined
         }
       >
-        <TacticalEventBanner event={match?.lastTacticalEvent} />
+        <TacticalEventBanner event={match?.lastTacticalEvent} myUid={uid} />
 
         {voiceAwaitMatchUI ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-5 px-4 py-10">

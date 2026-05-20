@@ -3,8 +3,9 @@
 import { useState } from "react";
 import { GameplayVoiceLayout } from "@/components/game/play/GameplayVoiceLayout";
 import { MyHiddenCardSheet } from "@/components/game/play/GameplaySheets";
+import { GameplayTacticalButton } from "@/components/game/play/GameplayTacticalButton";
+import { TacticalToolsSheet } from "@/components/game/play/TacticalToolsSheet";
 import { useLiveUserProfile } from "@/hooks/useLiveUserProfile";
-import { TacticalToolsBar } from "@/components/game/play/TacticalToolsBar";
 import { useMatchHints } from "@/hooks/useMatchHints";
 import type { TacticalInventory } from "@/lib/profile/tactical-tools";
 import type { TacticalToolId } from "@/lib/profile/tactical-tools";
@@ -63,6 +64,7 @@ export function VoiceModePlayingPanel({
   tacticalError = null,
 }: VoiceModePlayingPanelProps) {
   const [cardSheetOpen, setCardSheetOpen] = useState(false);
+  const [tacticalSheetOpen, setTacticalSheetOpen] = useState(false);
   const [passing, setPassing] = useState(false);
   const [hintBusy, setHintBusy] = useState(false);
   const liveProfile = useLiveUserProfile(uid);
@@ -100,22 +102,6 @@ export function VoiceModePlayingPanel({
 
   return (
     <>
-      {tacticalInventory && onUseTactical ? (
-        <div className="shrink-0">
-          {tacticalError ? (
-            <p className="mx-4 mb-1 text-center text-[10px] font-bold text-[#B8332E]">{tacticalError}</p>
-          ) : null}
-          <TacticalToolsBar
-            match={match}
-            uid={uid}
-            myTurn={myTurn}
-            phase={phase}
-            inventory={tacticalInventory}
-            busy={tacticalBusy}
-            onUse={onUseTactical}
-          />
-        </div>
-      ) : null}
       <GameplayVoiceLayout
         banner={banner}
         myName={displayName}
@@ -137,6 +123,15 @@ export function VoiceModePlayingPanel({
         onPassTurn={() => void onPassTurn()}
         onGuess={openGuessFlow}
         onMyCardPress={() => setCardSheetOpen(true)}
+        tacticalButton={
+          tacticalInventory && onUseTactical ? (
+            <GameplayTacticalButton
+              inventory={tacticalInventory}
+              size="voice"
+              onPress={() => setTacticalSheetOpen(true)}
+            />
+          ) : null
+        }
       />
       <MyHiddenCardSheet
         open={cardSheetOpen}
@@ -150,6 +145,20 @@ export function VoiceModePlayingPanel({
         onClose={() => setCardSheetOpen(false)}
         onUseHint={(k) => void handleUseHint(k)}
       />
+      {tacticalInventory && onUseTactical ? (
+        <TacticalToolsSheet
+          open={tacticalSheetOpen}
+          match={match}
+          uid={uid}
+          myTurn={myTurn}
+          phase={phase}
+          inventory={tacticalInventory}
+          busy={tacticalBusy}
+          error={tacticalError}
+          onClose={() => setTacticalSheetOpen(false)}
+          onUse={onUseTactical}
+        />
+      ) : null}
     </>
   );
 }

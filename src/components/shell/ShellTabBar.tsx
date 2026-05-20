@@ -1,5 +1,7 @@
 "use client";
 
+import type { MouseEvent } from "react";
+import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { ShellIcon } from "@/components/shell/ShellIcons";
@@ -15,6 +17,11 @@ function activeFromPath(pathname: string): ShellTabKey {
   if (pathname === "/shop") return "shop";
   if (pathname.startsWith("/play")) return "play";
   return "home";
+}
+
+function tabSound() {
+  resumeAudioContext();
+  playUIButton();
 }
 
 export function ShellTabBar({ active }: { active?: ShellTabKey }) {
@@ -33,71 +40,99 @@ export function ShellTabBar({ active }: { active?: ShellTabKey }) {
     { key: "profile", icon: "user", label: "حسابي", href: "/profile", auth: true },
   ];
 
-  function go(href: string, needsAuth?: boolean) {
-    resumeAudioContext();
-    playUIButton();
-    if (needsAuth && !loading && !user) {
+  function onAuthTab(e: MouseEvent<HTMLAnchorElement>, href: string) {
+    tabSound();
+    if (!loading && !user) {
+      e.preventDefault();
       router.push(`/login?next=${encodeURIComponent(href)}`);
-      return;
     }
-    router.push(href);
   }
 
   return (
     <nav className="tabbar" aria-label="التنقل الرئيسي">
-      {items.map((it) =>
-        it.key === "play" ? (
-          <button key={it.key} type="button" className="tab" onClick={() => go(it.href)} style={{ position: "relative" }}>
-            <div
-              style={{
-                position: "absolute",
-                top: -24,
-                width: 56,
-                height: 56,
-                borderRadius: "50%",
-                background: "linear-gradient(180deg, oklch(0.86 0.16 75), oklch(0.66 0.18 50))",
-                display: "grid",
-                placeItems: "center",
-                color: "oklch(0.22 0.04 35)",
-                boxShadow:
-                  "0 12px 24px -8px oklch(0.70 0.18 60 / .55), inset 0 1px 0 rgba(255,255,255,.55), inset 0 -2px 0 oklch(0.48 0.16 45)",
-                border: "3px solid oklch(0.95 0.022 78)",
-              }}
+      {items.map((it) => {
+        const isActive = resolved === it.key;
+
+        if (it.key === "play") {
+          return (
+            <Link
+              key={it.key}
+              href={it.href}
+              prefetch
+              className="tab"
+              style={{ position: "relative" }}
+              onClick={tabSound}
             >
-              <ShellIcon name="play" size={26} />
-            </div>
-            <div style={{ height: 30 }} />
-            <span style={{ marginTop: 4 }}>{it.label}</span>
-          </button>
-        ) : (
-          <button
-            key={it.key}
-            type="button"
-            className={`tab ${resolved === it.key ? "active" : ""}`}
-            onClick={() => go(it.href, it.auth)}
-            style={{ position: "relative" }}
-          >
-            <ShellIcon name={it.icon} size={22} />
-            {it.key === "friends" && pendingIncoming > 0 ? (
-              <span
-                aria-hidden
+              <div
                 style={{
                   position: "absolute",
-                  top: 4,
-                  left: "50%",
-                  marginLeft: 10,
-                  width: 7,
-                  height: 7,
+                  top: -24,
+                  width: 56,
+                  height: 56,
                   borderRadius: "50%",
-                  background: "oklch(0.72 0.18 55)",
-                  boxShadow: "0 0 6px oklch(0.78 0.18 65 / .7)",
+                  background: "linear-gradient(180deg, oklch(0.86 0.16 75), oklch(0.66 0.18 50))",
+                  display: "grid",
+                  placeItems: "center",
+                  color: "oklch(0.22 0.04 35)",
+                  boxShadow:
+                    "0 12px 24px -8px oklch(0.70 0.18 60 / .55), inset 0 1px 0 rgba(255,255,255,.55), inset 0 -2px 0 oklch(0.48 0.16 45)",
+                  border: "3px solid oklch(0.95 0.022 78)",
                 }}
-              />
-            ) : null}
+              >
+                <ShellIcon name="play" size={26} />
+              </div>
+              <div style={{ height: 30 }} />
+              <span style={{ marginTop: 4 }}>{it.label}</span>
+            </Link>
+          );
+        }
+
+        if (it.auth) {
+          return (
+            <Link
+              key={it.key}
+              href={it.href}
+              prefetch
+              className={`tab ${isActive ? "active" : ""}`}
+              style={{ position: "relative" }}
+              onClick={(e) => onAuthTab(e, it.href)}
+            >
+              <ShellIcon name={it.icon} size={22} />
+              {it.key === "friends" && pendingIncoming > 0 ? (
+                <span
+                  aria-hidden
+                  style={{
+                    position: "absolute",
+                    top: 4,
+                    left: "50%",
+                    marginLeft: 10,
+                    width: 7,
+                    height: 7,
+                    borderRadius: "50%",
+                    background: "oklch(0.72 0.18 55)",
+                    boxShadow: "0 0 6px oklch(0.78 0.18 65 / .7)",
+                  }}
+                />
+              ) : null}
+              <span>{it.label}</span>
+            </Link>
+          );
+        }
+
+        return (
+          <Link
+            key={it.key}
+            href={it.href}
+            prefetch
+            className={`tab ${isActive ? "active" : ""}`}
+            style={{ position: "relative" }}
+            onClick={tabSound}
+          >
+            <ShellIcon name={it.icon} size={22} />
             <span>{it.label}</span>
-          </button>
-        ),
-      )}
+          </Link>
+        );
+      })}
     </nav>
   );
 }

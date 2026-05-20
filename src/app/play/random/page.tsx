@@ -15,7 +15,6 @@ import { col } from "@/lib/firestore/paths";
 import { isFirebaseFirestoreError, logFsListenAttach, logFsOpFailure } from "@/lib/firestore/fs-op-debug";
 import { DEFAULT_CATEGORY_ID } from "@/lib/game/categories";
 import { MATCHMAKING_POOL_ALL } from "@/lib/game/constants";
-import { usePlayerCosmetics } from "@/hooks/usePlayerCosmetics";
 import { useGamePresenceReporter } from "@/hooks/useGamePresenceReporter";
 import { isFullAccountUser } from "@/lib/auth/google-user";
 import { normalizeCosmetic, type PlayerCosmetic } from "@/lib/profile/cosmetics";
@@ -93,9 +92,8 @@ function RandomInner() {
     roomId: null,
     resetOnUnmount: true,
   });
-  const liveCosmetics = usePlayerCosmetics(myUid ? [myUid] : []);
-  const myCosmetic = myUid ? liveCosmetics[myUid] : undefined;
   const liveProfile = useLiveUserProfile(myUid);
+  const myCosmetic = liveProfile?.cosmetic;
 
   useEffect(() => {
     if (phase !== "searching" && phase !== "found") {

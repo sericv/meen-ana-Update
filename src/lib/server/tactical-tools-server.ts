@@ -17,7 +17,10 @@ export type StoredTacticalPlayerState = {
   usedExtraQuestion?: boolean;
   usedShield?: boolean;
   shieldActiveUntilMs?: number | null;
-  extraQuestionPending?: boolean;
+  /** Questions posted in the current question-phase turn. */
+  questionsThisTurn?: number;
+  /** Max questions allowed this turn (2 when extra-question tool was used). */
+  questionQuota?: number;
 };
 
 export type TacticalEventPayload = {
@@ -47,13 +50,30 @@ function parseTacticalByUid(raw: unknown): Record<string, StoredTacticalPlayerSt
         : typeof o.shieldActiveUntilMs === "number"
           ? o.shieldActiveUntilMs
           : null;
+
+    let questionQuota =
+      typeof o.questionQuota === "number" && Number.isFinite(o.questionQuota)
+        ? Math.max(1, Math.floor(o.questionQuota))
+        : 1;
+    let questionsThisTurn =
+      typeof o.questionsThisTurn === "number" && Number.isFinite(o.questionsThisTurn)
+        ? Math.max(0, Math.floor(o.questionsThisTurn))
+        : 0;
+
+    // Legacy: stuck `extraQuestionPending` granted unlimited questions — cap to one bonus.
+    if (o.extraQuestionPending === true) {
+      questionQuota = Math.max(questionQuota, 2);
+      questionsThisTurn = Math.max(questionsThisTurn, 1);
+    }
+
     out[uid] = {
       usedExtraTime: o.usedExtraTime === true,
       usedTimePressure: o.usedTimePressure === true,
       usedExtraQuestion: o.usedExtraQuestion === true,
       usedShield: o.usedShield === true,
       shieldActiveUntilMs: shieldMs,
-      extraQuestionPending: o.extraQuestionPending === true,
+      questionQuota,
+      questionsThisTurn,
     };
   }
   return out;
@@ -64,6 +84,54 @@ function playerState(
   uid: string,
 ): StoredTacticalPlayerState {
   return map[uid] ?? {};
+}
+
+function serializeTacticalByUid(
+  tacticalByUid: Record<string, StoredTacticalPlayerState>,
+  nowMs: number,
+): Record<string, unknown> {
+  const serialized: Record<string, unknown> = {};
+  for (const [uid, st] of Object.entries(tacticalByUid)) {
+    const entry: Record<string, unknown> = {};
+    if (st.usedExtraTime) entry.usedExtraTime = true;
+    if (st.usedTimePressure) entry.usedTimePressure = true;
+    if (st.usedExtraQuestion) entry.usedExtraQuestion = true;
+    if (st.usedShield) entry.usedShield = true;
+    if (typeof st.questionsThisTurn === "number" && st.questionsThisTurn > 0) {
+      entry.questionsThisTurn = st.questionsThisTurn;
+    }
+    if (typeof st.questionQuota === "number" && st.questionQuota > 1) {
+      entry.questionQuota = st.questionQuota;
+    }
+    if (st.shieldActiveUntilMs && st.shieldActiveUntilMs > nowMs) {
+      entry.shieldActiveUntil = Timestamp.fromMillis(st.shieldActiveUntilMs);
+    }
+    if (Object.keys(entry).length) serialized[uid] = entry;
+  }
+  return serialized;
+}
+
+/** Reset per-turn question counters when a player enters the question phase. */
+export function beginQuestionTurnForActor(
+  tacticalByUid: Record<string, StoredTacticalPlayerState>,
+  actorUid: string,
+): void {
+  const prev = playerState(tacticalByUid, actorUid);
+  tacticalByUid[actorUid] = {
+    ...prev,
+    questionsThisTurn: 0,
+    questionQuota: 1,
+  };
+}
+
+export function tacticalPatchForNewQuestionTurn(
+  rawTactical: unknown,
+  actorUid: string,
+  nowMs = Date.now(),
+): Record<string, unknown> {
+  const map = parseTacticalByUid(rawTactical);
+  beginQuestionTurnForActor(map, actorUid);
+  return serializeTacticalByUid(map, nowMs);
 }
 
 function shieldActive(st: StoredTacticalPlayerState, nowMs: number): boolean {
@@ -108,29 +176,29 @@ function eventForTool(
   if (blocked) {
     return {
       titleAr: "تم صد الأداة",
-      bodyAr: `تم صد الهجوم التكتيكي بواسطة درع الخصم — استُهلكت أداة ${name} دون تأثير.`,
+      bodyAr: `صدّ الخصم هجومك التكتيكي بالدرع — استُهلِكت أداة ${name} دون تأثير.`,
     };
   }
   switch (toolId) {
     case "extra_time":
       return {
         titleAr: "وقت إضافي",
-        bodyAr: `${name} استخدم وقتًا إضافيًا — +${EXTRA_TIME_BONUS_SEC} ثانية لسؤاله الحالي.`,
+        bodyAr: `${name} أضاف +${EXTRA_TIME_BONUS_SEC} ثانية لسؤاله الحالي.`,
       };
     case "time_pressure":
       return {
         titleAr: "ضغط الوقت",
-        bodyAr: `${name} فعّل ضغط الوقت — سؤال الخصم القادم ${TIME_PRESSURE_QUESTION_SEC} ثوانٍ فقط.`,
+        bodyAr: `${name} فعّل ضغط الوقت — سؤالك القادم ${TIME_PRESSURE_QUESTION_SEC} ثوانٍ فقط.`,
       };
     case "extra_question":
       return {
         titleAr: "سؤال إضافي",
-        bodyAr: `${name} استخدم سؤالًا إضافيًا — يمكنه طرح سؤالين قبل إجابة الخصم.`,
+        bodyAr: `${name} فعّل سؤالًا إضافيًا — سؤالان هذا الدور ثم يجيب الخصم.`,
       };
     case "shield":
       return {
         titleAr: "الدرع",
-        bodyAr: `${name} فعّل الدرع — محمي من هجوم تكتيكي واحد لمدة ١٠ دقائق.`,
+        bodyAr: `${name} فعّل الدرع — يصدّ أول هجوم تكتيكي خلال ١٠ دقائق.`,
       };
     default:
       return { titleAr: "أداة تكتيكية", bodyAr: `${name} استخدم أداة.` };
@@ -145,16 +213,17 @@ function writeEvent(
   targetUid?: string,
 ): TacticalEventPayload {
   const { titleAr, bodyAr } = eventForTool(toolId, actorName, blocked);
-  return {
+  const ev: TacticalEventPayload = {
     id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
     actorUid,
     actorName,
     toolId,
     titleAr,
     bodyAr,
-    blocked: blocked || undefined,
-    targetUid,
   };
+  if (blocked) ev.blocked = true;
+  if (targetUid) ev.targetUid = targetUid;
+  return ev;
 }
 
 export async function handleTacticalTool(args: {
@@ -242,7 +311,7 @@ export async function handleTacticalTool(args: {
         if (actorUid !== args.uid || phase !== "question") throw new Error("WRONG_PHASE");
         if (me.usedExtraQuestion) throw new Error("ALREADY_USED");
         me.usedExtraQuestion = true;
-        me.extraQuestionPending = true;
+        me.questionQuota = 2;
         tacticalByUid[args.uid] = me;
         ev = writeEvent("extra_question", args.uid, args.displayName, false);
         break;
@@ -260,21 +329,7 @@ export async function handleTacticalTool(args: {
     }
 
     tacticalByUid[args.uid] = me;
-    const serialized: Record<string, unknown> = {};
-    for (const [uid, st] of Object.entries(tacticalByUid)) {
-      const entry: Record<string, unknown> = {};
-      if (st.usedExtraTime) entry.usedExtraTime = true;
-      if (st.usedTimePressure) entry.usedTimePressure = true;
-      if (st.usedExtraQuestion) entry.usedExtraQuestion = true;
-      if (st.usedShield) entry.usedShield = true;
-      if (st.extraQuestionPending) entry.extraQuestionPending = true;
-      if (st.shieldActiveUntilMs && st.shieldActiveUntilMs > nowMs) {
-        entry.shieldActiveUntil = Timestamp.fromMillis(st.shieldActiveUntilMs);
-      }
-      if (Object.keys(entry).length) serialized[uid] = entry;
-    }
-
-    matchPatch.tacticalByUid = serialized;
+    matchPatch.tacticalByUid = serializeTacticalByUid(tacticalByUid, nowMs);
     matchPatch.lastTacticalEvent = {
       ...ev,
       at: FieldValue.serverTimestamp(),
@@ -292,39 +347,35 @@ export async function handleTacticalTool(args: {
   return { event };
 }
 
-/** After posting a question — stay in question phase if extra question pending. */
-export function applyExtraQuestionAfterQuestion(args: {
+/** After posting a question — stay in question phase only while under this turn's quota. */
+export function resolveAfterQuestionPosted(args: {
   m: Record<string, unknown>;
   uid: string;
   baseQSec: number;
 }): { stayInQuestionPhase: boolean; patch: Record<string, unknown> } {
+  const nowMs = Date.now();
   const tacticalByUid = parseTacticalByUid(args.m.tacticalByUid);
-  const me = playerState(tacticalByUid, args.uid);
-  if (!me.extraQuestionPending) {
-    return { stayInQuestionPhase: false, patch: {} };
-  }
-  me.extraQuestionPending = false;
+  const me = { ...playerState(tacticalByUid, args.uid) };
+  const asked = (me.questionsThisTurn ?? 0) + 1;
+  const quota = me.questionQuota ?? 1;
+  me.questionsThisTurn = asked;
   tacticalByUid[args.uid] = me;
-  const { patch } = buildQuestionDeadline(args.m, args.uid, args.baseQSec);
-  const serialized: Record<string, unknown> = {};
-  for (const [uid, st] of Object.entries(tacticalByUid)) {
-    const entry: Record<string, unknown> = {};
-    if (st.usedExtraTime) entry.usedExtraTime = true;
-    if (st.usedTimePressure) entry.usedTimePressure = true;
-    if (st.usedExtraQuestion) entry.usedExtraQuestion = true;
-    if (st.extraQuestionPending) entry.extraQuestionPending = true;
-    if (st.shieldActiveUntilMs) entry.shieldActiveUntil = Timestamp.fromMillis(st.shieldActiveUntilMs);
-    if (Object.keys(entry).length) serialized[uid] = entry;
+  const serialized = serializeTacticalByUid(tacticalByUid, nowMs);
+
+  if (asked < quota) {
+    const { patch } = buildQuestionDeadline(args.m, args.uid, args.baseQSec);
+    return {
+      stayInQuestionPhase: true,
+      patch: {
+        ...patch,
+        chatPhase: "question",
+        actorUid: args.uid,
+        tacticalByUid: serialized,
+      },
+    };
   }
-  return {
-    stayInQuestionPhase: true,
-    patch: {
-      ...patch,
-      chatPhase: "question",
-      actorUid: args.uid,
-      tacticalByUid: serialized,
-    },
-  };
+
+  return { stayInQuestionPhase: false, patch: { tacticalByUid: serialized } };
 }
 
 export function incrementQuestionCountPatch(m: Record<string, unknown>): Record<string, unknown> {

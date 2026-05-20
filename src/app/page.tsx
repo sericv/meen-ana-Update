@@ -7,7 +7,6 @@ import { useAuth } from "@/components/providers/AuthProvider";
 import { useDefaultOnlinePresence } from "@/hooks/useDefaultOnlinePresence";
 import { useLiveUserProfile } from "@/hooks/useLiveUserProfile";
 import { useLiveUserProfiles } from "@/hooks/useLiveUserProfiles";
-import { usePlayerCosmetics } from "@/hooks/usePlayerCosmetics";
 import { isFullAccountUser } from "@/lib/auth/google-user";
 import { getFirebaseDb } from "@/lib/firebase/client";
 import { col, userSub } from "@/lib/firestore/paths";
@@ -34,8 +33,7 @@ export default function HomePage() {
   useDefaultOnlinePresence(uid, google);
 
   const liveProfile = useLiveUserProfile(uid);
-  const profileCosmetics = usePlayerCosmetics(uid ? [uid] : []);
-  const myCosmetic = uid ? profileCosmetics[uid] : undefined;
+  const myCosmetic = liveProfile?.cosmetic;
 
   const [friends, setFriends] = useState<FriendRow[]>([]);
 
@@ -75,8 +73,8 @@ export default function HomePage() {
   }
 
   return (
-    <div className="shell-screen screen-enter" style={{ background: "transparent" }}>
-      <ShellEmbers count={10} />
+    <div className="shell-screen" style={{ background: "transparent" }}>
+      <ShellEmbers count={6} />
       <div className="topbar">
         <button
           type="button"
@@ -96,11 +94,8 @@ export default function HomePage() {
             <span className="h-display fw-7 text-md">{loading ? "…" : displayName}</span>
           </div>
         </button>
-        <div className="row gap-2">
+        <div className="topbar-slot-end">
           {user ? <ShellCoin value={coins} /> : null}
-          <button type="button" className="btn btn-ghost btn-sm" style={{ padding: 8, borderRadius: 12 }} aria-label="إشعارات">
-            <ShellIcon name="bell" size={18} />
-          </button>
         </div>
       </div>
 

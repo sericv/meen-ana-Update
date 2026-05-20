@@ -9,17 +9,15 @@ import { useLiveUserProfile } from "@/hooks/useLiveUserProfile";
 import { ShellCoin } from "@/components/shell/ShellCoin";
 import { ShellIcon } from "@/components/shell/ShellIcons";
 import { ShellScreen } from "@/components/shell/ShellScreen";
-import { rarityColor, rarityLabel } from "@/components/shell/shell-rarity";
 import { playUIButton, resumeAudioContext } from "@/lib/audio/game-sounds";
 import { isFullAccountUser } from "@/lib/auth/google-user";
 import {
   FRAME_REGISTRY,
-  getFrameDefinition,
   preloadFrameAssets,
   type FrameId,
 } from "@/lib/profile/cosmetics";
 import { HINT_SHOP_ITEMS } from "@/lib/profile/hints";
-import { ownsShopFrame, SHOP_FRAME_PRICE } from "@/lib/profile/progression";
+import { ownsShopFrame, SHOP_FRAME_IDS, SHOP_FRAME_PRICE } from "@/lib/profile/progression";
 import { TACTICAL_SHOP_ITEMS } from "@/lib/profile/tactical-tools";
 import {
   purchaseHintItem,
@@ -55,7 +53,14 @@ function ShopInner() {
 
   const cosmetic = live?.cosmetic;
   const progress = live?.progress;
-  const shopFrames = FRAME_REGISTRY.filter((f) => f.id !== "none");
+  const allFramesOwned = progress
+    ? progress.legacyFullCatalog || SHOP_FRAME_IDS.every((id) => ownsShopFrame(progress, id))
+    : false;
+  const shopFrames = allFramesOwned ? [] : FRAME_REGISTRY.filter((f) => f.id !== "none");
+
+  useEffect(() => {
+    if (allFramesOwned && tab === "frames") setTab("hints");
+  }, [allFramesOwned, tab]);
 
   const buyTactical = useCallback(
     async (toolId: (typeof TACTICAL_SHOP_ITEMS)[number]["id"]) => {
@@ -154,7 +159,7 @@ function ShopInner() {
           <ShellIcon name="back" size={18} />
         </button>
         <div className="h-display fw-7">المتجر</div>
-        <div style={{ width: 40 }}>
+        <div className="topbar-slot-end">
           {progress ? <ShellCoin value={progress.coins} /> : null}
         </div>
       </div>
@@ -184,7 +189,7 @@ function ShopInner() {
         >
           {(
             [
-              { k: "frames" as const, l: "الإطارات" },
+              ...(allFramesOwned ? [] : [{ k: "frames" as const, l: "الإطارات" }]),
               { k: "hints" as const, l: "التلميحات" },
               { k: "tactical" as const, l: "أدوات" },
             ] as const
@@ -215,7 +220,6 @@ function ShopInner() {
         {tab === "frames" && (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10 }}>
             {shopFrames.map((f) => {
-              const def = getFrameDefinition(f.id);
               const owned = progress ? ownsShopFrame(progress, f.id) : false;
               const equipped = cosmetic?.avatarFrameId === f.id;
               const canBuy = google && progress && !progress.legacyFullCatalog && !owned;
@@ -235,19 +239,6 @@ function ShopInner() {
                     position: "relative",
                   }}
                 >
-                  <span
-                    style={{
-                      position: "absolute",
-                      top: 8,
-                      right: 8,
-                      fontSize: 9,
-                      fontFamily: "var(--mono)",
-                      fontWeight: 700,
-                      color: rarityColor(f.rarity),
-                    }}
-                  >
-                    {rarityLabel(f.rarity)}
-                  </span>
                   {preview ? (
                     <ProfileAvatar
                       cosmetic={preview}
@@ -257,7 +248,6 @@ function ShopInner() {
                       idle
                     />
                   ) : null}
-                  <div className="text-sm fw-7 text-center">{def.displayNameAr}</div>
                   {owned || progress?.legacyFullCatalog ? (
                     google ? (
                       <button
@@ -275,7 +265,7 @@ function ShopInner() {
                     )
                   ) : (
                     <>
-                      <ShellCoin value={SHOP_FRAME_PRICE} />
+                      <ShellCoin value={SHOP_FRAME_PRICE} compact />
                       <button
                         type="button"
                         className="btn btn-primary btn-sm btn-block"
@@ -320,7 +310,7 @@ function ShopInner() {
                     <div className="h-display fw-7 text-md">{item.nameAr}</div>
                     <div className="text-xs muted">{item.subtitleAr}</div>
                     <div className="mt-1">
-                      <ShellCoin value={item.price} />
+                      <ShellCoin value={item.price} compact />
                     </div>
                   </div>
                   <button
@@ -385,7 +375,7 @@ function ShopInner() {
                         {item.rulesAr}
                       </p>
                       <div className="mt-2">
-                        <ShellCoin value={item.price} />
+                        <ShellCoin value={item.price} compact />
                       </div>
                     </div>
                   </div>

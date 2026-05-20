@@ -76,7 +76,10 @@ export type MatchTacticalPlayerState = {
   usedExtraQuestion?: boolean;
   usedShield?: boolean;
   shieldActiveUntil?: Timestamp | null;
+  /** @deprecated Legacy — migrated server-side to quota counters. */
   extraQuestionPending?: boolean;
+  questionsThisTurn?: number;
+  questionQuota?: number;
 };
 
 export type TacticalGameplayEvent = {

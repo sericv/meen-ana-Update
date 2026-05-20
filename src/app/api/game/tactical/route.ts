@@ -28,6 +28,9 @@ export async function POST(req: Request) {
   } catch (e) {
     if (e instanceof HttpError) return jsonError(e.status, e.message);
     const msg = String(e instanceof Error ? e.message : e);
+    if (process.env.NODE_ENV !== "production") {
+      console.error("[api/game/tactical]", msg, e);
+    }
     const map: Record<string, string> = {
       MATCH_NOT_FOUND: "المباراة غير موجودة",
       MATCH_ENDED: "انتهت المباراة",

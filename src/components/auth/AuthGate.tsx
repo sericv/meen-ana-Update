@@ -1,10 +1,9 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { useAuth } from "@/components/providers/AuthProvider";
-import { Panel } from "@/components/ui/Panel";
 
 export function AuthGate({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -21,8 +20,9 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
 
   if (loading) {
     return (
-      <div className="flex min-h-[60vh] items-center justify-center px-4">
-        <Panel className="w-full max-w-md text-center text-[#9b6338]">جاري التحميل...</Panel>
+      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3 px-4" aria-busy>
+        <div className="route-loading-spinner" />
+        <p className="text-sm font-semibold text-[#9b6338]">جاري التحميل…</p>
       </div>
     );
   }
@@ -30,7 +30,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   if (!user) {
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 px-4 text-center text-[#9b6338]">
-        <Panel className="w-full max-w-md">
+        <div className="w-full max-w-md rounded-2xl border border-[rgba(244,196,141,0.45)] bg-white/90 px-5 py-6 shadow-sm">
           <p className="text-sm">يلزم تسجيل الدخول للمتابعة.</p>
           <Link className="mt-4 inline-block font-semibold text-[#ea8c2f]" href="/login">
             الانتقال لتسجيل الدخول
@@ -38,7 +38,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
           <Link className="mt-3 block text-sm font-semibold text-[#bc7a45]" href="/">
             الرئيسية
           </Link>
-        </Panel>
+        </div>
       </div>
     );
   }

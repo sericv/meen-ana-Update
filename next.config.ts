@@ -16,10 +16,11 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "firebasestorage.googleapis.com" },
       { protocol: "https", hostname: "lh3.googleusercontent.com" },
       { protocol: "https", hostname: "i.top4top.io" },
+      { protocol: "https", hostname: "img.magnific.com" },
     ],
   },
   experimental: {
-    optimizePackageImports: ["framer-motion"],
+    optimizePackageImports: ["framer-motion", "firebase/firestore", "firebase/auth"],
   },
 };
 

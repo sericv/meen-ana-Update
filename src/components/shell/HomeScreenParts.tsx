@@ -6,6 +6,8 @@ import { ALL_CARDS } from "@/lib/game/cards";
 import { getCategoryById } from "@/lib/game/categories";
 
 const HERO_CARD = ALL_CARDS.find((c) => c.nameAr.includes("ابن")) ?? ALL_CARDS[0]!;
+const HOME_HERO_IMAGE_URL =
+  "https://img.magnific.com/free-vector/handphone-floating-cartoon-vector-icon-illustration-technology-object-icon-isolated-flat-vector_138676-13457.jpg?semt=ais_hybrid&w=740&q=80";
 
 export function ActionTile({
   icon,
@@ -122,7 +124,7 @@ export function MajlisHero({ onPlay }: { onPlay: () => void }) {
             height={180}
             title={HERO_CARD.nameAr}
             category={cat}
-            imageUrl={HERO_CARD.imageUrl}
+            imageUrl={HOME_HERO_IMAGE_URL}
             tilt={-9}
           />
         </div>

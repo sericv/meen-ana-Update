@@ -11,7 +11,8 @@ import { MyHiddenCardSheet } from "@/components/game/play/GameplaySheets";
 import { GameplayTopBar } from "@/components/game/play/GameplayTopBar";
 import { useLiveUserProfile } from "@/hooks/useLiveUserProfile";
 import { GP } from "@/components/game/play/tokens";
-import { TacticalToolsBar } from "@/components/game/play/TacticalToolsBar";
+import { GameplayTacticalButton } from "@/components/game/play/GameplayTacticalButton";
+import { TacticalToolsSheet } from "@/components/game/play/TacticalToolsSheet";
 import { useMatchHints } from "@/hooks/useMatchHints";
 import { useOpponentTyping } from "@/hooks/useOpponentTyping";
 import type { TacticalInventory } from "@/lib/profile/tactical-tools";
@@ -132,6 +133,7 @@ export function GameplaySocialSurface({
   tacticalError = null,
 }: GameplaySocialSurfaceProps) {
   const [cardSheetOpen, setCardSheetOpen] = useState(false);
+  const [tacticalSheetOpen, setTacticalSheetOpen] = useState(false);
   const [hintBusy, setHintBusy] = useState(false);
   const liveProfile = useLiveUserProfile(uid);
 
@@ -247,7 +249,17 @@ export function GameplaySocialSurface({
                 />
               </div>
 
-              <div className="flex w-full flex-col items-center justify-center px-2">
+              {tacticalInventory && onUseTactical ? (
+                <div className="absolute bottom-2 right-0 z-20">
+                  <GameplayTacticalButton
+                    inventory={tacticalInventory}
+                    size="compact"
+                    onPress={() => setTacticalSheetOpen(true)}
+                  />
+                </div>
+              ) : null}
+
+              <motion.div className="flex w-full flex-col items-center justify-center px-2">
                 <p
                   className="mb-1 text-center text-[10px] font-bold uppercase tracking-[0.15em]"
                   style={{ color: GP.inkSoft }}
@@ -259,7 +271,7 @@ export function GameplaySocialSurface({
                   categoryLabel={categoryLabel}
                   size="stage"
                 />
-              </div>
+              </motion.div>
             </motion.div>
           </section>
 
@@ -311,28 +323,6 @@ export function GameplaySocialSurface({
               </div>
             </GameplayChatFadeViewport>
 
-            {tacticalInventory && onUseTactical ? (
-              <>
-                {tacticalError ? (
-                  <p
-                    className="mx-2 mb-1 rounded-lg px-2 py-1 text-center text-[10px] font-bold"
-                    style={{ color: GP.rose, background: "rgba(255,240,235,0.95)" }}
-                  >
-                    {tacticalError}
-                  </p>
-                ) : null}
-                <TacticalToolsBar
-                  match={match}
-                  uid={uid}
-                  myTurn={myTurn}
-                  phase={phase}
-                  inventory={tacticalInventory}
-                  busy={tacticalBusy}
-                  onUse={onUseTactical}
-                />
-              </>
-            ) : null}
-
             <GameplayChatActionBar
               myTurn={myTurn}
               phase={phase}
@@ -359,6 +349,20 @@ export function GameplaySocialSurface({
             onClose={() => setCardSheetOpen(false)}
             onUseHint={(k) => void handleUseHint(k)}
           />
+          {tacticalInventory && onUseTactical ? (
+            <TacticalToolsSheet
+              open={tacticalSheetOpen}
+              match={match}
+              uid={uid}
+              myTurn={myTurn}
+              phase={phase}
+              inventory={tacticalInventory}
+              busy={tacticalBusy}
+              error={tacticalError}
+              onClose={() => setTacticalSheetOpen(false)}
+              onUse={onUseTactical}
+            />
+          ) : null}
         </>
       ) : (
         <motion.div className="flex flex-1 flex-col items-center justify-center gap-3 px-4 py-10 text-center">

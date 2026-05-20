@@ -155,3 +155,15 @@ export function playRoomReady(): void {
   window.setTimeout(() => beep(523, 0.08, 0.042), 80);
   window.setTimeout(() => beep(659, 0.1, 0.036), 165);
 }
+
+/** Opponent activated a tactical tool — short alert sting */
+export function playTacticalAlert(blocked = false): void {
+  if (blocked) {
+    beepTriangle(420, 0.09, 0.05);
+    window.setTimeout(() => beepTriangle(520, 0.1, 0.042), 95);
+    return;
+  }
+  beep(330, 0.06, 0.052);
+  window.setTimeout(() => beep(494, 0.07, 0.048), 72);
+  window.setTimeout(() => beep(740, 0.11, 0.04), 155);
+}

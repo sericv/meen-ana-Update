@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Tajawal } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/components/providers/AuthProvider";
-import { GlobalRoomInviteDock } from "@/components/social/GlobalRoomInviteDock";
+import { GlobalRoomInviteDockLazy } from "@/components/layout/GlobalRoomInviteDockLazy";
 
 const tajawal = Tajawal({
   subsets: ["arabic", "latin"],
@@ -50,7 +50,7 @@ export default function RootLayout({
       <body className="app-shell flex h-dvh max-h-dvh flex-col overflow-hidden font-sans text-[#5e3011] antialiased">
         <AuthProvider>
           <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-            <GlobalRoomInviteDock />
+            <GlobalRoomInviteDockLazy />
             <div className="app-main">{children}</div>
           </div>
         </AuthProvider>

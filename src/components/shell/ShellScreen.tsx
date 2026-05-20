@@ -14,8 +14,8 @@ export function ShellScreen({
   showTabBar?: boolean;
 }) {
   return (
-    <div className="shell-screen screen-enter" style={{ background: "transparent" }}>
-      <ShellEmbers count={10} />
+    <div className="shell-screen" style={{ background: "transparent" }}>
+      <ShellEmbers count={6} />
       {children}
       {showTabBar ? <ShellTabBar active={activeTab} /> : null}
     </div>

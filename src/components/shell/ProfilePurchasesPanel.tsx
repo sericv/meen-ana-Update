@@ -7,7 +7,7 @@ import { ShellCoin } from "@/components/shell/ShellCoin";
 import { ShellIcon } from "@/components/shell/ShellIcons";
 import { playUIButton, resumeAudioContext } from "@/lib/audio/game-sounds";
 import { updateUserCosmetics } from "@/lib/firestore/users.client";
-import { getFrameDefinition, type FrameId, type PlayerCosmetic } from "@/lib/profile/cosmetics";
+import { type FrameId, type PlayerCosmetic } from "@/lib/profile/cosmetics";
 import { ownedShopFramesList, type PlayerProgress } from "@/lib/profile/progression";
 
 export function ProfilePurchasesPanel({
@@ -105,7 +105,6 @@ export function ProfilePurchasesPanel({
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
           {ownedFrames.map((fid) => {
-            const def = getFrameDefinition(fid);
             const isEq = cosmetic.avatarFrameId === fid;
             const busy = equipBusy === fid;
             return (
@@ -132,9 +131,6 @@ export function ProfilePurchasesPanel({
                   displayName={displayName}
                   size="md"
                 />
-                <div className="text-sm fw-7" style={{ whiteSpace: "nowrap" }}>
-                  {def.displayNameAr}
-                </div>
                 {isEq ? <span className="chip chip-amber" style={{ fontSize: 9 }}>مفعّل</span> : null}
               </button>
             );

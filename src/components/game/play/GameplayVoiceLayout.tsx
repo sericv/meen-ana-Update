@@ -119,6 +119,7 @@ export type GameplayVoiceLayoutProps = {
   onPassTurn: () => void;
   onGuess: () => void;
   onMyCardPress: () => void;
+  tacticalButton?: ReactNode;
 };
 
 export function GameplayVoiceLayout({
@@ -142,6 +143,7 @@ export function GameplayVoiceLayout({
   onPassTurn,
   onGuess,
   onMyCardPress,
+  tacticalButton = null,
 }: GameplayVoiceLayoutProps) {
   const timer = secLeft ?? 0;
   const turnName = myTurn ? "أنت" : opponentName;
@@ -209,6 +211,12 @@ export function GameplayVoiceLayout({
               onPress={onMyCardPress}
             />
           </motion.div>
+
+          {tacticalButton ? (
+            <motion.div className="absolute bottom-0 right-0 z-20">
+              {tacticalButton}
+            </motion.div>
+          ) : null}
 
           <motion.div className="flex flex-col items-center">
             <p

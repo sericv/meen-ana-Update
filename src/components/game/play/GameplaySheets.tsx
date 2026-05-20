@@ -6,7 +6,7 @@ import { GameplayLetterRow } from "@/components/game/play/GameplayLetterRow";
 import { IconClose, IconHintBulb } from "@/components/game/play/icons";
 import { GP } from "@/components/game/play/tokens";
 
-function Sheet({
+export function GameplaySheet({
   title,
   accent = GP.gold,
   onClose,
@@ -90,7 +90,7 @@ export function MyHiddenCardSheet({
   return (
     <AnimatePresence>
       {open ? (
-        <Sheet title="كرتك والتلميحات" onClose={onClose}>
+        <GameplaySheet title="كرتك والتلميحات" onClose={onClose}>
           <div className="flex items-center justify-between gap-2">
             <p className="text-xs font-semibold" style={{ color: GP.inkSoft }}>
               {freeNote}
@@ -152,7 +152,7 @@ export function MyHiddenCardSheet({
               onClick={() => onUseHint("letter")}
             />
           </div>
-        </Sheet>
+        </GameplaySheet>
       ) : null}
     </AnimatePresence>
   );

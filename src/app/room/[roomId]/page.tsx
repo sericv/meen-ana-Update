@@ -1,5 +1,11 @@
+import dynamic from "next/dynamic";
 import { AuthGate } from "@/components/auth/AuthGate";
-import { RoomExperience } from "@/components/game/RoomExperience";
+import { RoomRouteLoading } from "@/components/game/RoomRouteLoading";
+
+const RoomExperience = dynamic(
+  () => import("@/components/game/RoomExperience").then((m) => ({ default: m.RoomExperience })),
+  { loading: () => <RoomRouteLoading /> },
+);
 
 export default async function RoomPage({ params }: { params: Promise<{ roomId: string }> }) {
   const { roomId } = await params;

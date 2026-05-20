@@ -155,6 +155,14 @@ function parseTacticalByUid(raw: unknown): MatchState["tacticalByUid"] {
       usedExtraQuestion: o.usedExtraQuestion === true,
       usedShield: o.usedShield === true,
       extraQuestionPending: o.extraQuestionPending === true,
+      questionsThisTurn:
+        typeof o.questionsThisTurn === "number" && Number.isFinite(o.questionsThisTurn)
+          ? Math.max(0, Math.floor(o.questionsThisTurn))
+          : undefined,
+      questionQuota:
+        typeof o.questionQuota === "number" && Number.isFinite(o.questionQuota)
+          ? Math.max(1, Math.floor(o.questionQuota))
+          : undefined,
       shieldActiveUntil:
         o.shieldActiveUntil && typeof (o.shieldActiveUntil as Timestamp).toMillis === "function"
           ? (o.shieldActiveUntil as Timestamp)
