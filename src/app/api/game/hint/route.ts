@@ -28,6 +28,7 @@ export async function POST(req: Request) {
       NOT_IN_MATCH: "لست ضمن هذه المباراة",
       CARD_NOT_FOUND: "بطاقتك غير جاهزة",
       NO_HINTS_LEFT: "لا تلميحات متبقية",
+      HINT_ALREADY_USED: "استخدمت تلميحك الوحيد في هذه المباراة",
       ALL_REVEALED: "كُشفت كل الأحرف",
       COUNT_ALREADY: "عرفت عدد الأحرف مسبقاً",
     };

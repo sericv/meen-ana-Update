@@ -8,6 +8,7 @@ type Props = {
   hintsLeft: number;
   bonusLetterHints?: number;
   bonusCountHints?: number;
+  hintUsed?: boolean;
   /** kept for sheet — not shown on the compact button */
   revealedIdx?: number[];
   letters?: string[];
@@ -20,13 +21,15 @@ export function GameplayMyHiddenCard({
   hintsLeft,
   bonusLetterHints = 0,
   bonusCountHints = 0,
+  hintUsed = false,
   size = "compact",
   onPress,
 }: Props) {
   const voice = size === "voice";
   const w = voice ? 76 : 68;
   const h = voice ? 96 : 88;
-  const badge = hintsLeft + bonusLetterHints + bonusCountHints;
+  const hasStoreHint = bonusLetterHints + bonusCountHints > 0;
+  const badge = hintUsed ? 0 : hasStoreHint ? 1 : hintsLeft;
   const bulbSize = voice ? 34 : 30;
 
   return (

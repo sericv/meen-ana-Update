@@ -139,7 +139,7 @@ export function GameplaySocialSurface({
 
   const hintsEnabled =
     roomHintsEnabled && socialMatchLive && Boolean(roomId && matchId && uid);
-  const { hintsLeft, revealedIdx, letters, countRevealed, useHint } = useMatchHints(
+  const { hintsLeft, hintUsed, revealedIdx, letters, countRevealed, useHint } = useMatchHints(
     roomId,
     matchId,
     uid,
@@ -242,6 +242,7 @@ export function GameplaySocialSurface({
                   hintsLeft={hintsLeft}
                   bonusLetterHints={liveProfile?.progress.hintLetterCredits ?? 0}
                   bonusCountHints={liveProfile?.progress.hintCountCredits ?? 0}
+                  hintUsed={hintUsed}
                   revealedIdx={revealedIdx}
                   letters={letters}
                   size="compact"
@@ -345,6 +346,7 @@ export function GameplaySocialSurface({
             hintsLeft={hintsLeft}
             bonusLetterHints={liveProfile?.progress.hintLetterCredits ?? 0}
             bonusCountHints={liveProfile?.progress.hintCountCredits ?? 0}
+            hintUsed={hintUsed}
             busy={hintBusy}
             onClose={() => setCardSheetOpen(false)}
             onUseHint={(k) => void handleUseHint(k)}

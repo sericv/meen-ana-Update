@@ -1011,6 +1011,7 @@ type StoredHintState = {
   revealedIndices: number[];
   nameLength: number;
   revealedLetters: Record<string, string>;
+  usedKind?: "letter" | "count";
 };
 
 function parseHintState(raw: unknown): StoredHintState {
@@ -1025,14 +1026,15 @@ function parseHintState(raw: unknown): StoredHintState {
     }
   }
   return {
-    hintsLeft: typeof o.hintsLeft === "number" ? Math.max(0, o.hintsLeft) : 2,
+    hintsLeft: 0,
     revealedIndices,
     nameLength: typeof o.nameLength === "number" ? o.nameLength : 0,
     revealedLetters,
+    usedKind: o.usedKind === "letter" || o.usedKind === "count" ? o.usedKind : undefined,
   };
 }
 
-/** Spend a hint: reveals letter count or one random letter of the player's hidden card. */
+/** Spend the single allowed match hint: either letter count or one random letter. */
 export async function handleHint(args: {
   roomId: string;
   matchId: string;
@@ -1058,6 +1060,9 @@ export async function handleHint(args: {
 
     const hintByUid = { ...((m.hintByUid as Record<string, unknown>) ?? {}) };
     const st = parseHintState(hintByUid[args.uid]);
+    if (st.usedKind || st.nameLength > 0 || st.revealedIndices.length > 0) {
+      throw new Error("HINT_ALREADY_USED");
+    }
     const userRef = db.collection(col.users).doc(args.uid);
     const userSnap = await tx.get(userRef);
     const userData = userSnap.exists ? userSnap.data()! : {};
@@ -1074,11 +1079,8 @@ export async function handleHint(args: {
         ? Math.max(0, Math.floor(userData.hintCountCredits))
         : 0;
 
-    let paidWith: "free" | "letter_credit" | "count_credit" = "free";
-    if (st.hintsLeft > 0) {
-      st.hintsLeft -= 1;
-      paidWith = "free";
-    } else if (args.kind === "letter" && hintLetterCredits > 0) {
+    let paidWith: "letter_credit" | "count_credit";
+    if (args.kind === "letter" && hintLetterCredits > 0) {
       hintLetterCredits -= 1;
       paidWith = "letter_credit";
     } else if (args.kind === "count" && hintCountCredits > 0) {
@@ -1093,6 +1095,7 @@ export async function handleHint(args: {
         throw new Error("COUNT_ALREADY");
       }
       st.nameLength = letters.length;
+      st.usedKind = "count";
     } else {
       const available = letters
         .map((_, i) => i)
@@ -1101,6 +1104,7 @@ export async function handleHint(args: {
       const pick = available[Math.floor(Math.random() * available.length)]!;
       st.revealedIndices = [...st.revealedIndices, pick];
       st.revealedLetters[String(pick)] = letters[pick]!;
+      st.usedKind = "letter";
     }
 
     hintByUid[args.uid] = st;
@@ -1118,6 +1122,7 @@ export async function handleHint(args: {
     }
     return {
       hintsLeft: st.hintsLeft,
+      usedKind: st.usedKind,
       revealedIndices: st.revealedIndices,
       nameLength: st.nameLength,
       revealedLetters: revealedLettersNum,

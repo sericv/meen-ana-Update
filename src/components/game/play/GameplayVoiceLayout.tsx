@@ -114,6 +114,7 @@ export type GameplayVoiceLayoutProps = {
   hintsLeft: number;
   bonusLetterHints?: number;
   bonusCountHints?: number;
+  hintUsed?: boolean;
   busy: boolean;
   passing: boolean;
   onPassTurn: () => void;
@@ -138,6 +139,7 @@ export function GameplayVoiceLayout({
   hintsLeft,
   bonusLetterHints = 0,
   bonusCountHints = 0,
+  hintUsed = false,
   busy,
   passing,
   onPassTurn,
@@ -205,6 +207,7 @@ export function GameplayVoiceLayout({
               hintsLeft={hintsLeft}
               bonusLetterHints={bonusLetterHints}
               bonusCountHints={bonusCountHints}
+              hintUsed={hintUsed}
               revealedIdx={revealedIdx}
               letters={letters}
               size="voice"

@@ -65,6 +65,7 @@ export function MyHiddenCardSheet({
   hintsLeft,
   bonusLetterHints,
   bonusCountHints,
+  hintUsed,
   busy,
   onClose,
   onUseHint,
@@ -76,16 +77,17 @@ export function MyHiddenCardSheet({
   hintsLeft: number;
   bonusLetterHints: number;
   bonusCountHints: number;
+  hintUsed?: boolean;
   busy?: boolean;
   onClose: () => void;
   onUseHint: (kind: "letter" | "count") => void;
 }) {
-  const freeNote =
-    hintsLeft > 0
-      ? `${hintsLeft} مجاني في هذه المباراة`
-      : bonusLetterHints + bonusCountHints > 0
-        ? `محفوظ: ${bonusLetterHints} حرف · ${bonusCountHints} عدد`
-        : "اشترِ تلميحات من المتجر";
+  const used = hintUsed || countRevealed || revealedIdx.length > 0;
+  const freeNote = used
+    ? "استخدمت تلميحك الوحيد في هذه المباراة"
+    : bonusLetterHints + bonusCountHints > 0
+      ? `اختر تلميحًا واحدًا فقط · رصيدك: ${bonusLetterHints} حرف · ${bonusCountHints} عدد`
+      : "لا يوجد رصيد تلميحات — اشترِ من المتجر قبل المباراة";
 
   return (
     <AnimatePresence>
@@ -122,33 +124,29 @@ export function MyHiddenCardSheet({
               <GameplayLetterRow letters={letters} revealedIdx={revealedIdx} />
             ) : (
               <p className="mt-2 text-center text-xs font-semibold" style={{ color: GP.inkSoft }}>
-                اشترِ «عدد الأحرف» لعرض مربعات كرتك كاملة
+                اختر تلميحك الوحيد: عدد الأحرف أو حرف عشوائي
               </p>
             )}
           </div>
 
           <p className="mt-3 text-center text-xs font-semibold" style={{ color: GP.inkSoft }}>
-            اختر تلميحًا — النتيجة تظهر هنا فقط
+            تلميح واحد فقط في المباراة — اختر بحكمة
           </p>
 
           <div className="mt-3 flex flex-col gap-2">
             <HintOption
               title="عدد الأحرف"
               subtitle="يكشف عدد مربعات كرتك"
-              priceLabel={
-                hintsLeft > 0 ? "مجاني" : bonusCountHints > 0 ? "محفوظ" : "من المتجر"
-              }
+              priceLabel={used ? "مستخدم" : bonusCountHints > 0 ? "متاح" : "لا يوجد"}
               recommended
-              disabled={busy || countRevealed || (hintsLeft <= 0 && bonusCountHints <= 0)}
+              disabled={busy || used || bonusCountHints <= 0}
               onClick={() => onUseHint("count")}
             />
             <HintOption
               title="حرف واحد"
               subtitle="يكشف حرفًا عشوائيًا"
-              priceLabel={
-                hintsLeft > 0 ? "مجاني" : bonusLetterHints > 0 ? "محفوظ" : "من المتجر"
-              }
-              disabled={busy || (hintsLeft <= 0 && bonusLetterHints <= 0)}
+              priceLabel={used ? "مستخدم" : bonusLetterHints > 0 ? "متاح" : "لا يوجد"}
+              disabled={busy || used || bonusLetterHints <= 0}
               onClick={() => onUseHint("letter")}
             />
           </div>

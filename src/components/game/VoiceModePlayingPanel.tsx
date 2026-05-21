@@ -70,7 +70,7 @@ export function VoiceModePlayingPanel({
   const liveProfile = useLiveUserProfile(uid);
 
   const hintsEnabled = roomHintsEnabled && Boolean(roomId && matchId && uid);
-  const { hintsLeft, revealedIdx, letters, countRevealed, useHint } = useMatchHints(
+  const { hintsLeft, hintUsed, revealedIdx, letters, countRevealed, useHint } = useMatchHints(
     roomId,
     matchId,
     uid,
@@ -118,6 +118,7 @@ export function VoiceModePlayingPanel({
         hintsLeft={hintsLeft}
         bonusLetterHints={liveProfile?.progress.hintLetterCredits ?? 0}
         bonusCountHints={liveProfile?.progress.hintCountCredits ?? 0}
+        hintUsed={hintUsed}
         busy={busy}
         passing={passing}
         onPassTurn={() => void onPassTurn()}
@@ -141,6 +142,7 @@ export function VoiceModePlayingPanel({
         hintsLeft={hintsLeft}
         bonusLetterHints={liveProfile?.progress.hintLetterCredits ?? 0}
         bonusCountHints={liveProfile?.progress.hintCountCredits ?? 0}
+        hintUsed={hintUsed}
         busy={hintBusy}
         onClose={() => setCardSheetOpen(false)}
         onUseHint={(k) => void handleUseHint(k)}

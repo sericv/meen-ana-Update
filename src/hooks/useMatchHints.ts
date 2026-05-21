@@ -6,6 +6,7 @@ import { splitNameLetters } from "@/components/game/play/tokens";
 
 type HintState = {
   hintsLeft: number;
+  usedKind: "letter" | "count" | null;
   revealedIndices: number[];
   nameLength: number;
   revealedLetters: Record<number, string>;
@@ -20,7 +21,20 @@ function readStored(matchId: string, uid: string): HintState | null {
   try {
     const raw = sessionStorage.getItem(storageKey(matchId, uid));
     if (!raw) return null;
-    return JSON.parse(raw) as HintState;
+    const parsed = JSON.parse(raw) as Partial<HintState>;
+    return {
+      ...DEFAULT,
+      ...parsed,
+      hintsLeft: 0,
+      usedKind:
+        parsed.usedKind === "letter" || parsed.usedKind === "count"
+          ? parsed.usedKind
+          : parsed.nameLength
+            ? "count"
+            : parsed.revealedIndices?.length
+              ? "letter"
+              : null,
+    };
   } catch {
     return null;
   }
@@ -31,7 +45,8 @@ function writeStored(matchId: string, uid: string, st: HintState) {
 }
 
 const DEFAULT: HintState = {
-  hintsLeft: 2,
+  hintsLeft: 0,
+  usedKind: null,
   revealedIndices: [],
   nameLength: 0,
   revealedLetters: {},
@@ -88,15 +103,18 @@ export function useMatchHints(
           revealedIndices: number[];
           nameLength: number;
           revealedLetters: Record<number, string>;
+          usedKind?: "letter" | "count";
           message: string;
         }>("/api/game/hint", { roomId, matchId, kind })) as {
           hintsLeft: number;
           revealedIndices: number[];
           nameLength: number;
           revealedLetters: Record<number, string>;
+          usedKind?: "letter" | "count";
         };
         persist({
           hintsLeft: res.hintsLeft,
+          usedKind: res.usedKind ?? kind,
           revealedIndices: res.revealedIndices,
           nameLength: res.nameLength,
           revealedLetters: res.revealedLetters,
@@ -110,6 +128,8 @@ export function useMatchHints(
 
   return {
     hintsLeft: state.hintsLeft,
+    hintUsed: state.usedKind !== null || state.nameLength > 0 || state.revealedIndices.length > 0,
+    usedHintKind: state.usedKind,
     revealedIdx,
     letters: countRevealed && !letters.length ? splitNameLetters("؟؟؟") : letters,
     countRevealed,

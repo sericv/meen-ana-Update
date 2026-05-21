@@ -9,8 +9,8 @@ export const HINT_COIN_PRICE = 20;
 export const HINT_PACK_SIZE = 3;
 /** @deprecated Use `HINT_SHOP_ITEMS` */
 export const HINT_PACK_PRICE = 45;
-/** Free hints granted each active match. */
-export const MATCH_FREE_HINTS = 2;
+/** Free hints granted each active match. Kept for old imports; current gameplay grants none. */
+export const MATCH_FREE_HINTS = 0;
 
 /** Purchasable frame IDs (excludes the free “none” frame). */
 export const SHOP_FRAME_IDS: FrameId[] = FRAME_REGISTRY.filter((f) => f.id !== "none").map(

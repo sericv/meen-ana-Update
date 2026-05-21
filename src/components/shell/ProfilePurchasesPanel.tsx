@@ -85,7 +85,7 @@ export function ProfilePurchasesPanel({
         {letterHints + countHints === 0 ? (
           <p className="text-xs muted mt-2">اشترِ تلميحات من المتجر لاستخدامها في المباراة.</p>
         ) : (
-          <p className="text-xs muted mt-2">تُستخدم بعد التلميحات المجانية في كل مباراة — لا يمكن الشراء أثناء اللعب.</p>
+          <p className="text-xs muted mt-2">يمكن استخدام تلميح واحد فقط في كل مباراة — لا يمكن الشراء أثناء اللعب.</p>
         )}
         <button type="button" className="btn btn-secondary btn-sm mt-3" onClick={() => router.push("/shop")}>
           المتجر

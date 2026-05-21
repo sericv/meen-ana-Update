@@ -285,7 +285,7 @@ function ShopInner() {
         {tab === "hints" && (
           <div className="col gap-2">
             <p className="text-xs muted px-1">
-              اشترِ التلميحات هنا فقط — تُحفظ في حسابك وتُستخدم داخل المباراة بعد التلميحات المجانية.
+              اشترِ التلميحات هنا فقط — في كل مباراة يمكنك استخدام تلميح واحد فقط: عدد الأحرف أو حرف عشوائي.
             </p>
             {HINT_SHOP_ITEMS.map((item) => {
               const busy = busyId === item.id;
