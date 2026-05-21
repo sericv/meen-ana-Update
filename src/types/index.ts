@@ -85,6 +85,8 @@ export type MatchTacticalPlayerState = {
 export type TacticalGameplayEvent = {
   id: string;
   at: Timestamp | null;
+  /** Client hides the banner after this instant. */
+  expiresAt?: Timestamp | null;
   actorUid: string;
   actorName: string;
   toolId: TacticalToolId;
@@ -92,6 +94,12 @@ export type TacticalGameplayEvent = {
   bodyAr: string;
   blocked?: boolean;
   targetUid?: string;
+};
+
+export type MatchPlayerStats = {
+  hintsUsed: number;
+  tacticalToolsUsed: number;
+  totalToolsUsed: number;
 };
 
 export interface MatchState {
@@ -107,9 +115,15 @@ export interface MatchState {
   questionSeconds: number;
   answerSeconds: number;
   winnerUid: string | null;
-  winReason: "guess" | "forfeit" | null;
+  winReason: "guess" | "forfeit" | "guess_limit" | null;
   startedAt: Timestamp | null;
   endedAt: Timestamp | null;
+  /** Incorrect final guesses consumed per player this match. */
+  guessAttemptsByUid?: Record<string, number>;
+  /** Per-player hints + tactical usage for result screen. */
+  matchStatsByUid?: Record<string, MatchPlayerStats>;
+  /** Per-player reward idempotency after match end. */
+  rewardedByUid?: Record<string, boolean>;
   /** Per-player tactical tool usage this match. */
   tacticalByUid?: Record<string, MatchTacticalPlayerState>;
   /** Total questions posted (for final-round time-pressure gate). */

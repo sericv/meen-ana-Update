@@ -9,6 +9,7 @@ type Props = {
   phase: string;
   draft: string;
   busy: boolean;
+  guessRemaining?: number;
   onDraftChange: (v: string) => void;
   onSend: () => void;
   onGuess: () => void;
@@ -23,6 +24,7 @@ export function GameplayChatActionBar({
   phase,
   draft,
   busy,
+  guessRemaining = 3,
   onDraftChange,
   onSend,
   onGuess,
@@ -31,6 +33,7 @@ export function GameplayChatActionBar({
   keyboardOverlapPx = 0,
 }: Props) {
   const canSend = myTurn && draft.trim().length > 0 && !busy;
+  const canGuess = guessRemaining > 0;
   const placeholder = myTurn
     ? phase === "answer"
       ? "أجب بـ نعم أو لا…"
@@ -94,15 +97,20 @@ export function GameplayChatActionBar({
 
         <motion.button
           type="button"
-          whileTap={{ scale: 0.96 }}
+          whileTap={{ scale: canGuess ? 0.96 : 1 }}
           onClick={onGuess}
-          className="shrink-0 rounded-[14px] border-0 px-4 py-2.5 text-sm font-bold text-white"
+          disabled={!canGuess}
+          className="shrink-0 rounded-[14px] border-0 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-45"
           style={{
-            background: `linear-gradient(180deg, ${GP.orange} 0%, ${GP.orangeDeep} 100%)`,
-            boxShadow: "inset 0 1px 0 rgba(255,255,255,0.3), 0 6px 14px -4px rgba(224,102,10,0.55)",
+            background: canGuess
+              ? `linear-gradient(180deg, ${GP.orange} 0%, ${GP.orangeDeep} 100%)`
+              : "#C8B8A8",
+            boxShadow: canGuess
+              ? "inset 0 1px 0 rgba(255,255,255,0.3), 0 6px 14px -4px rgba(224,102,10,0.55)"
+              : "none",
           }}
         >
-          خمّن
+          خمّن {canGuess ? `(${guessRemaining})` : ""}
         </motion.button>
       </motion.div>
     </div>

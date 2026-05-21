@@ -8,6 +8,7 @@ import { GameplayChatFadeViewport } from "@/components/game/play/GameplayChatFad
 import { GameplayHeroCard } from "@/components/game/play/GameplayHeroCard";
 import { GameplayMyHiddenCard } from "@/components/game/play/GameplayMyHiddenCard";
 import { MyHiddenCardSheet } from "@/components/game/play/GameplaySheets";
+import { GuessRemainingIndicator } from "@/components/game/play/GuessRemainingIndicator";
 import { GameplayTopBar } from "@/components/game/play/GameplayTopBar";
 import { useLiveUserProfile } from "@/hooks/useLiveUserProfile";
 import { GP } from "@/components/game/play/tokens";
@@ -94,6 +95,8 @@ export type GameplaySocialSurfaceProps = {
   tacticalBusy?: TacticalToolId | null;
   onUseTactical?: (toolId: TacticalToolId) => void;
   tacticalError?: string | null;
+  myGuessRemaining?: number;
+  opponentGuessRemaining?: number;
 };
 
 export function GameplaySocialSurface({
@@ -131,6 +134,8 @@ export function GameplaySocialSurface({
   tacticalBusy = null,
   onUseTactical,
   tacticalError = null,
+  myGuessRemaining = 3,
+  opponentGuessRemaining = 3,
 }: GameplaySocialSurfaceProps) {
   const [cardSheetOpen, setCardSheetOpen] = useState(false);
   const [tacticalSheetOpen, setTacticalSheetOpen] = useState(false);
@@ -235,6 +240,19 @@ export function GameplaySocialSurface({
             phase={phase}
           />
 
+          <div
+            className="mx-3 mt-1.5 flex flex-wrap items-center justify-between gap-2 rounded-xl border px-3 py-2"
+            style={{
+              borderColor: "rgba(244,196,141,0.45)",
+              background: "rgba(255,255,255,0.88)",
+            }}
+          >
+            <GuessRemainingIndicator remaining={myGuessRemaining} compact />
+            <span className="text-[10px] font-bold" style={{ color: GP.inkSoft }}>
+              الخصم: {opponentGuessRemaining}/3
+            </span>
+          </div>
+
           <section className="relative mx-auto w-full max-w-md shrink-0 px-3 pb-1 pt-0">
             <motion.div className="relative flex min-h-[218px] w-full items-center justify-center">
               <div className="absolute bottom-2 left-0 z-20">
@@ -329,6 +347,7 @@ export function GameplaySocialSurface({
               phase={phase}
               draft={draft}
               busy={busy}
+              guessRemaining={myGuessRemaining}
               onDraftChange={handleDraftChange}
               onSend={() => void onSendDraft()}
               onGuess={onGuessClick}

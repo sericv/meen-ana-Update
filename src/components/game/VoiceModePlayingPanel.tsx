@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { GuessRemainingIndicator } from "@/components/game/play/GuessRemainingIndicator";
 import { GameplayVoiceLayout } from "@/components/game/play/GameplayVoiceLayout";
 import { MyHiddenCardSheet } from "@/components/game/play/GameplaySheets";
 import { GameplayTacticalButton } from "@/components/game/play/GameplayTacticalButton";
@@ -37,6 +38,8 @@ export type VoiceModePlayingPanelProps = {
   tacticalBusy?: TacticalToolId | null;
   onUseTactical?: (toolId: TacticalToolId) => void;
   tacticalError?: string | null;
+  myGuessRemaining?: number;
+  opponentGuessRemaining?: number;
 };
 
 export function VoiceModePlayingPanel({
@@ -62,6 +65,8 @@ export function VoiceModePlayingPanel({
   tacticalBusy = null,
   onUseTactical,
   tacticalError = null,
+  myGuessRemaining = 3,
+  opponentGuessRemaining = 3,
 }: VoiceModePlayingPanelProps) {
   const [cardSheetOpen, setCardSheetOpen] = useState(false);
   const [tacticalSheetOpen, setTacticalSheetOpen] = useState(false);
@@ -102,6 +107,16 @@ export function VoiceModePlayingPanel({
 
   return (
     <>
+      <div
+        className="mx-2 mb-2 flex flex-wrap items-center justify-between gap-2 rounded-xl border px-3 py-2"
+        style={{
+          borderColor: "rgba(244,196,141,0.45)",
+          background: "rgba(255,255,255,0.88)",
+        }}
+      >
+        <GuessRemainingIndicator remaining={myGuessRemaining} compact />
+        <span className="text-[10px] font-bold text-[#7A5A45]">الخصم: {opponentGuessRemaining}/3</span>
+      </div>
       <GameplayVoiceLayout
         banner={banner}
         myName={displayName}

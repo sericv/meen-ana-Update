@@ -9,7 +9,7 @@ import { useLiveUserProfile } from "@/hooks/useLiveUserProfile";
 import { isFullAccountUser } from "@/lib/auth/google-user";
 import { playUIButton, resumeAudioContext } from "@/lib/audio/game-sounds";
 import { normalizeCosmetic } from "@/lib/profile/cosmetics";
-import { XP_PER_LOSS, XP_PER_WIN, xpProgressInCurrentLevel } from "@/lib/profile/level";
+import { xpProgressInCurrentLevel } from "@/lib/profile/level";
 import type { PlayerProgress } from "@/lib/profile/progression";
 import { ShellIcon } from "@/components/shell/ShellIcons";
 import { ShellScreen } from "@/components/shell/ShellScreen";
@@ -18,13 +18,6 @@ import { ProfilePurchasesPanel } from "@/components/shell/ProfilePurchasesPanel"
 import { ProfileSettingsPanel } from "@/components/shell/ProfileSettingsPanel";
 
 type ProfileTab = "purchases" | "settings";
-
-function estimateMatches(progress: PlayerProgress): number {
-  const wins = progress.matchWins;
-  const xp = progress.xp;
-  const losses = Math.max(0, Math.floor((xp - wins * XP_PER_WIN) / XP_PER_LOSS));
-  return Math.max(wins, wins + losses);
-}
 
 function ProfileScreenInner() {
   const router = useRouter();
@@ -47,9 +40,8 @@ function ProfileScreenInner() {
     user?.displayName || (user?.isAnonymous ? "زائر" : (user?.email?.split("@")[0] ?? "لاعب"));
 
   const levelInfo = xpProgressInCurrentLevel(progress?.xp ?? 0);
-  const totalMatches = progress ? estimateMatches(progress) : 0;
-  const winRate =
-    totalMatches > 0 && progress ? `${Math.round((progress.matchWins / totalMatches) * 100)}%` : "—";
+  const totalMatches = progress?.matchTotal ?? 0;
+  const winRate = progress && totalMatches > 0 ? `${progress.winRate}%` : "—";
 
   const stats = useMemo(
     () => [

@@ -1,7 +1,8 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { TACTICAL_EVENT_DISPLAY_MS } from "@/lib/game/match-progression";
 import { TacticalToolIcon } from "@/components/game/play/TacticalToolIcons";
 import { GP } from "@/components/game/play/tokens";
 import type { TacticalToolId } from "@/lib/profile/tactical-tools";
@@ -42,17 +43,48 @@ type Props = {
   myUid: string | null;
 };
 
+function isEventExpired(ev: TacticalGameplayEvent): boolean {
+  const expMs = ev.expiresAt?.toMillis?.() ?? 0;
+  if (expMs > 0) return Date.now() > expMs;
+  const atMs = ev.at?.toMillis?.() ?? 0;
+  if (atMs > 0) return Date.now() > atMs + TACTICAL_EVENT_DISPLAY_MS;
+  return false;
+}
+
 export function TacticalEventBanner({ event, myUid }: Props) {
-  const [visible, setVisible] = useState<TacticalGameplayEvent | null>(null);
-  const lastId = useRef<string | null>(null);
+  const [dismissedId, setDismissedId] = useState<string | null>(null);
+  const hideTimerRef = useRef<number | null>(null);
+
+  const clearHideTimer = useCallback(() => {
+    if (hideTimerRef.current) {
+      window.clearTimeout(hideTimerRef.current);
+      hideTimerRef.current = null;
+    }
+  }, []);
+
+  const visible = useMemo(() => {
+    if (!event?.id || dismissedId === event.id) return null;
+    if (isEventExpired(event)) return null;
+    return event;
+  }, [event, dismissedId]);
 
   useEffect(() => {
-    if (!event?.id || event.id === lastId.current) return;
-    lastId.current = event.id;
-    setVisible(event);
-    const t = window.setTimeout(() => setVisible(null), 4800);
-    return () => window.clearTimeout(t);
-  }, [event]);
+    if (!visible?.id) {
+      clearHideTimer();
+      return;
+    }
+    clearHideTimer();
+    const expMs = visible.expiresAt?.toMillis?.() ?? 0;
+    const delay =
+      expMs > 0 ? Math.max(400, expMs - Date.now()) : TACTICAL_EVENT_DISPLAY_MS;
+    hideTimerRef.current = window.setTimeout(() => {
+      setDismissedId(visible.id);
+      hideTimerRef.current = null;
+    }, delay);
+    return () => clearHideTimer();
+  }, [visible, clearHideTimer]);
+
+  useEffect(() => () => clearHideTimer(), [clearHideTimer]);
 
   return (
     <AnimatePresence>

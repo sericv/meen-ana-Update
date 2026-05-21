@@ -25,6 +25,7 @@ import { isOpponentCustomCardComplete } from "@/lib/custom-cards/opponent-card-g
 import type {
   ChatMessage,
   GameCard,
+  MatchPlayerStats,
   MatchState,
   MatchTacticalPlayerState,
   Room,
@@ -181,6 +182,10 @@ function parseLastTacticalEvent(raw: unknown): TacticalGameplayEvent | null {
     id: String(o.id ?? ""),
     at:
       o.at && typeof (o.at as Timestamp).toMillis === "function" ? (o.at as Timestamp) : null,
+    expiresAt:
+      o.expiresAt && typeof (o.expiresAt as Timestamp).toMillis === "function"
+        ? (o.expiresAt as Timestamp)
+        : null,
     actorUid: String(o.actorUid ?? ""),
     actorName: String(o.actorName ?? ""),
     toolId: toolId as TacticalToolId,
@@ -189,6 +194,40 @@ function parseLastTacticalEvent(raw: unknown): TacticalGameplayEvent | null {
     blocked: o.blocked === true ? true : undefined,
     targetUid: o.targetUid != null ? String(o.targetUid) : undefined,
   };
+}
+
+function parseGuessAttemptsByUid(raw: unknown): Record<string, number> | undefined {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return undefined;
+  const out: Record<string, number> = {};
+  for (const [uid, val] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof val === "number" && Number.isFinite(val)) {
+      out[uid] = Math.max(0, Math.floor(val));
+    }
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
+function parseMatchStatsByUid(raw: unknown): Record<string, MatchPlayerStats> | undefined {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return undefined;
+  const out: Record<string, MatchPlayerStats> = {};
+  for (const [uid, val] of Object.entries(raw as Record<string, unknown>)) {
+    if (!val || typeof val !== "object" || Array.isArray(val)) continue;
+    const o = val as Record<string, unknown>;
+    const hintsUsed =
+      typeof o.hintsUsed === "number" && Number.isFinite(o.hintsUsed)
+        ? Math.max(0, Math.floor(o.hintsUsed))
+        : 0;
+    const tacticalToolsUsed =
+      typeof o.tacticalToolsUsed === "number" && Number.isFinite(o.tacticalToolsUsed)
+        ? Math.max(0, Math.floor(o.tacticalToolsUsed))
+        : 0;
+    const totalToolsUsed =
+      typeof o.totalToolsUsed === "number" && Number.isFinite(o.totalToolsUsed)
+        ? Math.max(0, Math.floor(o.totalToolsUsed))
+        : hintsUsed + tacticalToolsUsed;
+    out[uid] = { hintsUsed, tacticalToolsUsed, totalToolsUsed };
+  }
+  return Object.keys(out).length ? out : undefined;
 }
 
 function matchWireSignature(m: MatchState): string {
@@ -209,8 +248,14 @@ function matchWireSignature(m: MatchState): string {
     questionCountTotal: m.questionCountTotal ?? 0,
     timePressureTargetUid: m.timePressureTargetUid ?? null,
     lastTacticalEvent: m.lastTacticalEvent
-      ? { id: m.lastTacticalEvent.id, at: tsMillis(m.lastTacticalEvent.at) }
+      ? {
+          id: m.lastTacticalEvent.id,
+          at: tsMillis(m.lastTacticalEvent.at),
+          expiresAt: tsMillis(m.lastTacticalEvent.expiresAt),
+        }
       : null,
+    guessAttemptsByUid: m.guessAttemptsByUid ?? null,
+    matchStatsByUid: m.matchStatsByUid ?? null,
     tacticalByUid: m.tacticalByUid ?? null,
   });
 }
@@ -382,6 +427,8 @@ export function useRoomWire(roomId: string | null, myUid: string | null) {
         winReason: (d.winReason as MatchState["winReason"]) ?? null,
         startedAt: (d.startedAt as Timestamp | null) ?? null,
         endedAt: (d.endedAt as Timestamp | null) ?? null,
+        guessAttemptsByUid: parseGuessAttemptsByUid(d.guessAttemptsByUid),
+        matchStatsByUid: parseMatchStatsByUid(d.matchStatsByUid),
         tacticalByUid: parseTacticalByUid(d.tacticalByUid),
         questionCountTotal:
           d.questionCountTotal !== undefined ? Number(d.questionCountTotal) : undefined,

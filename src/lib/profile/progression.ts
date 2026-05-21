@@ -1,4 +1,5 @@
 import { FRAME_REGISTRY, type FrameId } from "@/lib/profile/cosmetics";
+import { XP_PER_LOSS, XP_PER_WIN } from "@/lib/profile/level";
 import { normalizeTacticalInventory, type TacticalInventory } from "@/lib/profile/tactical-tools";
 
 /** Single soft currency — spent in the frame shop and on hints. */
@@ -28,6 +29,10 @@ export type PlayerProgress = {
   /** Lifetime experience — level is derived from this in `level.ts`. */
   xp: number;
   matchWins: number;
+  matchLosses: number;
+  matchTotal: number;
+  /** Stored win rate percentage (0–100), updated after each match. */
+  winRate: number;
   /**
    * When true, the Firestore doc has no `ownedFrameIds` field (players before the shop).
    * They keep full access to every shop frame without purchasing.
@@ -65,6 +70,30 @@ export function normalizePlayerProgress(raw: Record<string, unknown> | undefined
     typeof raw?.matchWins === "number" && Number.isFinite(raw.matchWins)
       ? Math.max(0, Math.floor(raw.matchWins))
       : 0;
+  let matchLosses =
+    typeof raw?.matchLosses === "number" && Number.isFinite(raw.matchLosses)
+      ? Math.max(0, Math.floor(raw.matchLosses))
+      : 0;
+  let matchTotal =
+    typeof raw?.matchTotal === "number" && Number.isFinite(raw.matchTotal)
+      ? Math.max(0, Math.floor(raw.matchTotal))
+      : 0;
+  let winRate =
+    typeof raw?.winRate === "number" && Number.isFinite(raw.winRate)
+      ? Math.min(100, Math.max(0, Math.round(raw.winRate)))
+      : 0;
+
+  if (raw !== undefined && !Object.prototype.hasOwnProperty.call(raw, "matchTotal")) {
+    const estimatedLosses = Math.max(0, Math.floor((xp - matchWins * XP_PER_WIN) / XP_PER_LOSS));
+    if (!Object.prototype.hasOwnProperty.call(raw, "matchLosses") && matchLosses === 0) {
+      matchLosses = estimatedLosses;
+    }
+    matchTotal = Math.max(matchWins, matchWins + (matchLosses || estimatedLosses));
+    winRate = matchTotal > 0 ? Math.round((matchWins / matchTotal) * 100) : 0;
+  } else if (winRate === 0 && matchTotal > 0) {
+    winRate = Math.round((matchWins / matchTotal) * 100);
+  }
+
   const legacyFullCatalog = raw === undefined || !Object.prototype.hasOwnProperty.call(raw, "ownedFrameIds");
   const ownedShopFrameIds = new Set<string>();
   if (!legacyFullCatalog && Array.isArray(raw?.ownedFrameIds)) {
@@ -79,6 +108,9 @@ export function normalizePlayerProgress(raw: Record<string, unknown> | undefined
     hintCountCredits,
     xp,
     matchWins,
+    matchLosses,
+    matchTotal,
+    winRate,
     legacyFullCatalog,
     ownedShopFrameIds,
     tacticalInventory: normalizeTacticalInventory(raw),

@@ -9,7 +9,9 @@ import {
 } from "@/lib/game/constants";
 import { ALL_CARDS, pickTwoCards } from "@/lib/game/cards";
 import { generateGuessAliases } from "@/lib/game/guess-alias-generator";
+import { FINAL_GUESS_LIMIT } from "@/lib/game/match-progression";
 import { guessMatchesCard } from "@/lib/game/validation";
+import { initMatchStatsForPlayers, incrementHintUsed, parseMatchStatsByUid } from "@/lib/server/match-stats";
 import {
   buildQuestionDeadline,
   incrementQuestionCountPatch,
@@ -262,6 +264,9 @@ export async function startMatchForRoom(args: {
     hintByUid: {},
     tacticalByUid: {},
     questionCountTotal: 0,
+    guessAttemptsByUid: { [p0]: 0, [p1]: 0 },
+    matchStatsByUid: initMatchStatsForPlayers([p0, p1]),
+    rewardedByUid: {},
   });
 
   // New contract: `playerCards/{uid}` holds the card that `uid` must guess
@@ -526,7 +531,17 @@ export async function handleGuess(args: {
         text: `🎉 ${args.displayName} خمّن البطاقة بشكل صحيح وفاز!`,
         createdAt: FieldValue.serverTimestamp(),
       });
-      tx.set(matchRef, { status: "ended", winnerUid: args.uid, winReason: "guess", endedAt: FieldValue.serverTimestamp() }, { merge: true });
+      tx.set(
+        matchRef,
+        {
+          status: "ended",
+          winnerUid: args.uid,
+          winReason: "guess",
+          endedAt: FieldValue.serverTimestamp(),
+          lastTacticalEvent: FieldValue.delete(),
+        },
+        { merge: true },
+      );
       tx.set(
         roomRef,
         {
@@ -537,6 +552,16 @@ export async function handleGuess(args: {
         { merge: true },
       );
     } else {
+      const order = (m.playerOrder as string[]) ?? [];
+      const opp = opponentOf(order, args.uid);
+      const guessMap = { ...((m.guessAttemptsByUid as Record<string, number>) ?? {}) };
+      const prevAttempts =
+        typeof guessMap[args.uid] === "number" && Number.isFinite(guessMap[args.uid])
+          ? Math.max(0, Math.floor(guessMap[args.uid]!))
+          : 0;
+      const nextAttempts = prevAttempts + 1;
+      guessMap[args.uid] = nextAttempts;
+
       tx.set(msgs.doc(), {
         senderUid: "system",
         senderName: "النظام",
@@ -544,7 +569,40 @@ export async function handleGuess(args: {
         text: `${args.displayName} خمن بشكل خاطئ`,
         createdAt: FieldValue.serverTimestamp(),
       });
-      tx.set(roomRef, { lastActivityAt: FieldValue.serverTimestamp() }, { merge: true });
+
+      if (nextAttempts >= FINAL_GUESS_LIMIT && opp) {
+        tx.set(msgs.doc(), {
+          senderUid: "system",
+          senderName: "النظام",
+          type: "system",
+          text: `استنفد ${args.displayName} محاولات التخمين — فاز الخصم!`,
+          createdAt: FieldValue.serverTimestamp(),
+        });
+        tx.set(
+          matchRef,
+          {
+            status: "ended",
+            winnerUid: opp,
+            winReason: "guess_limit",
+            endedAt: FieldValue.serverTimestamp(),
+            guessAttemptsByUid: guessMap,
+            lastTacticalEvent: FieldValue.delete(),
+          },
+          { merge: true },
+        );
+        tx.set(
+          roomRef,
+          {
+            status: "ended",
+            lastActivityAt: FieldValue.serverTimestamp(),
+            cleanupAt: Timestamp.fromMillis(Date.now() + ROOM_POST_MATCH_CLEANUP_MS),
+          },
+          { merge: true },
+        );
+      } else {
+        tx.set(matchRef, { guessAttemptsByUid: guessMap }, { merge: true });
+        tx.set(roomRef, { lastActivityAt: FieldValue.serverTimestamp() }, { merge: true });
+      }
     }
 
     return { correct };
@@ -598,12 +656,17 @@ export async function handleLeaveMatch(args: { roomId: string; uid: string }) {
         createdAt: FieldValue.serverTimestamp(),
       });
 
-      tx.set(matchRef, {
-        status: "ended",
-        winnerUid: opp,
-        winReason: "forfeit",
-        endedAt: FieldValue.serverTimestamp(),
-      }, { merge: true });
+      tx.set(
+        matchRef,
+        {
+          status: "ended",
+          winnerUid: opp,
+          winReason: "forfeit",
+          endedAt: FieldValue.serverTimestamp(),
+          lastTacticalEvent: FieldValue.delete(),
+        },
+        { merge: true },
+      );
 
       tx.set(roomRef, {
         status: "ended",
@@ -1108,7 +1171,8 @@ export async function handleHint(args: {
     }
 
     hintByUid[args.uid] = st;
-    tx.update(matchRef, { hintByUid });
+    const statsMap = incrementHintUsed(parseMatchStatsByUid(m.matchStatsByUid), args.uid);
+    tx.update(matchRef, { hintByUid, matchStatsByUid: statsMap });
 
     if (paidWith === "letter_credit") {
       tx.update(userRef, { hintLetterCredits });

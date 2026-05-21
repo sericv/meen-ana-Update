@@ -58,7 +58,9 @@ import {
 import { MatchResultScreen } from "@/components/game/MatchResultScreen";
 import { GameplaySocialSurface } from "@/components/game/GameplaySocialSurface";
 import { VoiceModePlayingPanel } from "@/components/game/VoiceModePlayingPanel";
+import { GuessRemainingIndicator } from "@/components/game/play/GuessRemainingIndicator";
 import { TacticalEventBanner } from "@/components/game/play/TacticalEventBanner";
+import { FINAL_GUESS_LIMIT, remainingFinalGuesses } from "@/lib/game/match-progression";
 import { useLiveUserProfile } from "@/hooks/useLiveUserProfile";
 import { useMatchTactical } from "@/hooks/useMatchTactical";
 import { TIME_PRESSURE_QUESTION_SEC } from "@/lib/profile/tactical-tools";
@@ -221,15 +223,27 @@ export function RoomExperience({ roomId }: Props) {
     resetOnUnmount: true,
   });
 
-  const declineTimerRef = useRef<number | null>(null);
-  const toastDecline = useCallback((msg: string) => {
-    if (declineTimerRef.current) window.clearTimeout(declineTimerRef.current);
+  const bannerTimerRef = useRef<number | null>(null);
+  const toastBanner = useCallback((msg: string, ms = 2800) => {
+    if (bannerTimerRef.current) window.clearTimeout(bannerTimerRef.current);
     setBanner(msg);
-    declineTimerRef.current = window.setTimeout(() => {
+    bannerTimerRef.current = window.setTimeout(() => {
       setBanner(null);
-      declineTimerRef.current = null;
-    }, 5500);
+      bannerTimerRef.current = null;
+    }, ms);
   }, []);
+  const toastDecline = useCallback(
+    (msg: string) => {
+      toastBanner(msg, 5500);
+    },
+    [toastBanner],
+  );
+  useEffect(
+    () => () => {
+      if (bannerTimerRef.current) window.clearTimeout(bannerTimerRef.current);
+    },
+    [],
+  );
   useSocialInboxDeclineToast(
     uid,
     Boolean(googleSoc && isHost && room?.status === "lobby"),
@@ -301,7 +315,14 @@ export function RoomExperience({ roomId }: Props) {
   }, [room?.status, match?.id, match?.status, match?.startedAt, ended, opponentPlayer]);
 
   useEffect(() => {
-    if (ended) setMatchupVsOpen(false);
+    if (ended) {
+      setMatchupVsOpen(false);
+      setBanner(null);
+      if (bannerTimerRef.current) {
+        window.clearTimeout(bannerTimerRef.current);
+        bannerTimerRef.current = null;
+      }
+    }
   }, [ended]);
 
   useEffect(() => {
@@ -311,6 +332,23 @@ export function RoomExperience({ roomId }: Props) {
   const winnerUid = match?.winnerUid ?? null;
   const iWon = Boolean(winnerUid && winnerUid === uid);
   const forfeitWin = Boolean(iWon && match?.winReason === "forfeit");
+  const guessLimitWin = Boolean(iWon && match?.winReason === "guess_limit");
+
+  const myGuessAttempts = uid ? (match?.guessAttemptsByUid?.[uid] ?? 0) : 0;
+  const myGuessRemaining = remainingFinalGuesses(myGuessAttempts);
+  const opponentGuessRemaining = opponentPlayer
+    ? remainingFinalGuesses(match?.guessAttemptsByUid?.[opponentPlayer.uid] ?? 0)
+    : FINAL_GUESS_LIMIT;
+
+  const myToolsUsed = uid ? (match?.matchStatsByUid?.[uid]?.totalToolsUsed ?? 0) : 0;
+
+  const activeTacticalEvent = useMemo(() => {
+    const ev = match?.lastTacticalEvent;
+    if (!ev?.id) return null;
+    const expMs = ev.expiresAt?.toMillis?.() ?? 0;
+    if (expMs > 0 && clock > expMs) return null;
+    return ev;
+  }, [match?.lastTacticalEvent, clock]);
 
   const myTurn =
     Boolean(match?.status === "active" && match.actorUid && uid && match.actorUid === uid);
@@ -421,13 +459,13 @@ export function RoomExperience({ roomId }: Props) {
   }, [messages, uid]);
 
   useEffect(() => {
-    const ev = match?.lastTacticalEvent;
+    const ev = activeTacticalEvent;
     if (!ev?.id || ev.id === lastTacticalEventId.current) return;
     lastTacticalEventId.current = ev.id;
     if (ev.actorUid === uid) return;
     resumeAudioContext();
     playTacticalAlert(ev.blocked === true);
-  }, [match?.lastTacticalEvent, uid]);
+  }, [activeTacticalEvent, uid]);
 
   useEffect(() => {
     seenGuessMessageIds.current.clear();
@@ -654,7 +692,7 @@ export function RoomExperience({ roomId }: Props) {
   const sendDraft = useCallback(async () => {
     if (!room || !match || !draft.trim()) return;
     if (!myTurn) {
-      setBanner("انتظر دورك");
+      toastBanner("انتظر دورك");
       return;
     }
     setBusy(true);
@@ -748,11 +786,15 @@ export function RoomExperience({ roomId }: Props) {
   const openGuessFlow = useCallback(() => {
     resumeAudioContext();
     if (!myTurn) {
-      setBanner("يمكن التخمين فقط في دورك");
+      toastBanner("يمكن التخمين فقط في دورك");
+      return;
+    }
+    if (myGuessRemaining <= 0) {
+      toastBanner("لا محاولات تخمين متبقية");
       return;
     }
     setGuessSureOpen(true);
-  }, [myTurn]);
+  }, [myTurn, myGuessRemaining, toastBanner]);
 
   const confirmGuessSure = useCallback(() => {
     playGuessChime();
@@ -1582,7 +1624,7 @@ export function RoomExperience({ roomId }: Props) {
             : undefined
         }
       >
-        <TacticalEventBanner event={match?.lastTacticalEvent} myUid={uid} />
+        <TacticalEventBanner event={activeTacticalEvent} myUid={uid} />
 
         {voiceAwaitMatchUI ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-5 px-4 py-10">
@@ -1625,6 +1667,8 @@ export function RoomExperience({ roomId }: Props) {
             tacticalBusy={tacticalBusy}
             onUseTactical={onUseTactical}
             tacticalError={tacticalError}
+            myGuessRemaining={myGuessRemaining}
+            opponentGuessRemaining={opponentGuessRemaining}
           />
         ) : (
           <GameplaySocialSurface
@@ -1671,6 +1715,8 @@ export function RoomExperience({ roomId }: Props) {
             tacticalBusy={tacticalBusy}
             onUseTactical={onUseTactical}
             tacticalError={tacticalError}
+            myGuessRemaining={myGuessRemaining}
+            opponentGuessRemaining={opponentGuessRemaining}
           />
         )}
 
@@ -1717,10 +1763,13 @@ export function RoomExperience({ roomId }: Props) {
         {ended ? (
           <MatchResultScreen
             roomId={roomId}
+            matchId={match?.id ?? null}
             myUid={uid}
             iWon={iWon}
             winnerUid={winnerUid}
             forfeitWin={forfeitWin}
+            guessLimitWin={guessLimitWin}
+            toolsUsed={myToolsUsed}
             myName={displayName}
             opponentName={opponentName}
             opponentCard={opponentCard}
@@ -1759,6 +1808,9 @@ export function RoomExperience({ roomId }: Props) {
                 <div className="text-4xl">🎯</div>
                 <p className="mt-3 text-xl font-black text-[#8a3f16]">هل أنت متأكد؟</p>
                 <p className="mt-2 text-sm text-[#a16231]">سيتم استخدام محاولة التخمين في دورك الحالي.</p>
+                <div className="mt-4 flex justify-center">
+                  <GuessRemainingIndicator remaining={myGuessRemaining} />
+                </div>
                 <div className="mt-6 flex gap-3">
                   <Button type="button" className="min-h-[48px] flex-1" onClick={confirmGuessSure}>تأكيد</Button>
                   <Button type="button" variant="ghost" className="min-h-[48px] flex-1" onClick={() => setGuessSureOpen(false)}>إلغاء</Button>
@@ -1790,6 +1842,9 @@ export function RoomExperience({ roomId }: Props) {
               <Panel className="w-full max-w-sm">
                 <h3 className="text-2xl font-black text-[#8a3f16]">🎯 تخمين</h3>
                 <p className="mt-2 text-sm text-[#a16231]">ما اسم بطاقتك؟</p>
+                <div className="mt-3 flex justify-center">
+                  <GuessRemainingIndicator remaining={myGuessRemaining} compact />
+                </div>
                 <div className="mt-4 space-y-3">
                   <Input
                     value={guessDraft}

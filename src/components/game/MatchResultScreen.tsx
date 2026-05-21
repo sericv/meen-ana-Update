@@ -7,10 +7,10 @@ import { ConfettiBurst } from "@/components/game/ConfettiBurst";
 import { CoinDisplay } from "@/components/ui/CoinDisplay";
 import { useLiveUserProfile } from "@/hooks/useLiveUserProfile";
 import { postGame } from "@/lib/api/game-client";
-import { awardMatchEndRewards } from "@/lib/firestore/match-rewards.client";
 import { XP_PER_LOSS, XP_PER_WIN, xpProgressInCurrentLevel } from "@/lib/profile/level";
 import { getCategoryById } from "@/lib/game/categories";
 import type { PlayerCosmetic } from "@/lib/profile/cosmetics";
+import type { AwardMatchRewardsResult } from "@/lib/game/match-rewards";
 import type { ChatMessage, GameCard } from "@/types";
 
 const CARD_PLACEHOLDER = "/cards/_placeholder.svg";
@@ -28,14 +28,17 @@ const W_SAGE = "#5a9a7a";
 
 export type MatchResultScreenProps = {
   roomId: string;
+  matchId: string | null;
   myUid: string;
   iWon: boolean;
   winnerUid: string | null;
   forfeitWin: boolean;
+  guessLimitWin?: boolean;
   myName: string;
   opponentName: string;
   opponentCard: GameCard | null;
   messages: ChatMessage[];
+  toolsUsed?: number;
   matchStartedAtMs?: number | null;
   matchEndedAtMs?: number | null;
   replayBusy?: boolean;
@@ -322,12 +325,15 @@ function FloatingEmbers({ count }: { count: number }) {
 
 export function MatchResultScreen({
   roomId,
+  matchId,
   myUid,
   iWon,
   forfeitWin,
+  guessLimitWin = false,
   opponentName,
   opponentCard,
   messages,
+  toolsUsed = 0,
   matchStartedAtMs,
   matchEndedAtMs,
   replayBusy = false,
@@ -350,6 +356,7 @@ export function MatchResultScreen({
 
   const [show, setShow] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
+  const [rewards, setRewards] = useState<AwardMatchRewardsResult | null>(null);
 
   useEffect(() => {
     const t = window.setTimeout(() => setShow(true), 80);
@@ -363,21 +370,27 @@ export function MatchResultScreen({
   }, [iWon]);
 
   useEffect(() => {
-    if (!myUid || !roomId) return;
+    if (!myUid || !matchId) return;
     if (typeof window === "undefined") return;
-    const key = `meenana-match-award:${roomId}`;
+    const key = `meenana-match-award:${matchId}:${myUid}`;
     const state = window.sessionStorage.getItem(key);
-    if (state === "1" || state === "pending") return;
+    if (state === "pending") return;
     window.sessionStorage.setItem(key, "pending");
+    let cancelled = false;
     void (async () => {
       try {
-        await awardMatchEndRewards(myUid, iWon);
+        const res = await postGame("/api/game/rewards", { matchId });
+        if (cancelled) return;
+        setRewards(res as unknown as AwardMatchRewardsResult);
         window.sessionStorage.setItem(key, "1");
       } catch {
-        window.sessionStorage.removeItem(key);
+        if (!cancelled) window.sessionStorage.removeItem(key);
       }
     })();
-  }, [iWon, myUid, roomId]);
+    return () => {
+      cancelled = true;
+    };
+  }, [myUid, matchId]);
 
   const durationLabel = useMemo(() => {
     if (matchStartedAtMs && matchEndedAtMs && matchEndedAtMs > matchStartedAtMs) {
@@ -391,16 +404,10 @@ export function MatchResultScreen({
     [messages],
   );
 
-  const hintCount = useMemo(
-    () =>
-      messages.filter(
-        (m) => m.senderUid === "system" && (m.text?.trim() ?? "").startsWith("تلميح"),
-      ).length,
-    [messages],
-  );
+  const hintCount = toolsUsed;
 
   const xp = liveProfile?.progress.xp ?? 0;
-  const matchWins = liveProfile?.progress.matchWins ?? 0;
+  const matchWins = rewards?.matchWins ?? liveProfile?.progress.matchWins ?? 0;
   const { level, xpInLevel, xpToNext, pct: levelPct } = xpProgressInCurrentLevel(xp);
   const levelPctAnimated = show ? levelPct : Math.max(0, levelPct - 8);
 
@@ -408,13 +415,18 @@ export function MatchResultScreen({
   const subline = iWon
     ? forfeitWin
       ? "فزت بانسحاب الخصم"
-      : "فزت بالمباراة • خمّنت اسمك في الوقت"
-    : forfeitWin
-      ? "غادر خصمك المباراة"
-      : "في المرة القادمة تنجح إن شاء الله";
+      : guessLimitWin
+        ? "فزت — استنفد الخصم محاولات التخمين"
+        : "فزت بالمباراة • خمّنت اسمك في الوقت"
+    : guessLimitWin
+      ? "استنفدت محاولات التخمين"
+      : forfeitWin
+        ? "غادر خصمك المباراة"
+        : "في المرة القادمة تنجح إن شاء الله";
 
-  const coinReward = iWon ? 1 : 0;
-  const xpReward = iWon ? XP_PER_WIN : XP_PER_LOSS;
+  const coinReward = rewards?.coinsAwarded ?? (iWon ? 1 : 0);
+  const xpReward = rewards?.xpAwarded ?? (iWon ? XP_PER_WIN : XP_PER_LOSS);
+  const bonusLabel = rewards?.bonusLabelAr ?? null;
 
   const shortRoom = roomId ? roomId.slice(-4).toUpperCase() : "—";
 
@@ -536,6 +548,18 @@ export function MatchResultScreen({
               icon={<IconStar />}
             />
           </div>
+          {bonusLabel && coinReward > 0 ? (
+            <p
+              className="mt-2.5 rounded-xl border px-3 py-2 text-center text-xs font-extrabold"
+              style={{
+                borderColor: "rgba(200,130,60,0.45)",
+                color: W_INK,
+                background: "linear-gradient(180deg, #fff4e0, #ffe8c8)",
+              }}
+            >
+              {bonusLabel}
+            </p>
+          ) : null}
           <div className="mt-3">
             <motion.div className="flex items-center justify-between text-xs font-semibold" style={{ color: W_INK_SOFT }}>
               <span>المستوى {level}</span>
@@ -566,7 +590,7 @@ export function MatchResultScreen({
           </h2>
           <div className="mt-3 grid grid-cols-3 gap-2">
             <StatCell label="الأسئلة" value={String(questionCount)} />
-            <StatCell label="التلميحات" value={String(hintCount)} />
+            <StatCell label="التلميحات والأدوات" value={String(hintCount)} />
             <StatCell label="المدة" value={durationLabel} />
           </div>
         </ResultSurf>

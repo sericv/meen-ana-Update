@@ -1,6 +1,8 @@
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { getAdminDb } from "@/lib/firebase/admin";
 import { col } from "@/lib/firestore/paths";
+import { TACTICAL_EVENT_DISPLAY_MS } from "@/lib/game/match-progression";
+import { incrementTacticalUsed, parseMatchStatsByUid } from "@/lib/server/match-stats";
 import {
   EXTRA_TIME_BONUS_SEC,
   SHIELD_DURATION_MS,
@@ -330,9 +332,12 @@ export async function handleTacticalTool(args: {
 
     tacticalByUid[args.uid] = me;
     matchPatch.tacticalByUid = serializeTacticalByUid(tacticalByUid, nowMs);
+    const statsMap = incrementTacticalUsed(parseMatchStatsByUid(m.matchStatsByUid), args.uid);
+    matchPatch.matchStatsByUid = statsMap;
     matchPatch.lastTacticalEvent = {
       ...ev,
       at: FieldValue.serverTimestamp(),
+      expiresAt: Timestamp.fromMillis(nowMs + TACTICAL_EVENT_DISPLAY_MS),
     };
 
     tx.update(matchRef, matchPatch);
