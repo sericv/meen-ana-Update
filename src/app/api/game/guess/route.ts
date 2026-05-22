@@ -33,6 +33,7 @@ export async function POST(req: Request) {
       MATCH_ENDED: "انتهت المباراة",
       NO_HIDDEN_CARD: "لم يتم تعيين بطاقتك بعد",
       NOT_YOUR_TURN_GUESS: "يمكن التخمين فقط في دورك",
+      GUESS_ONLY_QUESTION_PHASE: "يمكن التخمين فقط في دور السؤال",
     };
     return jsonError(400, map[msg] ?? "تعذر إرسال التخمين");
   }

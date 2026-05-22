@@ -4,7 +4,6 @@ import { AnimatePresence, motion } from "framer-motion";
 import type { RefObject } from "react";
 import { useMemo, useState } from "react";
 import { GameplayChatActionBar } from "@/components/game/play/GameplayChatActionBar";
-import { GameplayChatFadeViewport } from "@/components/game/play/GameplayChatFadeViewport";
 import { GameplayHeroCard } from "@/components/game/play/GameplayHeroCard";
 import { GameplayMyHiddenCard } from "@/components/game/play/GameplayMyHiddenCard";
 import { MyHiddenCardSheet } from "@/components/game/play/GameplaySheets";
@@ -171,8 +170,6 @@ export function GameplaySocialSurface({
     [messages],
   );
 
-  const visibleMessages = chatMessages;
-
   const handleDraftChange = (v: string) => {
     onDraftChange(v);
     if (v.trim()) pulseTyping();
@@ -296,53 +293,38 @@ export function GameplaySocialSurface({
             </motion.div>
           </section>
 
-          <motion.div className="flex min-h-0 min-w-0 flex-1 flex-col justify-end px-2 pb-0 pt-1">
-            <GameplayChatFadeViewport>
-              <div
-                ref={chatScrollRef}
-                className="flex min-h-0 flex-1 flex-col justify-end overflow-y-auto px-1 pb-1"
-              >
-                <motion.div className="flex min-h-0 flex-col justify-end gap-2.5 pb-0.5 pt-1">
-                  {chatMessages.length === 0 ? (
-                    <motion.div
-                      className="flex flex-col items-center justify-center gap-1 py-4 text-center"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                    >
-                      <span className="text-2xl">💬</span>
-                      <p className="text-[11px] font-bold" style={{ color: GP.inkSoft }}>
-                        ابدأ بطرح سؤالك
-                      </p>
-                    </motion.div>
-                  ) : (
-                    <AnimatePresence mode="popLayout" initial={false}>
-                      {visibleMessages.map((m) => (
-                        <motion.div
-                          key={m.id}
-                          layout
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{
-                            opacity: 0,
-                            y: -4,
-                          }}
-                          transition={{ duration: 0.42, ease: [0.4, 0, 0.2, 1] }}
-                          className="shrink-0"
-                        >
-                          {renderMessage(m)}
-                        </motion.div>
-                      ))}
-                    </AnimatePresence>
-                  )}
-                  {!myTurn && opponentTyping ? (
-                    <motion.div layout className="flex shrink-0 justify-start">
-                      <TypingDots />
-                    </motion.div>
-                  ) : null}
-                  <motion.div layout ref={chatEndRef} className="h-0 shrink-0" />
+          <motion.div className="flex min-h-0 min-w-0 flex-1 flex-col px-2 pb-0 pt-1">
+            <div
+              ref={chatScrollRef}
+              className="min-h-0 flex-1 overflow-y-auto px-3 pb-1 pt-2"
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 8,
+                overscrollBehavior: "contain",
+              }}
+            >
+              {chatMessages.length === 0 ? (
+                <motion.div
+                  className="flex flex-1 flex-col items-center justify-center gap-1 py-4 text-center"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                >
+                  <span className="text-2xl">💬</span>
+                  <p className="text-[11px] font-bold" style={{ color: GP.inkSoft }}>
+                    ابدأ بطرح سؤالك
+                  </p>
                 </motion.div>
-              </div>
-            </GameplayChatFadeViewport>
+              ) : (
+                chatMessages.map((m) => renderMessage(m))
+              )}
+              {!myTurn && opponentTyping ? (
+                <div className="flex shrink-0 justify-start">
+                  <TypingDots />
+                </div>
+              ) : null}
+              <div ref={chatEndRef} className="h-0 shrink-0" />
+            </div>
 
             <GameplayChatActionBar
               myTurn={myTurn}

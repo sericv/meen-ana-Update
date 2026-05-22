@@ -788,196 +788,125 @@ export function RoomExperience({ roomId }: Props) {
       toastBanner("يمكن التخمين فقط في دورك");
       return;
     }
+    if (phase !== "question") {
+      toastBanner("يمكن التخمين فقط في دور السؤال");
+      return;
+    }
     if (myGuessRemaining <= 0) {
       toastBanner("لا محاولات تخمين متبقية");
       return;
     }
     playGuessChime();
     setGuessInputOpen(true);
-  }, [myTurn, myGuessRemaining, toastBanner]);
+  }, [myTurn, phase, myGuessRemaining, toastBanner]);
 
   const renderMessage = useCallback((m: (typeof messages)[number]) => {
     const isMe = m.senderUid === uid;
     const isSystem = m.senderUid === "system";
     const isGuessMsg = m.type === "guess";
-    // Some flows tag explicit "answer" messages; current backend uses "chat"
-    // for the post-question reply, but we keep this branch for forward compat.
-    const isAnswer = (m.type as string) === "answer";
-    const isQuestion = m.type === "question";
 
-    // ── system / event pill ──────────────────────────────────
     if (isSystem) {
+      const isHint = m.text.trim().startsWith("تلميح");
       return (
         <motion.div
           key={m.id}
           layout
-          initial={{ opacity: 0, scale: 0.92 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ type: "spring", stiffness: 380, damping: 28 }}
-          className="mx-auto w-fit max-w-[85%] rounded-full border border-[#f2d4b5]/70 bg-gradient-to-b from-[#fff8ef] to-[#fff4e6] px-4 py-1.5 text-center text-[11px] font-semibold text-[#8a5a2a] shadow-[inset_0_1px_0_rgba(255,255,255,0.8),0_2px_8px_rgba(196,134,82,0.10)]"
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="shrink-0"
+          style={{
+            alignSelf: "center",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            maxWidth: "85%",
+            borderRadius: 999,
+            border: isHint
+              ? "1px solid oklch(0.75 0.13 60 / .55)"
+              : "1px solid oklch(0.78 0.04 65 / .45)",
+            background: isHint ? "oklch(0.94 0.08 75 / .85)" : "oklch(0.96 0.025 78 / .9)",
+            color: isHint ? "oklch(0.35 0.10 50)" : "oklch(0.44 0.06 45)",
+            padding: "7px 13px",
+            fontSize: 11,
+            fontWeight: 700,
+            textAlign: "center",
+          }}
         >
+          {isHint ? <span aria-hidden>💡</span> : null}
           {m.text}
         </motion.div>
       );
     }
 
-    // ── guess bubble ─────────────────────────────────────────
-    if (isGuessMsg) {
-      const guessCosmetic =
-        isMe && uid
-          ? cosmeticsMap[uid]
-          : !isMe && m.senderUid && m.senderUid !== "system"
-            ? cosmeticsMap[m.senderUid]
-            : undefined;
+    const text = m.text.trim();
+    const normalized = text.replace(/[!؟?،.]/g, "").trim();
+    const isVerdict =
+      normalized === "نعم" ||
+      normalized === "لا" ||
+      normalized === "اي" ||
+      normalized === "إي";
+    const verdictYes = normalized === "نعم" || normalized === "اي" || normalized === "إي";
+    const isQuestion = m.type === "question";
 
-      return (
-        <motion.div
-          key={m.id}
-          layout
-          initial={{ opacity: 0, scale: 0.86, y: 14 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          transition={{ type: "spring", stiffness: 320, damping: 22 }}
-          className={`mx-1 flex items-end gap-2.5 overflow-visible ${isMe ? "flex-row-reverse" : "flex-row"}`}
-        >
-          <div className="mb-1 shrink-0">
-            <ProfileAvatar
-              cosmetic={guessCosmetic}
-              fallbackPhotoURL={isMe ? user?.photoURL : undefined}
-              displayName={isMe ? displayName : m.senderName ?? undefined}
-              size="sm"
-              idle
-              active={isMe}
-            />
-          </div>
-
-          <div
-            className="min-w-0 flex-1 overflow-hidden rounded-[1.5rem]"
-            style={
-              m.correct
-                ? {
-                    background: "linear-gradient(180deg,#f0fdf4 0%,#dcfce7 100%)",
-                    border: "2px solid rgba(22,163,74,0.40)",
-                    boxShadow:
-                      "0 0 0 4px rgba(22,163,74,0.09), 0 8px 24px rgba(22,163,74,0.18), inset 0 1px 0 rgba(255,255,255,0.7)",
-                  }
-                : {
-                    background: "linear-gradient(180deg,#fff5f5 0%,#fff0f0 100%)",
-                    border: "2px solid rgba(252,165,165,0.55)",
-                    boxShadow:
-                      "0 0 0 3px rgba(252,165,165,0.10), 0 6px 16px rgba(220,80,80,0.08), inset 0 1px 0 rgba(255,255,255,0.6)",
-                  }
-            }
-          >
-            <div
-              className={`flex items-center gap-2 px-4 py-2 text-[11px] font-extrabold ${
-                m.correct
-                  ? "bg-gradient-to-r from-[#bbf7d0] to-[#86efac]/50 text-[#15803d]"
-                  : "bg-gradient-to-r from-[#fecaca] to-[#fca5a5]/50 text-[#b91c1c]"
-              }`}
-            >
-              <span>{m.correct ? "🏆 تخمين صحيح!" : "✗ تخمين خاطئ"}</span>
-              <span className="mr-auto text-[10px] opacity-70">
-                {isMe ? "أنت" : m.senderName}
-              </span>
-            </div>
-            <div
-              className={`px-4 py-3 text-[15px] font-black leading-snug ${
-                m.correct ? "text-[#14532d]" : "text-[#7f1d1d]"
-              }`}
-            >
-              {m.text}
-            </div>
-          </div>
-        </motion.div>
-      );
-    }
-
-    // ── normal question / answer / chat bubble ────────────────
-    // Gradients per type: question→purple depth, answer→green depth,
-    // me→warm orange, them→clean white with warm border
-    const bubbleStyle: CSSProperties = isQuestion
-      ? {
-          background: "linear-gradient(135deg,#ede9fe 0%,#ddd6fe 100%)",
-          border: "1.5px solid rgba(167,139,250,0.45)",
-          boxShadow:
-            "0 4px 16px rgba(139,92,246,0.11), inset 0 1px 0 rgba(255,255,255,0.55)",
-          color: "#3b1f6e",
-        }
-      : isAnswer
-        ? {
-            background: "linear-gradient(135deg,#dcfce7 0%,#bbf7d0 100%)",
-            border: "1.5px solid rgba(74,222,128,0.38)",
-            boxShadow:
-              "0 4px 16px rgba(22,163,74,0.11), inset 0 1px 0 rgba(255,255,255,0.55)",
-            color: "#14532d",
-          }
-        : isMe
-          ? {
-              background: "linear-gradient(135deg,#ffd7a8 0%,#ffcc8a 100%)",
-              border: "1.5px solid rgba(240,191,138,0.65)",
-              boxShadow:
-                "0 4px 14px rgba(196,120,40,0.16), inset 0 1px 0 rgba(255,255,255,0.42)",
-              color: "#6f3714",
-            }
-          : {
-              background: "linear-gradient(180deg,#ffffff 0%,#fff9f4 100%)",
-              border: "1.5px solid rgba(232,213,181,0.75)",
-              boxShadow:
-                "0 4px 14px rgba(196,134,82,0.09), inset 0 1px 0 rgba(255,255,255,0.85)",
-              color: "#6f3714",
-            };
-
-    const typeTag = isQuestion ? "سؤال" : isAnswer ? "إجابة" : null;
-
-    const senderCosmetic =
-      isMe && uid
-        ? cosmeticsMap[uid]
-        : !isMe && m.senderUid && m.senderUid !== "system"
-          ? cosmeticsMap[m.senderUid]
-          : undefined;
+    const bubbleStyle: CSSProperties = {
+      alignSelf: isMe ? "flex-end" : "flex-start",
+      display: "inline-flex",
+      alignItems: "center",
+      gap: 8,
+      maxWidth: "78%",
+      borderRadius: isGuessMsg ? 14 : 18,
+      padding: "10px 14px",
+      background: isMe
+        ? "linear-gradient(180deg, oklch(0.86 0.11 70), oklch(0.79 0.13 58))"
+        : "linear-gradient(180deg, oklch(0.99 0.01 85), oklch(0.96 0.025 78))",
+      border: isMe
+        ? "1px solid oklch(0.70 0.13 58 / .55)"
+        : "1px solid oklch(0.78 0.04 65 / .55)",
+      color: "oklch(0.24 0.04 35)",
+      boxShadow: isMe
+        ? "0 6px 14px -8px oklch(0.55 0.15 55 / .45), inset 0 1px 0 rgba(255,255,255,.45)"
+        : "0 4px 12px -8px oklch(0.45 0.08 45 / .28), inset 0 1px 0 rgba(255,255,255,.85)",
+      outline: isGuessMsg ? "1.5px solid oklch(0.68 0.16 30 / .55)" : undefined,
+      fontSize: 14,
+      fontWeight: 700,
+      lineHeight: 1.55,
+      whiteSpace: "pre-wrap",
+      wordBreak: "break-word",
+    };
 
     return (
       <motion.div
         key={m.id}
         layout
-        initial={{ opacity: 0, x: isMe ? 14 : -14, y: 4 }}
-        animate={{ opacity: 1, x: 0, y: 0 }}
-        transition={{ type: "spring", stiffness: 420, damping: 28 }}
-        className={`flex items-end gap-2.5 ${isMe ? "flex-row-reverse" : "flex-row"}`}
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.22 }}
+        className="shrink-0"
+        style={bubbleStyle}
       >
-        <div className="mb-0.5 shrink-0">
-          <ProfileAvatar
-            cosmetic={senderCosmetic}
-            fallbackPhotoURL={isMe ? user?.photoURL : undefined}
-            displayName={isMe ? displayName : m.senderName ?? undefined}
-            size="sm"
-            idle
-            active={isMe}
-          />
-        </div>
-
-        <div
-          className="max-w-[76%] rounded-[1.45rem] px-4 py-3 text-sm leading-relaxed sm:max-w-[70%]"
-          style={bubbleStyle}
-        >
-          {typeTag ? (
-            <div
-              className={`mb-1.5 text-[9.5px] font-extrabold uppercase tracking-wider ${
-                isQuestion ? "text-[#7c3aed]" : "text-[#16a34a]"
-              }`}
-            >
-              {typeTag}
-            </div>
-          ) : !isMe ? (
-            <div className="mb-1 text-[10px] font-bold text-[#9b6338]/80">
-              {m.senderName}
-            </div>
-          ) : null}
-          <div className="whitespace-pre-wrap break-words font-medium">{m.text}</div>
-        </div>
+        {isGuessMsg ? <span aria-hidden>🎯</span> : null}
+        <span>{isGuessMsg ? `تخميني: ${m.text}` : m.text}</span>
+        {isQuestion ? <span className="text-[10px] opacity-60">سؤال</span> : null}
+        {isVerdict ? (
+          <span
+            aria-hidden
+            style={{
+              display: "inline-grid",
+              placeItems: "center",
+              width: 18,
+              height: 18,
+              borderRadius: "50%",
+              background: verdictYes ? "oklch(0.78 0.12 150 / .35)" : "oklch(0.78 0.14 25 / .35)",
+              color: verdictYes ? "oklch(0.32 0.13 150)" : "oklch(0.40 0.15 25)",
+              flexShrink: 0,
+            }}
+          >
+            {verdictYes ? "✓" : "✕"}
+          </span>
+        ) : null}
       </motion.div>
     );
-  }, [uid, cosmeticsMap, user, displayName]);
+  }, [uid]);
 
   if (!uid) return null;
 

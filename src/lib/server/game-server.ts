@@ -499,6 +499,8 @@ export async function handleGuess(args: {
 
     const actorUid = String(m.actorUid ?? "");
     if (actorUid !== args.uid) throw new Error("NOT_YOUR_TURN_GUESS");
+    const phase = (m.chatPhase as string) === "answer" ? "answer" : "question";
+    if (phase !== "question") throw new Error("GUESS_ONLY_QUESTION_PHASE");
 
     if (!cardSnap.exists) throw new Error("NO_HIDDEN_CARD");
 
@@ -600,7 +602,20 @@ export async function handleGuess(args: {
           { merge: true },
         );
       } else {
-        tx.set(matchRef, { guessAttemptsByUid: guessMap }, { merge: true });
+        if (!opp) throw new Error("BAD_MATCH");
+        const { q: qSec } = readMatchTimers(m);
+        const qPatch = buildQuestionDeadline(m, opp, qSec);
+        tx.set(
+          matchRef,
+          {
+            guessAttemptsByUid: guessMap,
+            chatPhase: "question",
+            actorUid: opp,
+            ...qPatch.patch,
+            tacticalByUid: tacticalPatchForNewQuestionTurn(m.tacticalByUid, opp),
+          },
+          { merge: true },
+        );
         tx.set(roomRef, { lastActivityAt: FieldValue.serverTimestamp() }, { merge: true });
       }
     }

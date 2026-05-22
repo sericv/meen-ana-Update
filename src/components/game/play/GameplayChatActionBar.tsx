@@ -33,7 +33,7 @@ export function GameplayChatActionBar({
   keyboardOverlapPx = 0,
 }: Props) {
   const canSend = myTurn && draft.trim().length > 0 && !busy;
-  const canGuess = guessRemaining > 0;
+  const canGuess = myTurn && phase === "question" && guessRemaining > 0 && !busy;
   const placeholder = myTurn
     ? phase === "answer"
       ? "أجب بـ نعم أو لا…"
@@ -48,6 +48,26 @@ export function GameplayChatActionBar({
       }}
     >
       <motion.div className="flex flex-row items-center gap-2" dir="ltr">
+        <motion.button
+          type="button"
+          whileTap={{ scale: canGuess ? 0.96 : 1 }}
+          onClick={onGuess}
+          disabled={!canGuess}
+          className="shrink-0 rounded-[14px] border-0 px-4 py-2.5 text-sm font-bold disabled:cursor-not-allowed"
+          style={{
+            background: canGuess
+              ? `linear-gradient(180deg, ${GP.orange} 0%, ${GP.orangeDeep} 100%)`
+              : "#C8B8A8",
+            color: canGuess ? "white" : "#7A6A58",
+            boxShadow: canGuess
+              ? "inset 0 1px 0 rgba(255,255,255,0.3), 0 6px 14px -4px rgba(224,102,10,0.55)"
+              : "inset 0 1px 0 rgba(255,255,255,0.25)",
+            opacity: canGuess ? 1 : 0.55,
+          }}
+        >
+          خمّن {guessRemaining > 0 ? `(${guessRemaining})` : ""}
+        </motion.button>
+
         <div
           className="flex min-w-0 flex-1 items-center rounded-full px-3.5 py-0.5"
           dir="rtl"
@@ -59,6 +79,22 @@ export function GameplayChatActionBar({
             transition: "opacity 0.25s",
           }}
         >
+          <motion.button
+            type="button"
+            disabled={!canSend}
+            whileTap={{ scale: 0.9 }}
+            onClick={onSend}
+            aria-label="إرسال"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-0 disabled:opacity-50"
+            style={{
+              background: canSend
+                ? `linear-gradient(180deg, ${GP.gold} 0%, ${GP.goldDeep} 100%)`
+                : "#E8D4BC",
+              color: canSend ? GP.ink : GP.inkSoft,
+            }}
+          >
+            <IconSend color="currentColor" />
+          </motion.button>
           <input
             value={draft}
             onChange={(e) => onDraftChange(e.target.value)}
@@ -77,41 +113,7 @@ export function GameplayChatActionBar({
             onFocus={(e) => onComposerFocus(e.currentTarget)}
             onBlur={(e) => onComposerBlur(e.currentTarget)}
           />
-          <motion.button
-            type="button"
-            disabled={!canSend}
-            whileTap={{ scale: 0.9 }}
-            onClick={onSend}
-            aria-label="إرسال"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-0 disabled:opacity-50"
-            style={{
-              background: canSend
-                ? `linear-gradient(180deg, ${GP.gold} 0%, ${GP.goldDeep} 100%)`
-                : "#E8D4BC",
-              color: canSend ? GP.ink : GP.inkSoft,
-            }}
-          >
-            <IconSend color="currentColor" />
-          </motion.button>
         </div>
-
-        <motion.button
-          type="button"
-          whileTap={{ scale: canGuess ? 0.96 : 1 }}
-          onClick={onGuess}
-          disabled={!canGuess}
-          className="shrink-0 rounded-[14px] border-0 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-45"
-          style={{
-            background: canGuess
-              ? `linear-gradient(180deg, ${GP.orange} 0%, ${GP.orangeDeep} 100%)`
-              : "#C8B8A8",
-            boxShadow: canGuess
-              ? "inset 0 1px 0 rgba(255,255,255,0.3), 0 6px 14px -4px rgba(224,102,10,0.55)"
-              : "none",
-          }}
-        >
-          خمّن {canGuess ? `(${guessRemaining})` : ""}
-        </motion.button>
       </motion.div>
     </div>
   );
