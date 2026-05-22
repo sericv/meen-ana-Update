@@ -28,7 +28,7 @@ import {
 } from "@/lib/firestore/users.client";
 import { TacticalToolIcon } from "@/components/game/play/TacticalToolIcons";
 
-type ShopTab = "frames" | "hints" | "tactical";
+type ShopTab = "frames" | "items";
 
 function ShopInner() {
   const router = useRouter();
@@ -59,7 +59,7 @@ function ShopInner() {
   const shopFrames = allFramesOwned ? [] : FRAME_REGISTRY.filter((f) => f.id !== "none");
 
   useEffect(() => {
-    if (allFramesOwned && tab === "frames") setTab("hints");
+    if (allFramesOwned && tab === "frames") setTab("items");
   }, [allFramesOwned, tab]);
 
   const buyTactical = useCallback(
@@ -190,8 +190,7 @@ function ShopInner() {
           {(
             [
               ...(allFramesOwned ? [] : [{ k: "frames" as const, l: "الإطارات" }]),
-              { k: "hints" as const, l: "التلميحات" },
-              { k: "tactical" as const, l: "أدوات" },
+              { k: "items" as const, l: "التلميحات والأدوات" },
             ] as const
           ).map((t) => (
             <button
@@ -282,11 +281,16 @@ function ShopInner() {
           </div>
         )}
 
-        {tab === "hints" && (
-          <div className="col gap-2">
-            <p className="text-xs muted px-1">
-              اشترِ التلميحات هنا فقط — في كل مباراة يمكنك استخدام تلميح واحد فقط: عدد الأحرف أو حرف عشوائي.
-            </p>
+        {tab === "items" && (
+          <div className="col gap-3">
+            <div className="surf" style={{ padding: 14 }}>
+              <p className="h-display fw-7 text-md">التلميحات والأدوات</p>
+              <p className="text-xs muted mt-2 leading-relaxed">
+                التلميحات تُستخدم مرة واحدة فقط في المباراة. الأدوات التكتيكية تُشترى من هنا وتُفعّل أثناء اللعب
+                حسب شروط كل أداة.
+              </p>
+            </div>
+
             {HINT_SHOP_ITEMS.map((item) => {
               const busy = busyId === item.id;
               const canBuy = google && progress && progress.coins >= item.price;
@@ -329,65 +333,51 @@ function ShopInner() {
                 محفوظ: {progress.hintLetterCredits} حرف · {progress.hintCountCredits} عدد
               </p>
             ) : null}
-          </div>
-        )}
 
-        {tab === "tactical" && (
-          <div className="col gap-3">
-            <div className="surf" style={{ padding: 14 }}>
-              <p className="h-display fw-7 text-md">التلميحات والأدوات التكتيكية</p>
-              <p className="text-xs muted mt-2 leading-relaxed">
-                أدوات لمرة واحدة داخل المباراة — لا مكافآت دائمة. اشترِها هنا، خزّنها في حسابك، وفعّلها في
-                اللحظة المناسبة لقلب موازين الجولة.
-              </p>
-            </div>
             {TACTICAL_SHOP_ITEMS.map((item) => {
               const busy = busyId === item.id;
               const owned = progress?.tacticalInventory[item.id] ?? 0;
               const canBuy = google && progress && progress.coins >= item.price;
               return (
-                <article key={item.id} className="surf col gap-2" style={{ padding: 14 }}>
-                  <div className="row gap-3" style={{ alignItems: "flex-start" }}>
-                    <div
-                      style={{
-                        width: 52,
-                        height: 52,
-                        borderRadius: 14,
-                        background: "linear-gradient(180deg, var(--amber), var(--amber-2))",
-                        display: "grid",
-                        placeItems: "center",
-                        color: "oklch(0.22 0.04 35)",
-                        flexShrink: 0,
-                      }}
-                    >
-                      <TacticalToolIcon id={item.id} size={26} />
+                <div key={item.id} className="surf row gap-3" style={{ padding: 14, alignItems: "center" }}>
+                  <div
+                    style={{
+                      width: 48,
+                      height: 48,
+                      borderRadius: 12,
+                      background: "linear-gradient(180deg, var(--amber), var(--amber-2))",
+                      display: "grid",
+                      placeItems: "center",
+                      color: "oklch(0.22 0.04 35)",
+                      flexShrink: 0,
+                    }}
+                  >
+                    <TacticalToolIcon id={item.id} size={24} />
+                  </div>
+                  <div className="f-1" style={{ minWidth: 0 }}>
+                    <div className="row between gap-2">
+                      <div className="h-display fw-7 text-md">{item.nameAr}</div>
+                      <span className="chip" style={{ fontSize: 10 }}>
+                        ×{owned}
+                      </span>
                     </div>
-                    <div className="f-1" style={{ minWidth: 0 }}>
-                      <div className="row between gap-2">
-                        <span className="h-display fw-7 text-md">{item.nameAr}</span>
-                        <span className="chip" style={{ fontSize: 10 }}>
-                          ×{owned}
-                        </span>
-                      </div>
-                      <p className="text-xs muted mt-1">{item.subtitleAr}</p>
-                      <p className="text-sm mt-2 leading-relaxed">{item.descriptionAr}</p>
-                      <p className="text-xs muted mt-2" style={{ fontStyle: "italic" }}>
-                        {item.rulesAr}
-                      </p>
-                      <div className="mt-2">
-                        <ShellCoin value={item.price} compact />
-                      </div>
+                    <div className="text-xs muted">{item.subtitleAr}</div>
+                    <p className="mt-1 text-xs leading-relaxed" style={{ color: "var(--fg-2)" }}>
+                      {item.rulesAr}
+                    </p>
+                    <div className="mt-1">
+                      <ShellCoin value={item.price} compact />
                     </div>
                   </div>
                   <button
                     type="button"
-                    className="btn btn-primary btn-block"
+                    className="btn btn-primary btn-sm"
                     disabled={!canBuy || busy}
                     onClick={() => void buyTactical(item.id)}
                   >
-                    {busy ? "…" : google ? "شراء أداة" : "—"}
+                    {busy ? "…" : google ? "شراء" : "—"}
                   </button>
-                </article>
+                </div>
               );
             })}
           </div>

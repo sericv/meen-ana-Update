@@ -10,6 +10,7 @@ type Props = {
   fallbackPhotoURL?: string | null;
   displayName?: string;
   size: number;
+  /** @deprecated Home/social avatars are now shown plain without decorative frame chrome. */
   frame?: FrameStyle;
   online?: boolean;
 };
@@ -27,21 +28,18 @@ export function ShellFramedAvatar({
   fallbackPhotoURL,
   displayName,
   size,
-  frame = "simple",
   online,
 }: Props) {
-  const inner = Math.max(24, size - 8);
+  const plainCosmetic = cosmetic ? { ...cosmetic, avatarFrameId: "none" } : cosmetic;
 
   return (
-    <span className={`frame ${frame}`} style={{ width: size, height: size }}>
-      <ProfileAvatar
-        cosmetic={cosmetic}
-        fallbackPhotoURL={fallbackPhotoURL}
-        displayName={displayName}
-        size={SIZE_TO_PROFILE(inner)}
-        showPulseDot={online}
-        idle={online}
-      />
-    </span>
+    <ProfileAvatar
+      cosmetic={plainCosmetic}
+      fallbackPhotoURL={fallbackPhotoURL}
+      displayName={displayName}
+      size={SIZE_TO_PROFILE(size)}
+      showPulseDot={online}
+      idle={online}
+    />
   );
 }
