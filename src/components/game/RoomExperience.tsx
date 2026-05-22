@@ -839,17 +839,10 @@ export function RoomExperience({ roomId }: Props) {
     }
 
     const text = m.text.trim();
-    const normalized = text.replace(/[!؟?،.]/g, "").trim();
-    const isVerdict =
-      normalized === "نعم" ||
-      normalized === "لا" ||
-      normalized === "اي" ||
-      normalized === "إي";
-    const verdictYes = normalized === "نعم" || normalized === "اي" || normalized === "إي";
     const isQuestion = m.type === "question";
 
     const bubbleStyle: CSSProperties = {
-      alignSelf: isMe ? "flex-end" : "flex-start",
+      alignSelf: isMe ? "flex-start" : "flex-end",
       display: "inline-flex",
       alignItems: "center",
       gap: 8,
@@ -887,23 +880,6 @@ export function RoomExperience({ roomId }: Props) {
         {isGuessMsg ? <span aria-hidden>🎯</span> : null}
         <span>{isGuessMsg ? `تخميني: ${m.text}` : m.text}</span>
         {isQuestion ? <span className="text-[10px] opacity-60">سؤال</span> : null}
-        {isVerdict ? (
-          <span
-            aria-hidden
-            style={{
-              display: "inline-grid",
-              placeItems: "center",
-              width: 18,
-              height: 18,
-              borderRadius: "50%",
-              background: verdictYes ? "oklch(0.78 0.12 150 / .35)" : "oklch(0.78 0.14 25 / .35)",
-              color: verdictYes ? "oklch(0.32 0.13 150)" : "oklch(0.40 0.15 25)",
-              flexShrink: 0,
-            }}
-          >
-            {verdictYes ? "✓" : "✕"}
-          </span>
-        ) : null}
       </motion.div>
     );
   }, [uid]);
@@ -1723,7 +1699,6 @@ export function RoomExperience({ roomId }: Props) {
             </div>
             <div className="mt-3 rounded-[14px] bg-white/90 p-1 shadow-[inset_0_0_0_1px_rgba(244,196,141,0.45)]">
               <input
-                autoFocus
                 value={guessDraft}
                 onChange={(e) => setGuessDraft(e.target.value)}
                 placeholder="اكتب التخمين هنا…"

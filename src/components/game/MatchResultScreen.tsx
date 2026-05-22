@@ -417,7 +417,7 @@ export function MatchResultScreen({
       ? "فزت بانسحاب الخصم"
       : guessLimitWin
         ? "فزت — استنفد الخصم محاولات التخمين"
-        : "فزت بالمباراة • خمّنت اسمك في الوقت"
+        : "فزت بالمباراة • خمّنت كرتك في الوقت"
     : guessLimitWin
       ? "استنفدت محاولات التخمين"
       : forfeitWin
@@ -496,7 +496,7 @@ export function MatchResultScreen({
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="text-[11px] font-bold" style={{ color: W_INK_SOFT }}>
-                اسمي كان
+                كرتي كان
               </p>
               <p className="truncate text-2xl font-black" style={{ color: W_INK }}>
                 {myTitle}
@@ -515,7 +515,7 @@ export function MatchResultScreen({
           >
             <div className="min-w-0">
               <p className="text-[11px] font-bold" style={{ color: W_INK_SOFT }}>
-                اسم الخصم
+                كرت الخصم
               </p>
               <p className="truncate text-2xl font-black" style={{ color: W_INK }}>
                 {oppTitle}
