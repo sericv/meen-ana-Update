@@ -158,9 +158,9 @@ export function playRoomReady(): void {
 
 /** Premium room invite chime */
 export function playRoomInviteChime(): void {
-  beepTriangle(196, 0.18, 0.035);
-  window.setTimeout(() => beep(587, 0.22, 0.045), 80);
-  window.setTimeout(() => beep(784, 0.28, 0.038), 220);
+  beepTriangle(523, 0.09, 0.032);
+  window.setTimeout(() => beep(784, 0.12, 0.036), 90);
+  window.setTimeout(() => beepTriangle(659, 0.08, 0.024), 210);
 }
 
 /** Positive accept chirp for room invite */

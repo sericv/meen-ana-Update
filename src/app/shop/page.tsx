@@ -146,6 +146,12 @@ function ShopInner() {
     setTab(next);
   }
 
+  function showInsufficientCoins() {
+    resumeAudioContext();
+    playUIButton();
+    setToast("ليس لديك عملات كافية.");
+  }
+
   return (
     <ShellScreen activeTab="shop">
       <div className="topbar">
@@ -222,6 +228,7 @@ function ShopInner() {
               const owned = progress ? ownsShopFrame(progress, f.id) : false;
               const equipped = cosmetic?.avatarFrameId === f.id;
               const canBuy = google && progress && !progress.legacyFullCatalog && !owned;
+              const insufficientCoins = Boolean(canBuy && progress.coins < SHOP_FRAME_PRICE);
               const busy = busyId === f.id || busyId === `eq:${f.id}`;
               const preview = cosmetic ? { ...cosmetic, avatarFrameId: f.id } : undefined;
 
@@ -268,10 +275,10 @@ function ShopInner() {
                       <button
                         type="button"
                         className="btn btn-primary btn-sm btn-block"
-                        disabled={!canBuy || busy || (progress !== undefined && progress.coins < SHOP_FRAME_PRICE)}
-                        onClick={() => void buyFrame(f.id)}
+                        disabled={!canBuy || busy}
+                        onClick={() => (insufficientCoins ? showInsufficientCoins() : void buyFrame(f.id))}
                       >
-                        {busy ? "…" : google ? "شراء" : "معاينة"}
+                        {busy ? "…" : "شراء"}
                       </button>
                     </>
                   )}
@@ -293,7 +300,8 @@ function ShopInner() {
 
             {HINT_SHOP_ITEMS.map((item) => {
               const busy = busyId === item.id;
-              const canBuy = google && progress && progress.coins >= item.price;
+              const canBuy = google && progress;
+              const insufficientCoins = Boolean(canBuy && progress.coins < item.price);
               return (
                 <div key={item.id} className="surf row gap-3" style={{ padding: 14, alignItems: "center" }}>
                   <div
@@ -321,23 +329,19 @@ function ShopInner() {
                     type="button"
                     className="btn btn-primary btn-sm"
                     disabled={!canBuy || busy}
-                    onClick={() => void buyHint(item.id)}
+                    onClick={() => (insufficientCoins ? showInsufficientCoins() : void buyHint(item.id))}
                   >
-                    {busy ? "…" : google ? "شراء" : "—"}
+                    {busy ? "…" : "شراء"}
                   </button>
                 </div>
               );
             })}
-            {progress ? (
-              <p className="text-xs muted text-center mt-2">
-                محفوظ: {progress.hintLetterCredits} حرف · {progress.hintCountCredits} عدد
-              </p>
-            ) : null}
 
             {TACTICAL_SHOP_ITEMS.map((item) => {
               const busy = busyId === item.id;
               const owned = progress?.tacticalInventory[item.id] ?? 0;
-              const canBuy = google && progress && progress.coins >= item.price;
+              const canBuy = google && progress;
+              const insufficientCoins = Boolean(canBuy && progress.coins < item.price);
               return (
                 <div key={item.id} className="surf row gap-3" style={{ padding: 14, alignItems: "center" }}>
                   <div
@@ -373,9 +377,9 @@ function ShopInner() {
                     type="button"
                     className="btn btn-primary btn-sm"
                     disabled={!canBuy || busy}
-                    onClick={() => void buyTactical(item.id)}
+                    onClick={() => (insufficientCoins ? showInsufficientCoins() : void buyTactical(item.id))}
                   >
-                    {busy ? "…" : google ? "شراء" : "—"}
+                    {busy ? "…" : "شراء"}
                   </button>
                 </div>
               );

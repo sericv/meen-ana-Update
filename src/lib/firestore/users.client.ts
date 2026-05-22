@@ -65,19 +65,21 @@ export async function updateUserCosmetics(
 ): Promise<void> {
   const db = getFirebaseDb();
   const ref = doc(db, col.users, uid);
-  const avatarId =
-    patch.avatarId && isValidAvatarId(patch.avatarId) ? patch.avatarId : DEFAULT_AVATAR_ID;
-  const avatarFrameId =
-    patch.avatarFrameId && isValidFrameId(patch.avatarFrameId)
-      ? patch.avatarFrameId
-      : DEFAULT_FRAME_ID;
+  const next: { avatarId?: string; avatarFrameId?: string; lastSeen: ReturnType<typeof serverTimestamp> } = {
+    lastSeen: serverTimestamp(),
+  };
+  if (patch.avatarId !== undefined) {
+    next.avatarId = patch.avatarId && isValidAvatarId(patch.avatarId) ? patch.avatarId : DEFAULT_AVATAR_ID;
+  }
+  if (patch.avatarFrameId !== undefined) {
+    next.avatarFrameId =
+      patch.avatarFrameId && isValidFrameId(patch.avatarFrameId)
+        ? patch.avatarFrameId
+        : DEFAULT_FRAME_ID;
+  }
   await setDoc(
     ref,
-    {
-      avatarId,
-      avatarFrameId,
-      lastSeen: serverTimestamp(),
-    },
+    next,
     { merge: true },
   );
 }

@@ -184,7 +184,7 @@ export function ProfileSettingsPanel({ uid, google, user, live }: ProfileSetting
               onClick={() => {
                 resumeAudioContext();
                 playUIButton();
-                router.push("/profile/purchases");
+                router.push("/profile?tab=purchases");
               }}
             >
               المشتريات

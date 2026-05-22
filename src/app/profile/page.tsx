@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Suspense, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AuthGate } from "@/components/auth/AuthGate";
@@ -150,18 +151,32 @@ function ProfileScreenInner() {
           ) : null}
         </div>
 
-        <button
-          type="button"
-          className="btn btn-ghost btn-block mt-5"
-          onClick={() => {
-            resumeAudioContext();
-            playUIButton();
-            void logout().then(() => router.replace("/"));
-          }}
-          style={{ color: "var(--lose)", borderColor: "oklch(0.62 0.14 25 / .35)" }}
-        >
-          تسجيل الخروج
-        </button>
+        {tab === "settings" ? (
+          <div className="mt-5 col gap-3">
+            <div className="row center gap-3 text-xs fw-7" style={{ color: "var(--fg-3)" }}>
+              <Link className="underline-offset-4 hover:underline" href="/privacy">
+                سياسة الخصوصية
+              </Link>
+              <span aria-hidden>·</span>
+              <Link className="underline-offset-4 hover:underline" href="/terms">
+                الشروط والأحكام
+              </Link>
+            </div>
+
+            <button
+              type="button"
+              className="btn btn-ghost btn-block"
+              onClick={() => {
+                resumeAudioContext();
+                playUIButton();
+                void logout().then(() => router.replace("/"));
+              }}
+              style={{ color: "var(--lose)", borderColor: "oklch(0.62 0.14 25 / .35)" }}
+            >
+              تسجيل الخروج
+            </button>
+          </div>
+        ) : null}
       </div>
     </ShellScreen>
   );

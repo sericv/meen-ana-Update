@@ -22,8 +22,6 @@ import { getCategoryById } from "@/lib/game/categories";
 import type { PlayerCosmetic } from "@/lib/profile/cosmetics";
 import type { ChatMessage, GameCard, MatchState } from "@/types";
 
-const VISIBLE_CHAT_MESSAGE_COUNT = 3;
-
 function isHintChatMessage(m: ChatMessage): boolean {
   const t = m.text?.trim() ?? "";
   return m.senderUid === "system" && t.startsWith("تلميح");
@@ -144,7 +142,14 @@ export function GameplaySocialSurface({
 
   const hintsEnabled =
     roomHintsEnabled && socialMatchLive && Boolean(roomId && matchId && uid);
-  const { hintsLeft, hintUsed, revealedIdx, letters, countRevealed, useHint } = useMatchHints(
+  const {
+    hintsLeft,
+    hintUsed,
+    revealedIdx,
+    letters,
+    countRevealed,
+    useHint: spendHint,
+  } = useMatchHints(
     roomId,
     matchId,
     uid,
@@ -166,10 +171,7 @@ export function GameplaySocialSurface({
     [messages],
   );
 
-  const visibleMessages = useMemo(
-    () => chatMessages.slice(-VISIBLE_CHAT_MESSAGE_COUNT),
-    [chatMessages],
-  );
+  const visibleMessages = chatMessages;
 
   const handleDraftChange = (v: string) => {
     onDraftChange(v);
@@ -179,7 +181,7 @@ export function GameplaySocialSurface({
   const handleUseHint = async (kind: "letter" | "count") => {
     setHintBusy(true);
     try {
-      await useHint(kind);
+      await spendHint(kind);
     } finally {
       setHintBusy(false);
     }
@@ -298,7 +300,7 @@ export function GameplaySocialSurface({
             <GameplayChatFadeViewport>
               <div
                 ref={chatScrollRef}
-                className="flex min-h-0 flex-1 flex-col justify-end overflow-hidden px-1 pb-1"
+                className="flex min-h-0 flex-1 flex-col justify-end overflow-y-auto px-1 pb-1"
               >
                 <motion.div className="flex min-h-0 flex-col justify-end gap-2.5 pb-0.5 pt-1">
                   {chatMessages.length === 0 ? (

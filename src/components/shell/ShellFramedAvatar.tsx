@@ -30,11 +30,9 @@ export function ShellFramedAvatar({
   size,
   online,
 }: Props) {
-  const plainCosmetic = cosmetic ? { ...cosmetic, avatarFrameId: "none" } : cosmetic;
-
   return (
     <ProfileAvatar
-      cosmetic={plainCosmetic}
+      cosmetic={cosmetic}
       fallbackPhotoURL={fallbackPhotoURL}
       displayName={displayName}
       size={SIZE_TO_PROFILE(size)}

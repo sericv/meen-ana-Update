@@ -2,7 +2,7 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { collection, onSnapshot } from "firebase/firestore";
 import { ProfileAvatar } from "@/components/profile/ProfileAvatar";
 import { ShellIcon } from "@/components/shell/ShellIcons";
@@ -14,6 +14,7 @@ import { postSocial } from "@/lib/api/social-client";
 import { normalizeCosmetic } from "@/lib/profile/cosmetics";
 import {
   playRoomInviteAccept,
+  playRoomInviteChime,
   resumeAudioContext,
 } from "@/lib/audio/game-sounds";
 import type { Timestamp } from "firebase/firestore";
@@ -688,6 +689,7 @@ export function GlobalRoomInviteDock() {
   const google = isFullAccountUser(user);
   const [invites, setInvites] = useState<InviteDoc[]>([]);
   const [busy, setBusy] = useState(false);
+  const chimedInviteIds = useRef(new Set<string>());
 
   useEffect(() => {
     if (loading || !uid || !google) {
@@ -712,6 +714,13 @@ export function GlobalRoomInviteDock() {
   }, [loading, uid, google]);
 
   const top = invites[0] ?? null;
+
+  useEffect(() => {
+    if (!top || chimedInviteIds.current.has(top.id)) return;
+    chimedInviteIds.current.add(top.id);
+    resumeAudioContext();
+    playRoomInviteChime();
+  }, [top]);
 
   const onDecline = useCallback(async (inv: InviteDoc) => {
     setBusy(true);

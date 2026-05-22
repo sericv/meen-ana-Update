@@ -58,6 +58,7 @@ import {
 import { MatchResultScreen } from "@/components/game/MatchResultScreen";
 import { GameplaySocialSurface } from "@/components/game/GameplaySocialSurface";
 import { VoiceModePlayingPanel } from "@/components/game/VoiceModePlayingPanel";
+import { GameplaySheet } from "@/components/game/play/GameplaySheets";
 import { GuessRemainingIndicator } from "@/components/game/play/GuessRemainingIndicator";
 import { TacticalEventBanner } from "@/components/game/play/TacticalEventBanner";
 import { FINAL_GUESS_LIMIT, remainingFinalGuesses } from "@/lib/game/match-progression";
@@ -121,7 +122,6 @@ export function RoomExperience({ roomId }: Props) {
   );
 
   const [draft, setDraft] = useState("");
-  const [guessSureOpen, setGuessSureOpen] = useState(false);
   const [guessInputOpen, setGuessInputOpen] = useState(false);
   const [guessDraft, setGuessDraft] = useState("");
   const [busy, setBusy] = useState(false);
@@ -745,7 +745,6 @@ export function RoomExperience({ roomId }: Props) {
       });
       setGuessDraft("");
       setGuessInputOpen(false);
-      setGuessSureOpen(false);
     } catch (e) {
       setBanner(e instanceof Error ? e.message : "تعذر إرسال التخمين");
     } finally {
@@ -793,14 +792,9 @@ export function RoomExperience({ roomId }: Props) {
       toastBanner("لا محاولات تخمين متبقية");
       return;
     }
-    setGuessSureOpen(true);
-  }, [myTurn, myGuessRemaining, toastBanner]);
-
-  const confirmGuessSure = useCallback(() => {
     playGuessChime();
-    setGuessSureOpen(false);
     setGuessInputOpen(true);
-  }, []);
+  }, [myTurn, myGuessRemaining, toastBanner]);
 
   const renderMessage = useCallback((m: (typeof messages)[number]) => {
     const isMe = m.senderUid === uid;
@@ -1787,89 +1781,49 @@ export function RoomExperience({ roomId }: Props) {
       </AnimatePresence>
 
       {/* ════════════════════════════════════════════════════════
-          GUESS: ARE YOU SURE
-      ════════════════════════════════════════════════════════ */}
-      <AnimatePresence>
-        {guessSureOpen ? (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="absolute inset-0 z-[55] flex items-center justify-center bg-[#6a3f1b]/45 px-4 backdrop-blur-sm"
-            onClick={() => setGuessSureOpen(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.88, y: 16 }}
-              animate={{ scale: 1, y: 0 }}
-              transition={{ type: "spring", stiffness: 300, damping: 22 }}
-              onClick={(e: MouseEvent) => e.stopPropagation()}
-            >
-              <Panel className="max-w-sm text-center">
-                <div className="text-4xl">🎯</div>
-                <p className="mt-3 text-xl font-black text-[#8a3f16]">هل أنت متأكد؟</p>
-                <p className="mt-2 text-sm text-[#a16231]">سيتم استخدام محاولة التخمين في دورك الحالي.</p>
-                <div className="mt-4 flex justify-center">
-                  <GuessRemainingIndicator remaining={myGuessRemaining} />
-                </div>
-                <div className="mt-6 flex gap-3">
-                  <Button type="button" className="min-h-[48px] flex-1" onClick={confirmGuessSure}>تأكيد</Button>
-                  <Button type="button" variant="ghost" className="min-h-[48px] flex-1" onClick={() => setGuessSureOpen(false)}>إلغاء</Button>
-                </div>
-              </Panel>
-            </motion.div>
-          </motion.div>
-        ) : null}
-      </AnimatePresence>
-
-      {/* ════════════════════════════════════════════════════════
           GUESS: INPUT
       ════════════════════════════════════════════════════════ */}
       <AnimatePresence>
         {guessInputOpen ? (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="absolute inset-0 z-[54] flex items-center justify-center bg-[#6a3f1b]/40 px-4 backdrop-blur-sm"
-            onClick={() => setGuessInputOpen(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.90, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              transition={{ type: "spring", stiffness: 280, damping: 20 }}
-              onClick={(e: MouseEvent) => e.stopPropagation()}
-            >
-              <Panel className="w-full max-w-sm">
-                <h3 className="text-2xl font-black text-[#8a3f16]">🎯 تخمين</h3>
-                <p className="mt-2 text-sm text-[#a16231]">ما اسم بطاقتك؟</p>
-                <div className="mt-3 flex justify-center">
-                  <GuessRemainingIndicator remaining={myGuessRemaining} compact />
-                </div>
-                <div className="mt-4 space-y-3">
-                  <Input
-                    value={guessDraft}
-                    onChange={(e) => setGuessDraft(e.target.value)}
-                    placeholder="مثال: جوال، قطة…"
-                    className="min-h-[48px]"
-                    onKeyDown={(e) => { if (e.key === "Enter") void submitGuess(); }}
-                  />
-                  <div className="flex flex-wrap gap-3">
-                    <Button
-                      type="button"
-                      className="min-h-[48px] flex-1"
-                      disabled={busy || !guessDraft.trim()}
-                      onClick={() => void submitGuess()}
-                    >
-                      تأكيد التخمين
-                    </Button>
-                    <Button type="button" variant="ghost" className="min-h-[48px]" onClick={() => setGuessInputOpen(false)}>
-                      إلغاء
-                    </Button>
-                  </div>
-                </div>
-              </Panel>
-            </motion.div>
-          </motion.div>
+          <GameplaySheet title="من أنا؟ خمّن" accent="#E5524D" onClose={() => setGuessInputOpen(false)}>
+            <p className="mt-1 text-sm font-semibold text-[#7A5A45]">
+              اكتب الاسم الذي تظنه كرتك. التخمين الخاطئ يستهلك محاولة.
+            </p>
+            <div className="mt-3 flex items-center justify-center rounded-2xl border border-[#f2d4b5]/70 bg-white/80 px-3 py-2">
+              <GuessRemainingIndicator remaining={myGuessRemaining} />
+            </div>
+            <div className="mt-3 rounded-[14px] bg-white/90 p-1 shadow-[inset_0_0_0_1px_rgba(244,196,141,0.45)]">
+              <input
+                autoFocus
+                value={guessDraft}
+                onChange={(e) => setGuessDraft(e.target.value)}
+                placeholder="اكتب التخمين هنا…"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && guessDraft.trim() && !busy) void submitGuess();
+                }}
+                className="w-full border-0 bg-transparent px-4 py-3 text-center text-xl font-black outline-none"
+                style={{ color: "#3A2517" }}
+              />
+            </div>
+            <div className="mt-3 flex gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                className="min-h-[48px] flex-1"
+                onClick={() => setGuessInputOpen(false)}
+              >
+                تراجع
+              </Button>
+              <Button
+                type="button"
+                className="min-h-[48px] flex-1"
+                disabled={busy || !guessDraft.trim()}
+                onClick={() => void submitGuess()}
+              >
+                تأكيد
+              </Button>
+            </div>
+          </GameplaySheet>
         ) : null}
       </AnimatePresence>
 
