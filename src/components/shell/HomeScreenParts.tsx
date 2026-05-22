@@ -126,6 +126,7 @@ export function MajlisHero({ onPlay }: { onPlay: () => void }) {
             category={cat}
             imageUrl={HOME_HERO_IMAGE_URL}
             tilt={-9}
+            priority
           />
         </div>
         <div style={{ position: "absolute", left: 24, bottom: 6 }}>

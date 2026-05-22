@@ -156,6 +156,19 @@ export function playRoomReady(): void {
   window.setTimeout(() => beep(659, 0.1, 0.036), 165);
 }
 
+/** Premium room invite chime */
+export function playRoomInviteChime(): void {
+  beepTriangle(196, 0.18, 0.035);
+  window.setTimeout(() => beep(587, 0.22, 0.045), 80);
+  window.setTimeout(() => beep(784, 0.28, 0.038), 220);
+}
+
+/** Positive accept chirp for room invite */
+export function playRoomInviteAccept(): void {
+  beep(880, 0.09, 0.045);
+  window.setTimeout(() => beep(1319, 0.12, 0.034), 75);
+}
+
 /** Opponent activated a tactical tool — short alert sting */
 export function playTacticalAlert(blocked = false): void {
   if (blocked) {

@@ -629,11 +629,41 @@ export async function handleLeaveMatch(args: { roomId: string; uid: string }) {
     if (status === "ended") return;
 
     if (status === "lobby") {
-      if (opp) {
-        tx.set(roomRef, {
-          lobbyLeftByUid: args.uid,
-          lastActivityAt: FieldValue.serverTimestamp(),
-        }, { merge: true });
+      const hostUid = String(room.hostUid ?? "");
+      if (args.uid !== hostUid) {
+        const players = (
+          room.players as Array<{
+            uid?: string;
+            displayName?: string;
+            ready?: boolean;
+            joinedAt?: unknown;
+          }>
+        ) ?? [];
+        tx.set(
+          roomRef,
+          {
+            playerUids: uids.filter((u) => u !== args.uid),
+            players: players
+              .filter((p) => p.uid !== args.uid)
+              .map((p) => ({ ...p, ready: false })),
+            [`playerJoinedAt.${args.uid}`]: FieldValue.delete(),
+            [`customOpponentSelections.${args.uid}`]: FieldValue.delete(),
+            [`customOpponentCardAssigned.${args.uid}`]: FieldValue.delete(),
+            lobbyLeftByUid: FieldValue.delete(),
+            lastActivityAt: FieldValue.serverTimestamp(),
+            cleanupAt: null,
+          },
+          { merge: true },
+        );
+      } else if (opp) {
+        tx.set(
+          roomRef,
+          {
+            lobbyLeftByUid: args.uid,
+            lastActivityAt: FieldValue.serverTimestamp(),
+          },
+          { merge: true },
+        );
       }
       return;
     }

@@ -5,13 +5,17 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { collection, onSnapshot } from "firebase/firestore";
 import { ProfileAvatar } from "@/components/profile/ProfileAvatar";
+import { ShellIcon } from "@/components/shell/ShellIcons";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { getFirebaseDb } from "@/lib/firebase/client";
 import { col, userSub } from "@/lib/firestore/paths";
 import { isFullAccountUser } from "@/lib/auth/google-user";
 import { postSocial } from "@/lib/api/social-client";
 import { normalizeCosmetic } from "@/lib/profile/cosmetics";
-import { playRoomJoin, resumeAudioContext } from "@/lib/audio/game-sounds";
+import {
+  playRoomInviteAccept,
+  resumeAudioContext,
+} from "@/lib/audio/game-sounds";
 import type { Timestamp } from "firebase/firestore";
 
 type InviteDoc = {
@@ -19,6 +23,9 @@ type InviteDoc = {
   fromUid: string;
   roomId: string;
   roomCode: string;
+  categoryLabel: string;
+  questionTimerSec: number | null;
+  answerTimerSec: number | null;
   message: string;
   hostDisplayName: string;
   hostPhotoURL: string | null;
@@ -39,6 +46,15 @@ function parseInvite(id: string, data: Record<string, unknown>): InviteDoc | nul
     fromUid,
     roomId,
     roomCode: String(data.roomCode ?? ""),
+    categoryLabel: String(data.categoryLabel ?? "عام"),
+    questionTimerSec:
+      typeof data.questionTimerSec === "number" && Number.isFinite(data.questionTimerSec)
+        ? Math.max(1, Math.floor(data.questionTimerSec))
+        : null,
+    answerTimerSec:
+      typeof data.answerTimerSec === "number" && Number.isFinite(data.answerTimerSec)
+        ? Math.max(1, Math.floor(data.answerTimerSec))
+        : null,
     message: String(data.message ?? ""),
     hostDisplayName: String(data.hostDisplayName ?? "مضيف"),
     hostPhotoURL: data.hostPhotoURL != null ? String(data.hostPhotoURL) : null,
@@ -49,13 +65,44 @@ function parseInvite(id: string, data: Record<string, unknown>): InviteDoc | nul
   };
 }
 
-function InviteCinematic({
+const AUTO_DISMISS_MS = 20_000;
+
+function MetaChip({
+  icon,
+  label,
+  value,
+  mono,
+}: {
+  icon: string;
+  label: string;
+  value: string;
+  mono?: boolean;
+}) {
+  return (
+    <div className="ri-metachip">
+      <span className="ri-metachip-ico">
+        <ShellIcon name={icon} size={12} />
+      </span>
+      <span className="ri-metachip-text">
+        <span className="ri-metachip-label">{label}</span>
+        <span className={`ri-metachip-value${mono ? " ri-mono" : ""}`}>{value}</span>
+      </span>
+    </div>
+  );
+}
+
+function RoomInviteToast({
   inv,
-  onComplete,
+  busy,
+  onAccept,
+  onDecline,
 }: {
   inv: InviteDoc;
-  onComplete: () => void;
+  busy: boolean;
+  onAccept: (inv: InviteDoc) => Promise<void>;
+  onDecline: (inv: InviteDoc) => Promise<void>;
 }) {
+  const [phase, setPhase] = useState<"entering" | "idle" | "accepting" | "declining">("entering");
   const cosmetic = normalizeCosmetic({
     avatarId: inv.hostAvatarId ?? undefined,
     avatarFrameId: inv.hostAvatarFrameId ?? undefined,
@@ -63,79 +110,574 @@ function InviteCinematic({
   });
 
   useEffect(() => {
-    const t = window.setTimeout(onComplete, 1480);
+    const t = window.setTimeout(() => setPhase("idle"), 700);
     return () => window.clearTimeout(t);
-  }, [onComplete]);
+  }, []);
+
+  useEffect(() => {
+    if (phase !== "idle") return;
+    const t = window.setTimeout(() => {
+      setPhase("declining");
+      window.setTimeout(() => void onDecline(inv), 320);
+    }, AUTO_DISMISS_MS);
+    return () => window.clearTimeout(t);
+  }, [inv, onDecline, phase]);
+
+  const accept = useCallback(async () => {
+    if ((phase !== "idle" && phase !== "entering") || busy) return;
+    resumeAudioContext();
+    playRoomInviteAccept();
+    setPhase("accepting");
+    try {
+      await onAccept(inv);
+    } catch {
+      setPhase("idle");
+    }
+  }, [busy, inv, onAccept, phase]);
+
+  const decline = useCallback(() => {
+    if ((phase !== "idle" && phase !== "entering") || busy) return;
+    setPhase("declining");
+    window.setTimeout(() => void onDecline(inv), 320);
+  }, [busy, inv, onDecline, phase]);
 
   return (
     <motion.div
-      className="fixed inset-0 z-[120] flex flex-col items-center justify-center overflow-hidden"
+      className={`ri-overlay ri-phase-${phase}`}
+      aria-live="polite"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      transition={{ duration: 0.35 }}
-      style={{
-        background:
-          "radial-gradient(120% 80% at 50% 30%, rgba(255,220,170,0.95) 0%, rgba(255,190,120,0.88) 45%, rgba(255,150,70,0.92) 100%)",
-      }}
+      transition={{ duration: 0.28 }}
     >
-      {Array.from({ length: 18 }).map((_, i) => (
-        <motion.span
-          key={i}
-          aria-hidden
-          className="pointer-events-none absolute h-2 w-2 rounded-full bg-white/70 shadow-[0_0_12px_rgba(255,255,255,0.9)]"
-          style={{
-            left: `${(i * 37) % 100}%`,
-            top: `${(i * 53) % 100}%`,
-          }}
-          initial={{ opacity: 0, scale: 0.2, y: 40 }}
-          animate={{
-            opacity: [0, 1, 0.6],
-            scale: [0.2, 1.4, 0.8],
-            y: [40, -120 - (i % 5) * 30],
-            x: [0, (i % 2 === 0 ? 1 : -1) * (20 + i * 3)],
-          }}
-          transition={{ duration: 1.45, delay: i * 0.02, ease: "easeOut" }}
-        />
-      ))}
-      <motion.div
-        initial={{ scale: 0.2, y: 120, rotate: -8, opacity: 0 }}
-        animate={{ scale: 1, y: 0, rotate: 0, opacity: 1 }}
-        transition={{ type: "spring", stiffness: 220, damping: 18, mass: 0.85 }}
-        className="relative z-10 flex flex-col items-center"
-      >
-        <motion.div
-          animate={{
-            filter: [
-              "drop-shadow(0 0 0 rgba(255,200,80,0))",
-              "drop-shadow(0 0 28px rgba(255,200,80,0.95))",
-              "drop-shadow(0 0 12px rgba(255,160,40,0.7))",
-            ],
-          }}
-          transition={{ duration: 1.2, times: [0, 0.45, 1] }}
-        >
-          <ProfileAvatar
-            cosmetic={cosmetic}
-            fallbackPhotoURL={inv.hostPhotoURL}
-            displayName={inv.hostDisplayName}
-            size="xl"
-            idle
-            active
+      <div className="ri-card" role="dialog" aria-label="دعوة مباراة">
+        <span className="ri-frame" />
+        <span className="ri-sheen" />
+        <div className="ri-motes" aria-hidden>
+          {Array.from({ length: 8 }).map((_, i) => (
+            <span
+              key={i}
+              className="ri-mote"
+              style={{
+                left: `${8 + i * 12}%`,
+                animationDelay: `${-(i * 0.5)}s`,
+              }}
+            />
+          ))}
+        </div>
+
+        <div className="ri-toprow">
+          <span className="ri-live">
+            <span className="ri-live-dot" />
+            <span>متّصل الآن</span>
+          </span>
+          <span className="ri-kicker">دعوة مباراة</span>
+        </div>
+
+        <div className="ri-callerwrap">
+          <span className="ri-ring ri-ring-1" />
+          <span className="ri-ring ri-ring-2" />
+          <span className="ri-ring ri-ring-3" />
+
+          <span className="ri-avwrap">
+            <ProfileAvatar
+              cosmetic={cosmetic}
+              fallbackPhotoURL={inv.hostPhotoURL}
+              displayName={inv.hostDisplayName}
+              size="xl"
+              idle
+              active
+            />
+            <span className="ri-online" />
+          </span>
+
+          <div className="ri-caller">
+            <div className="ri-name">{inv.hostDisplayName || "صديق"}</div>
+            <div className="ri-invitetext">يدعوك إلى مجلسه</div>
+            {inv.message ? <div className="ri-message">{inv.message}</div> : null}
+          </div>
+        </div>
+
+        <div className="ri-meta">
+          <MetaChip icon="sparkle" label="الفئة" value={inv.categoryLabel || "عام"} />
+          <span className="ri-sep" />
+          <MetaChip
+            icon="settings"
+            label="وقت السؤال"
+            value={inv.questionTimerSec ? `${inv.questionTimerSec}ث` : "حسب الغرفة"}
           />
-        </motion.div>
-        <motion.p
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.15, duration: 0.35 }}
-          className="mt-5 text-center text-lg font-black text-[#5e3011]"
-        >
-          انضمام للحفلة…
-        </motion.p>
-        <p className="mt-1 text-center text-sm font-bold text-[#8a3f16]">
-          @{inv.hostUsername} يستضيفك
-        </p>
-      </motion.div>
+          <span className="ri-sep" />
+          <MetaChip icon="copy" label="الرمز" value={inv.roomCode || "—"} mono />
+        </div>
+
+        <div className="ri-actions">
+          <button type="button" className="ri-btn ri-btn-accept" disabled={busy} onClick={accept}>
+            <span className="ri-btn-glow" />
+            <ShellIcon name="play" size={18} />
+            <span>{busy && phase === "accepting" ? "جاري الدخول…" : "قبول"}</span>
+          </button>
+          <button type="button" className="ri-btn ri-btn-decline" disabled={busy} onClick={decline}>
+            <ShellIcon name="close" size={16} />
+            <span>تجاهل</span>
+          </button>
+        </div>
+      </div>
+
+      <RoomInviteStyles />
     </motion.div>
+  );
+}
+
+function RoomInviteStyles() {
+  return (
+    <style>{`
+      .ri-overlay {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 120;
+        display: flex;
+        align-items: flex-start;
+        justify-content: center;
+        padding: max(56px, calc(env(safe-area-inset-top, 0px) + 28px)) 14px 0;
+        font-family: var(--font-tajawal), var(--body), sans-serif;
+        direction: rtl;
+      }
+
+      .ri-overlay::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(120% 50% at 50% 0%, rgba(105, 69, 44, 0.22), transparent 55%);
+        opacity: 0;
+        transition: opacity .35s ease;
+      }
+
+      .ri-overlay::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        z-index: -1;
+        background: rgba(58, 37, 23, 0.14);
+        backdrop-filter: blur(2px) saturate(1.05);
+        -webkit-backdrop-filter: blur(2px) saturate(1.05);
+        opacity: 0;
+        transition: opacity .35s ease;
+      }
+
+      .ri-phase-entering::before,
+      .ri-phase-idle::before,
+      .ri-phase-accepting::before,
+      .ri-phase-entering::after,
+      .ri-phase-idle::after,
+      .ri-phase-accepting::after {
+        opacity: 1;
+      }
+
+      .ri-card {
+        pointer-events: auto;
+        position: relative;
+        width: min(360px, 100%);
+        border-radius: 26px;
+        padding: 16px 16px 14px;
+        isolation: isolate;
+        background:
+          radial-gradient(140% 90% at 50% 0%, oklch(0.98 0.04 80), oklch(0.93 0.06 75) 60%, oklch(0.88 0.07 70) 100%);
+        border: 1px solid oklch(0.72 0.10 60 / .45);
+        box-shadow:
+          0 22px 50px -16px oklch(0.45 0.10 45 / .45),
+          0 6px 14px -6px oklch(0.45 0.08 45 / .25),
+          inset 0 1px 0 rgba(255,255,255,.7),
+          inset 0 -1px 0 oklch(0.65 0.08 55 / .25);
+        opacity: 0;
+        transform: translateY(-22px) scale(.96);
+        animation: riIn .56s cubic-bezier(.2,1.25,.4,1) forwards;
+      }
+
+      .ri-phase-declining .ri-card {
+        animation: riOut .32s cubic-bezier(.4,0,.7,.5) forwards;
+      }
+
+      .ri-phase-accepting .ri-card {
+        animation: riAccept .72s cubic-bezier(.4,0,.4,1) forwards;
+      }
+
+      @keyframes riIn {
+        0% { opacity: 0; transform: translateY(-32px) scale(.94); }
+        70% { opacity: 1; transform: translateY(4px) scale(1.01); }
+        100% { opacity: 1; transform: translateY(0) scale(1); }
+      }
+
+      @keyframes riOut {
+        0% { opacity: 1; transform: translateY(0) scale(1); }
+        100% { opacity: 0; transform: translateY(10px) scale(.97); }
+      }
+
+      @keyframes riAccept {
+        0% { transform: translateY(0) scale(1); }
+        25% { transform: translateY(-2px) scale(1.03); filter: brightness(1.06); }
+        70% { transform: translateY(-8px) scale(1.08); filter: brightness(1.12) saturate(1.05); }
+        100% { transform: translateY(-32px) scale(1.18); opacity: 0; filter: brightness(1.2); }
+      }
+
+      .ri-frame {
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        pointer-events: none;
+        padding: 1px;
+        background: conic-gradient(from 200deg, oklch(0.92 0.12 85 / .8), oklch(0.62 0.16 45 / .4), oklch(0.95 0.10 95 / .8), oklch(0.62 0.16 45 / .4), oklch(0.92 0.12 85 / .8));
+        -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+        -webkit-mask-composite: xor;
+        mask-composite: exclude;
+        opacity: .9;
+      }
+
+      .ri-sheen {
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        pointer-events: none;
+        overflow: hidden;
+      }
+
+      .ri-sheen::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 50%;
+        left: -60%;
+        background: linear-gradient(105deg, transparent 30%, oklch(0.98 0.10 85 / .55) 50%, transparent 70%);
+        mix-blend-mode: screen;
+        animation: riSheen 1.4s ease-out .18s 1;
+      }
+
+      .ri-phase-accepting .ri-sheen::after {
+        animation: riSheenFast .55s ease-out 1;
+      }
+
+      @keyframes riSheen {
+        0% { transform: translateX(0); }
+        100% { transform: translateX(260%); }
+      }
+
+      @keyframes riSheenFast {
+        0% { transform: translateX(0); opacity: .9; }
+        100% { transform: translateX(260%); opacity: 1; }
+      }
+
+      .ri-motes {
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        overflow: hidden;
+        pointer-events: none;
+      }
+
+      .ri-mote {
+        position: absolute;
+        bottom: 8px;
+        width: 4px;
+        height: 4px;
+        border-radius: 50%;
+        background: oklch(0.92 0.14 80);
+        box-shadow: 0 0 8px 1px oklch(0.85 0.18 70 / .8);
+        opacity: 0;
+        animation: riMote 4.4s linear infinite;
+      }
+
+      @keyframes riMote {
+        0% { opacity: 0; transform: translateY(0) scale(.5); }
+        20% { opacity: .7; }
+        90% { opacity: .35; }
+        100% { opacity: 0; transform: translateY(-180px) scale(1); }
+      }
+
+      .ri-toprow {
+        position: relative;
+        z-index: 2;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .ri-live {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 10px 4px 8px;
+        border-radius: 999px;
+        background: oklch(0.96 0.04 150 / .85);
+        border: 1px solid oklch(0.60 0.13 150 / .5);
+        color: oklch(0.32 0.13 150);
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: .02em;
+      }
+
+      .ri-live-dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: oklch(0.62 0.16 150);
+        box-shadow: 0 0 6px oklch(0.62 0.16 150);
+        animation: riPulse 1.4s ease-in-out infinite;
+      }
+
+      @keyframes riPulse {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: .55; transform: scale(.7); }
+      }
+
+      .ri-kicker {
+        font-family: var(--mono);
+        font-size: 10px;
+        letter-spacing: .14em;
+        text-transform: uppercase;
+        color: oklch(0.48 0.08 50);
+      }
+
+      .ri-callerwrap {
+        position: relative;
+        z-index: 2;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 14px 6px;
+      }
+
+      .ri-avwrap {
+        position: relative;
+        flex-shrink: 0;
+      }
+
+      .ri-online {
+        position: absolute;
+        bottom: 6px;
+        left: 6px;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: oklch(0.62 0.16 150);
+        box-shadow: 0 0 0 3px oklch(0.96 0.04 80), 0 0 6px oklch(0.62 0.16 150);
+      }
+
+      .ri-ring {
+        position: absolute;
+        right: 2px;
+        top: 50%;
+        width: 86px;
+        height: 86px;
+        border-radius: 50%;
+        border: 1.5px solid oklch(0.78 0.16 65 / .6);
+        transform: translateY(-50%) scale(1);
+        opacity: 0;
+        animation: riRing 2.4s ease-out infinite;
+        pointer-events: none;
+      }
+
+      .ri-ring-1 { animation-delay: 0s; }
+      .ri-ring-2 { animation-delay: .8s; }
+      .ri-ring-3 { animation-delay: 1.6s; }
+
+      @keyframes riRing {
+        0% { opacity: .6; transform: translateY(-50%) scale(.7); }
+        80% { opacity: 0; transform: translateY(-50%) scale(1.7); }
+        100% { opacity: 0; transform: translateY(-50%) scale(1.7); }
+      }
+
+      .ri-caller {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 0;
+      }
+
+      .ri-name {
+        font-family: var(--font-tajawal), var(--display), sans-serif;
+        font-weight: 800;
+        font-size: 22px;
+        line-height: 1.15;
+        color: oklch(0.22 0.06 40);
+        text-shadow: 0 1px 0 oklch(0.97 0.05 85 / .5);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .ri-invitetext {
+        font-weight: 700;
+        font-size: 14px;
+        color: oklch(0.45 0.07 50);
+      }
+
+      .ri-message {
+        margin-top: 2px;
+        max-width: 210px;
+        color: oklch(0.43 0.06 48);
+        font-size: 12px;
+        font-weight: 600;
+        line-height: 1.35;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+
+      .ri-meta {
+        position: relative;
+        z-index: 2;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 6px;
+        padding: 10px 4px;
+        border-top: 1px dashed oklch(0.72 0.08 60 / .45);
+        border-bottom: 1px dashed oklch(0.72 0.08 60 / .45);
+        margin: 0 2px;
+      }
+
+      .ri-sep {
+        width: 1px;
+        align-self: stretch;
+        margin: 4px 0;
+        background: oklch(0.72 0.08 60 / .3);
+      }
+
+      .ri-metachip {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 2px 4px;
+        min-width: 0;
+      }
+
+      .ri-metachip-ico {
+        display: grid;
+        place-items: center;
+        width: 24px;
+        height: 24px;
+        border-radius: 8px;
+        background: linear-gradient(180deg, oklch(0.95 0.07 75), oklch(0.88 0.10 65));
+        color: oklch(0.40 0.10 50);
+        border: 1px solid oklch(0.75 0.10 60 / .35);
+        flex-shrink: 0;
+      }
+
+      .ri-metachip-text {
+        display: flex;
+        flex-direction: column;
+        line-height: 1.1;
+        min-width: 0;
+      }
+
+      .ri-metachip-label {
+        font-size: 10px;
+        color: oklch(0.55 0.05 55);
+      }
+
+      .ri-metachip-value {
+        font-size: 12px;
+        font-weight: 800;
+        color: var(--fg-0);
+        white-space: nowrap;
+      }
+
+      .ri-mono {
+        font-family: var(--mono);
+        letter-spacing: .04em;
+      }
+
+      .ri-actions {
+        position: relative;
+        z-index: 2;
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 10px;
+        padding-top: 12px;
+      }
+
+      .ri-btn {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 14px 16px;
+        border-radius: 16px;
+        font-family: var(--font-tajawal), var(--display), sans-serif;
+        font-weight: 800;
+        font-size: 15px;
+        cursor: pointer;
+        user-select: none;
+        transition: transform .12s ease, filter .2s ease, box-shadow .2s ease;
+        border: 0;
+        overflow: hidden;
+        isolation: isolate;
+      }
+
+      .ri-btn:active {
+        transform: translateY(1px) scale(.985);
+      }
+
+      .ri-btn:disabled {
+        opacity: .7;
+        cursor: wait;
+      }
+
+      .ri-btn-accept {
+        background: linear-gradient(180deg, oklch(0.86 0.16 75), oklch(0.68 0.18 55));
+        color: oklch(0.22 0.04 35);
+        box-shadow:
+          inset 0 1px 0 rgba(255,255,255,.6),
+          inset 0 -2px 0 oklch(0.48 0.16 45),
+          0 12px 26px -10px oklch(0.65 0.18 55 / .55),
+          0 0 0 1px oklch(0.55 0.16 45 / .25);
+        text-shadow: 0 1px 0 oklch(0.96 0.10 85 / .5);
+      }
+
+      .ri-btn-accept:hover {
+        filter: brightness(1.05);
+      }
+
+      .ri-btn-glow {
+        position: absolute;
+        inset: -50% -10%;
+        background: radial-gradient(closest-side, oklch(0.95 0.10 85 / .7), transparent 70%);
+        opacity: .6;
+        animation: riBtnGlow 2.4s ease-in-out infinite;
+        z-index: -1;
+      }
+
+      @keyframes riBtnGlow {
+        0%, 100% { opacity: .35; transform: scale(1); }
+        50% { opacity: .75; transform: scale(1.06); }
+      }
+
+      .ri-btn-decline {
+        background: oklch(0.96 0.02 80);
+        color: oklch(0.45 0.06 50);
+        border: 1px solid oklch(0.78 0.05 60 / .45);
+        box-shadow: inset 0 1px 0 rgba(255,255,255,.7);
+      }
+
+      .ri-btn-decline:hover {
+        background: oklch(0.94 0.03 78);
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .ri-card,
+        .ri-sheen::after,
+        .ri-mote,
+        .ri-ring,
+        .ri-live-dot,
+        .ri-btn-glow {
+          animation-duration: 0.001ms !important;
+          animation-iteration-count: 1 !important;
+        }
+      }
+    `}</style>
   );
 }
 
@@ -146,7 +688,6 @@ export function GlobalRoomInviteDock() {
   const google = isFullAccountUser(user);
   const [invites, setInvites] = useState<InviteDoc[]>([]);
   const [busy, setBusy] = useState(false);
-  const [cinematic, setCinematic] = useState<InviteDoc | null>(null);
 
   useEffect(() => {
     if (loading || !uid || !google) {
@@ -172,150 +713,52 @@ export function GlobalRoomInviteDock() {
 
   const top = invites[0] ?? null;
 
-  const onDecline = useCallback(async () => {
-    if (!top) return;
+  const onDecline = useCallback(async (inv: InviteDoc) => {
     setBusy(true);
     try {
-      await postSocial("/api/social/room-invite/respond", { inviteId: top.id, accept: false });
+      await postSocial("/api/social/room-invite/respond", { inviteId: inv.id, accept: false });
     } catch {
       // ignore
     } finally {
       setBusy(false);
     }
-  }, [top]);
+  }, []);
 
-  const onAccept = useCallback(async () => {
-    if (!top) return;
-    const frozen = top;
+  const onAccept = useCallback(async (inv: InviteDoc) => {
     setBusy(true);
     try {
       resumeAudioContext();
-      playRoomJoin();
       const res = (await postSocial<{ roomId?: string | null }>("/api/social/room-invite/respond", {
-        inviteId: frozen.id,
+        inviteId: inv.id,
         accept: true,
       })) as { roomId?: string | null };
       const rid = res.roomId ? String(res.roomId) : "";
       if (rid) {
-        setCinematic(frozen);
-        window.setTimeout(() => {
-          router.replace(`/room/${rid}`);
-        }, 420);
+        router.replace(`/room/${rid}`);
+        return;
       }
-    } catch {
-      // ignore
+      throw new Error("INVITE_ACCEPT_NO_ROOM");
+    } catch (err) {
+      console.error("[room-invite] accept failed", err);
+      throw err;
     } finally {
       setBusy(false);
     }
-  }, [top, router]);
-
-  const cosmeticPreview = useMemo(() => {
-    if (!top) return normalizeCosmetic(undefined);
-    return normalizeCosmetic({
-      avatarId: top.hostAvatarId ?? undefined,
-      avatarFrameId: top.hostAvatarFrameId ?? undefined,
-      photoURL: top.hostPhotoURL,
-    });
-  }, [top]);
+  }, [router]);
 
   if (!google || loading) return null;
 
   return (
-    <>
-      <AnimatePresence>
-        {cinematic ? (
-          <InviteCinematic
-            key={cinematic.id}
-            inv={cinematic}
-            onComplete={() => setCinematic(null)}
-          />
-        ) : null}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {top && !cinematic ? (
-          <motion.div
-            key={top.id}
-            initial={{ y: 120, opacity: 0, scale: 0.92 }}
-            animate={{ y: 0, opacity: 1, scale: 1 }}
-            exit={{ y: 80, opacity: 0, scale: 0.9 }}
-            transition={{ type: "spring", stiffness: 260, damping: 24 }}
-            className="pointer-events-auto fixed bottom-[max(1rem,env(safe-area-inset-bottom))] left-3 right-3 z-[110] mx-auto flex max-w-md justify-center sm:left-6 sm:right-6"
-          >
-            <div
-              className="relative w-full overflow-hidden rounded-[1.75rem] border border-white/80 p-4 shadow-[0_24px_60px_rgba(196,90,20,0.45)]"
-              style={{
-                background:
-                  "linear-gradient(145deg, rgba(255,252,246,0.98) 0%, rgba(255,236,210,0.96) 55%, rgba(255,214,170,0.98) 100%)",
-              }}
-            >
-              <motion.div
-                aria-hidden
-                className="pointer-events-none absolute -right-10 -top-10 h-36 w-36 rounded-full bg-[#ffb347]/50 blur-3xl"
-                animate={{ scale: [1, 1.15, 1], opacity: [0.5, 0.85, 0.5] }}
-                transition={{ duration: 2.4, repeat: Infinity }}
-              />
-              <div className="relative flex gap-3">
-                <div className="relative shrink-0">
-                  <motion.div
-                    animate={{ rotate: [0, 4, -4, 0] }}
-                    transition={{ duration: 3.2, repeat: Infinity, ease: "easeInOut" }}
-                  >
-                    <ProfileAvatar
-                      cosmetic={cosmeticPreview}
-                      fallbackPhotoURL={top.hostPhotoURL}
-                      displayName={top.hostDisplayName}
-                      size="lg"
-                      idle
-                      active
-                    />
-                  </motion.div>
-                  <span className="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-emerald-400 ring-2 ring-white">
-                    <span className="h-2 w-2 animate-pulse rounded-full bg-white" />
-                  </span>
-                </div>
-                <div className="min-w-0 flex-1 pt-0.5">
-                  <p className="text-[11px] font-extrabold uppercase tracking-wide text-[#c48652]">
-                    دعوة غرفة
-                  </p>
-                  <p className="truncate text-base font-black text-[#5e3011]">{top.hostDisplayName}</p>
-                  <p className="text-xs font-bold text-[#8a3f16]">
-                    @{top.hostUsername}
-                    {top.roomCode ? (
-                      <span className="mr-2 text-[#bc7a45]"> · رمز {top.roomCode}</span>
-                    ) : null}
-                  </p>
-                  <p className="mt-1 line-clamp-2 text-sm font-semibold text-[#7a4a28]">{top.message}</p>
-                  <div className="mt-3 flex gap-2">
-                    <motion.button
-                      type="button"
-                      disabled={busy}
-                      whileTap={{ scale: 0.96 }}
-                      onClick={() => void onDecline()}
-                      className="flex-1 rounded-2xl border border-[#f4c48d] bg-white/90 py-2.5 text-sm font-extrabold text-[#8a3f16] shadow-sm disabled:opacity-50"
-                    >
-                      رفض
-                    </motion.button>
-                    <motion.button
-                      type="button"
-                      disabled={busy}
-                      whileTap={{ scale: 0.96 }}
-                      onClick={() => void onAccept()}
-                      className="flex-1 rounded-2xl py-2.5 text-sm font-black text-white disabled:opacity-50"
-                      style={{
-                        background: "linear-gradient(180deg,#FF9F0A 0%,#FF6B00 100%)",
-                        boxShadow: "inset 0 2px 0 rgba(255,255,255,0.42), 0 8px 0 #be5200",
-                      }}
-                    >
-                      {busy ? "…" : "قبول"}
-                    </motion.button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        ) : null}
-      </AnimatePresence>
-    </>
+    <AnimatePresence>
+      {top ? (
+        <RoomInviteToast
+          key={top.id}
+          inv={top}
+          busy={busy}
+          onAccept={onAccept}
+          onDecline={onDecline}
+        />
+      ) : null}
+    </AnimatePresence>
   );
 }

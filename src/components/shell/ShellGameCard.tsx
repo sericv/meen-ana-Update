@@ -8,6 +8,7 @@ type Props = {
   variant?: "front" | "back";
   tilt?: number;
   imageUrl?: string;
+  priority?: boolean;
 };
 
 export function ShellGameCard({
@@ -18,6 +19,7 @@ export function ShellGameCard({
   variant = "front",
   tilt = 0,
   imageUrl,
+  priority = false,
 }: Props) {
   const isBack = variant === "back";
 
@@ -37,7 +39,16 @@ export function ShellGameCard({
     >
       {!isBack && imageUrl ? (
         <div className="relative mb-2 w-full flex-1 overflow-hidden rounded-xl">
-          <Image src={imageUrl} alt="" fill className="object-cover" sizes={`${width}px`} unoptimized />
+          <Image
+            src={imageUrl}
+            alt=""
+            fill
+            className="object-cover"
+            sizes={`${width}px`}
+            loading={priority ? "eager" : "lazy"}
+            priority={priority}
+            unoptimized
+          />
         </div>
       ) : null}
       {!isBack && title ? (

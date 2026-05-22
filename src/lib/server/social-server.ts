@@ -11,6 +11,7 @@ import { roomInviteDocId } from "@/lib/social/room-invite-id";
 import type { RoomPlayer } from "@/types";
 
 import { ROOM_INVITE_TTL_MS } from "@/lib/game/constants";
+import { getCategoryById } from "@/lib/game/categories";
 
 const USERNAME_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 
@@ -329,6 +330,16 @@ export async function sendRoomInvite(args: {
     toUid,
     roomId,
     roomCode: String(room.code ?? ""),
+    categoryId: String(room.categoryId ?? ""),
+    categoryLabel: getCategoryById(String(room.categoryId ?? ""))?.nameAr ?? "عام",
+    questionTimerSec:
+      typeof room.questionTimerSec === "number" && Number.isFinite(room.questionTimerSec)
+        ? Math.max(1, Math.floor(room.questionTimerSec))
+        : null,
+    answerTimerSec:
+      typeof room.answerTimerSec === "number" && Number.isFinite(room.answerTimerSec)
+        ? Math.max(1, Math.floor(room.answerTimerSec))
+        : null,
     message,
     hostDisplayName: String(from.displayName ?? "مضيف"),
     hostPhotoURL: from.photoURL != null ? String(from.photoURL) : null,

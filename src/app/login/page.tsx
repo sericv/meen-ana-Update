@@ -113,6 +113,16 @@ function LoginInner() {
           >
             العودة للرئيسية
           </Link>
+
+          <div className="flex items-center justify-center gap-3 pt-1 text-xs font-bold text-[#bc7a45]">
+            <Link className="underline-offset-4 hover:underline" href="/privacy">
+              سياسة الخصوصية
+            </Link>
+            <span aria-hidden>·</span>
+            <Link className="underline-offset-4 hover:underline" href="/terms">
+              الشروط والأحكام
+            </Link>
+          </div>
         </div>
       </div>
       </div>
