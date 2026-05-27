@@ -28,27 +28,38 @@ export function GameplaySheet({
       exit={{ opacity: 0 }}
       transition={{ duration: 0.2 }}
       className="absolute inset-0 z-[70] flex items-end"
-      style={{ background: "rgba(58,37,23,0.48)" }}
+      style={{ background: "rgba(44,26,14,0.58)", backdropFilter: "blur(2px)" }}
       onClick={onClose}
     >
       <motion.div
         initial={{ y: "100%" }}
         animate={{ y: 0 }}
         exit={{ y: "100%" }}
-        transition={{ type: "spring", stiffness: 400, damping: 38, mass: 0.9 }}
+        transition={{ type: "spring", stiffness: 380, damping: 36, mass: 0.85 }}
         onClick={(e) => e.stopPropagation()}
         className="w-full rounded-t-[28px] border border-b-0 px-[18px] pb-7 pt-2"
         style={{
-          background: "linear-gradient(180deg, #fffaf3 0%, #fff1dd 100%)",
-          borderColor: "rgba(244,196,141,0.48)",
-          boxShadow: "0 -32px 64px -12px rgba(80,40,10,0.22)",
+          background: "linear-gradient(180deg, #fffcf4 0%, #fff5e4 50%, #fff1dd 100%)",
+          borderColor: "rgba(244,196,141,0.55)",
+          outline: "1px solid rgba(255,255,255,0.7)",
+          boxShadow: [
+            "0 -4px 12px -2px rgba(80,40,10,0.08)",
+            "0 -16px 40px -8px rgba(80,40,10,0.18)",
+            "0 -40px 80px -16px rgba(80,40,10,0.14)",
+            "inset 0 1.5px 0 rgba(255,255,255,0.85)",
+          ].join(", "),
           willChange: "transform",
         }}
       >
         {/* drag handle */}
         <div
-          className="mx-auto mb-4 h-[3px] w-10 rounded-full"
-          style={{ background: "oklch(0.82 0.06 68 / .55)" }}
+          className="mx-auto mb-4 rounded-full"
+          style={{
+            width: 40,
+            height: 4,
+            background: "linear-gradient(90deg, oklch(0.80 0.08 68 / .4), oklch(0.75 0.10 62 / .65), oklch(0.80 0.08 68 / .4))",
+            boxShadow: "0 1px 3px rgba(120,70,20,0.12)",
+          }}
         />
 
         {/* header */}

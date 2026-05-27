@@ -101,17 +101,30 @@ export function ShellMatchPlayerBlock({
   side: "me" | "them";
 }) {
   const level = levelFromXp(xp ?? 0);
+  const amberGlow = "oklch(0.80 0.20 68 / 0.50)";
+  const redGlow = "oklch(0.65 0.16 22 / 0.45)";
   return (
-    <div className="col center" style={{ gap: 8, opacity: hidden ? 0.35 : 1, transition: "opacity .4s" }}>
+    <div
+      className="col center"
+      style={{ gap: 8, opacity: hidden ? 0.32 : 1, transition: "opacity 0.4s cubic-bezier(0.23,1,0.32,1)" }}
+    >
       <div style={{ position: "relative" }}>
+        {/* Outer warm bloom */}
         <div
           className="bloom"
           style={{
-            inset: -12,
-            opacity: 0.6,
-            background: `radial-gradient(closest-side, ${
-              side === "me" ? "oklch(0.78 0.18 65 / .45)" : "oklch(0.68 0.14 25 / .4)"
-            }, transparent 70%)`,
+            inset: -18,
+            opacity: 0.65,
+            background: `radial-gradient(closest-side, ${side === "me" ? amberGlow : redGlow}, transparent 70%)`,
+          }}
+        />
+        {/* Tighter accent bloom */}
+        <div
+          className="bloom"
+          style={{
+            inset: -6,
+            opacity: 0.42,
+            background: `radial-gradient(closest-side, ${side === "me" ? "oklch(0.88 0.16 70 / 0.5)" : "oklch(0.72 0.14 18 / 0.42)"}, transparent 65%)`,
           }}
         />
         <ShellLobbyPlayerAvatar
@@ -122,11 +135,29 @@ export function ShellMatchPlayerBlock({
           hidden={hidden}
         />
       </div>
-      <div className="h-display fw-7 text-md">{hidden ? "..." : name}</div>
+      <div
+        className="h-display fw-7 text-md"
+        style={{ letterSpacing: "-0.01em", textAlign: "center" }}
+      >
+        {hidden ? "…" : name}
+      </div>
       {!hidden ? (
-        <div className="row gap-2 text-xs muted">
-          <span>المستوى {level}</span>
-          <span style={{ opacity: 0.5 }}>•</span>
+        <div
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            padding: "3px 10px",
+            borderRadius: 20,
+            background: "rgba(255,255,255,0.55)",
+            border: "1px solid rgba(244,196,141,0.42)",
+            fontSize: 11,
+            fontWeight: 700,
+            color: "var(--fg-2)",
+          }}
+        >
+          <span>⭐ {level}</span>
+          <span style={{ opacity: 0.45 }}>·</span>
           <span>{wins ?? 0} فوز</span>
         </div>
       ) : null}
@@ -139,6 +170,7 @@ export function ShellLobbySlotCard({
   cosmetic,
   photoURL,
   xp,
+  matchWins,
   ready,
   isMe,
 }: {
@@ -146,28 +178,95 @@ export function ShellLobbySlotCard({
   cosmetic?: PlayerCosmetic;
   photoURL?: string | null;
   xp?: number;
+  matchWins?: number;
   ready: boolean;
   isMe?: boolean;
 }) {
   const level = levelFromXp(xp ?? 0);
   return (
-    <div className="surf" style={{ padding: 14, minHeight: 200, position: "relative", overflow: "hidden" }}>
+    <div
+      className="surf"
+      style={{
+        padding: 14,
+        minHeight: 204,
+        position: "relative",
+        overflow: "hidden",
+        /* Ready state: warm amber top glow */
+        ...(ready ? {
+          boxShadow:
+            "var(--sh-2), inset 0 0 0 1.5px oklch(0.78 0.16 68 / 0.35), 0 0 20px -4px oklch(0.78 0.18 65 / 0.30)",
+        } : {}),
+        transition: "box-shadow 0.4s cubic-bezier(0.23, 1, 0.32, 1)",
+      }}
+    >
+      {/* Ready state warm gradient overlay */}
+      {ready && (
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            background: "linear-gradient(180deg, oklch(0.94 0.08 72 / 0.18) 0%, transparent 55%)",
+            pointerEvents: "none",
+            borderRadius: "inherit",
+          }}
+        />
+      )}
       {isMe ? (
         <span className="chip chip-amber" style={{ position: "absolute", top: 10, left: 10, fontSize: 10 }}>
           أنت
         </span>
       ) : null}
-      <div className="col center" style={{ gap: 8 }}>
+      <div className="col center" style={{ gap: 8, position: "relative" }}>
         <div style={{ position: "relative" }}>
           <div
             className="bloom"
-            style={{ inset: -10, opacity: ready ? 0.7 : 0.3 }}
+            style={{
+              inset: -12,
+              opacity: ready ? 0.75 : 0.32,
+              transition: "opacity 0.4s ease",
+            }}
           />
           <ShellLobbyPlayerAvatar displayName={name} cosmetic={cosmetic} photoURL={photoURL} size="md" />
         </div>
-        <div className="h-display fw-7 text-md">{name}</div>
-        <div className="text-xs muted">المستوى {level}</div>
-        <div className={`chip ${ready ? "chip-win" : ""}`} style={{ marginTop: 4, gap: 4 }}>
+        <div className="h-display fw-7 text-md" style={{ letterSpacing: "-0.01em" }}>{name}</div>
+        {/* Level + wins badge */}
+        <div
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 5,
+            padding: "3px 10px",
+            borderRadius: 20,
+            background: "linear-gradient(180deg, #FFE8A8 0%, #F2B544 60%, #E0A030 100%)",
+            boxShadow:
+              "inset 0 1px 0 rgba(255,255,255,0.62), inset 0 -1px 0 rgba(160,90,0,0.12), 0 2px 8px rgba(200,130,20,0.28)",
+          }}
+        >
+          <span
+            style={{
+              fontSize: 9.5,
+              fontWeight: 800,
+              color: "#5e3011",
+              fontFamily: "var(--display)",
+              letterSpacing: "0.01em",
+            }}
+          >
+            ⭐ {level}
+            {matchWins !== undefined && (
+              <span style={{ opacity: 0.55, margin: "0 4px" }}>·</span>
+            )}
+            {matchWins !== undefined && `${matchWins} فوز`}
+          </span>
+        </div>
+        {/* Ready chip */}
+        <div
+          className={`chip ${ready ? "chip-win" : ""}`}
+          style={{
+            marginTop: 4,
+            gap: 4,
+            transition: "background 0.3s ease, color 0.3s ease",
+          }}
+        >
           {ready ? (
             <>
               <ShellIcon name="check" size={11} />

@@ -15,11 +15,25 @@
   --win: oklch(0.62 0.14 150);
   --lose: oklch(0.58 0.16 25);
   --r-3: 18px;
-  --sh-2: 0 6px 16px -6px oklch(0.5 0.08 50 / 0.22), 0 1px 3px oklch(0.5 0.06 50 / 0.12),
-    0 0 0 1px oklch(0.6 0.05 55 / 0.08);
-  --sh-card: 0 22px 36px -14px oklch(0.4 0.08 45 / 0.35), 0 8px 14px -8px oklch(0.4 0.06 45 / 0.25),
-    inset 0 1px 0 rgba(255, 255, 255, 0.7), inset 0 -1px 0 oklch(0.6 0.06 55 / 0.15);
-  --glow-amber: 0 0 28px -2px oklch(0.78 0.18 65 / 0.45);
+  /* Richer layered shadow — adds ambient + contact tiers */
+  --sh-2:
+    0 1px 2px oklch(0.5 0.06 50 / 0.08),
+    0 4px 12px -4px oklch(0.5 0.08 50 / 0.18),
+    0 10px 24px -8px oklch(0.5 0.08 50 / 0.12),
+    0 0 0 1px oklch(0.6 0.05 55 / 0.10);
+  /* Premium card shadow — deeper, warmer */
+  --sh-card:
+    0 2px 4px oklch(0.4 0.06 45 / 0.12),
+    0 12px 24px -8px oklch(0.4 0.08 45 / 0.28),
+    0 28px 48px -16px oklch(0.4 0.08 45 / 0.22),
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.82),
+    inset 0 -1px 0 oklch(0.6 0.06 55 / 0.18);
+  /* Amber glow — tighter bloom, more saturated */
+  --glow-amber: 0 0 0 1px oklch(0.78 0.18 65 / 0.12), 0 0 20px -2px oklch(0.78 0.18 65 / 0.38), 0 0 48px -8px oklch(0.78 0.18 65 / 0.22);
+  /* Premium ease — strong out, used everywhere */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-smooth: cubic-bezier(0.25, 0.46, 0.45, 0.94);
   --display: var(--font-tajawal), "Readex Pro", system-ui, sans-serif;
   --body: var(--font-tajawal), "IBM Plex Sans Arabic", system-ui, sans-serif;
   --mono: ui-monospace, monospace;
@@ -75,11 +89,12 @@
   background: linear-gradient(
     180deg,
     oklch(0.96 0.025 80 / 0) 0%,
-    oklch(0.95 0.03 78 / 0.9) 35%,
-    oklch(0.93 0.04 75) 100%
+    oklch(0.96 0.028 80 / 0.88) 30%,
+    oklch(0.94 0.035 76 / 0.96) 100%
   );
   position: relative;
-  backdrop-filter: blur(8px);
+  backdrop-filter: blur(14px) saturate(180%);
+  -webkit-backdrop-filter: blur(14px) saturate(180%);
 }
 
 .shell-screen .tabbar::before {
@@ -87,10 +102,32 @@
   position: absolute;
   inset: 0 0 auto 0;
   height: 1px;
-  background: linear-gradient(90deg, transparent, oklch(0.7 0.06 60 / 0.4), transparent);
+  background: linear-gradient(90deg,
+    transparent 0%,
+    oklch(0.82 0.06 62 / 0.5) 30%,
+    oklch(0.90 0.08 70 / 0.6) 50%,
+    oklch(0.82 0.06 62 / 0.5) 70%,
+    transparent 100%
+  );
+}
+
+/* Active tab pill indicator — subtle amber glow beneath icon */
+.shell-screen .tab.active::before {
+  content: "";
+  position: absolute;
+  bottom: -2px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 20px;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--amber-2);
+  filter: blur(1px);
+  opacity: 0.8;
 }
 
 .shell-screen .tab {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -104,8 +141,11 @@
   color: var(--fg-3);
   font-size: 11px;
   font-weight: 600;
-  transition: color 0.2s, transform 0.2s;
+  transition:
+    color 0.22s var(--ease-out),
+    transform 0.18s var(--ease-out);
   -webkit-tap-highlight-color: transparent;
+  will-change: transform;
 }
 
 .shell-screen .tab.active {
@@ -113,18 +153,24 @@
 }
 
 .shell-screen .tab.active svg {
-  filter: drop-shadow(0 0 6px oklch(0.78 0.18 65 / 0.5));
+  filter:
+    drop-shadow(0 0 5px oklch(0.78 0.18 65 / 0.52))
+    drop-shadow(0 0 12px oklch(0.78 0.18 65 / 0.28));
 }
 
 .shell-screen .tab:active {
-  transform: scale(0.94);
+  transform: scale(0.90);
+  transition-duration: 0.08s;
 }
 
 .shell-screen .surf {
-  background: linear-gradient(180deg, oklch(0.98 0.012 80), oklch(0.95 0.022 78));
-  border: 1px solid oklch(0.78 0.04 65 / 0.35);
+  background: linear-gradient(180deg, oklch(0.99 0.008 80) 0%, oklch(0.96 0.018 78) 100%);
+  border: 1px solid oklch(0.80 0.04 65 / 0.38);
   border-radius: var(--r-3);
   box-shadow: var(--sh-2);
+  /* Top-edge specular highlight for depth */
+  outline: 1px solid rgba(255, 255, 255, 0.55);
+  outline-offset: 0px;
 }
 
 .shell-screen .btn {
@@ -135,9 +181,13 @@
   padding: 14px 20px;
   border-radius: 999px;
   font-family: var(--display);
-  font-weight: 600;
+  font-weight: 700;
   font-size: 16px;
-  transition: transform 0.15s ease, box-shadow 0.2s ease;
+  /* Compositor-only properties only — no layout paint */
+  transition:
+    transform 0.18s var(--ease-out),
+    box-shadow 0.18s var(--ease-out),
+    opacity 0.15s var(--ease-out);
   position: relative;
   overflow: hidden;
   user-select: none;
@@ -145,31 +195,74 @@
   cursor: pointer;
   background: none;
   color: inherit;
+  -webkit-tap-highlight-color: transparent;
+  will-change: transform;
 }
 
 .shell-screen .btn:active {
-  transform: translateY(1px) scale(0.98);
+  /* Pure scale — compositor-only, Emil Kowalski principle */
+  transform: scale(0.97);
+  transition-duration: 0.08s;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .shell-screen .btn:hover {
+    transform: scale(1.015);
+  }
+  .shell-screen .btn:active {
+    transform: scale(0.97);
+  }
 }
 
 .shell-screen .btn-primary {
-  background: linear-gradient(180deg, oklch(0.86 0.16 75), oklch(0.7 0.18 55));
-  color: oklch(0.22 0.04 35);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65), inset 0 -2px 0 oklch(0.5 0.16 50),
-    0 12px 24px -10px oklch(0.65 0.18 55 / 0.55), 0 2px 0 oklch(0.5 0.16 45);
+  /* Richer gradient with amber warmth */
+  background: linear-gradient(180deg,
+    oklch(0.88 0.17 76) 0%,
+    oklch(0.78 0.18 65) 50%,
+    oklch(0.68 0.19 53) 100%
+  );
+  color: oklch(0.20 0.05 35);
+  /* Layered: specular top, engraved bottom edge, depth shadow, warm glow */
+  box-shadow:
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.72),
+    inset 0 -2px 0 oklch(0.48 0.16 48),
+    0 2px 0 oklch(0.48 0.16 45),
+    0 8px 20px -6px oklch(0.62 0.18 55 / 0.55),
+    0 16px 40px -12px oklch(0.62 0.18 55 / 0.30);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .shell-screen .btn-primary:hover {
+    box-shadow:
+      inset 0 1.5px 0 rgba(255, 255, 255, 0.72),
+      inset 0 -2px 0 oklch(0.48 0.16 48),
+      0 2px 0 oklch(0.48 0.16 45),
+      0 10px 28px -6px oklch(0.62 0.18 55 / 0.65),
+      0 20px 48px -12px oklch(0.62 0.18 55 / 0.38);
+  }
 }
 
 .shell-screen .btn-secondary {
-  background: linear-gradient(180deg, oklch(0.96 0.02 80), oklch(0.9 0.03 76));
+  background: linear-gradient(180deg,
+    rgba(255, 255, 255, 0.98) 0%,
+    oklch(0.94 0.025 78) 100%
+  );
   color: var(--fg-0);
-  border: 1px solid oklch(0.72 0.05 60 / 0.5);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8), 0 4px 8px -4px oklch(0.5 0.06 50 / 0.18);
+  border: 1px solid oklch(0.75 0.06 62 / 0.52);
+  box-shadow:
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.95),
+    inset 0 -1px 0 oklch(0.70 0.04 60 / 0.22),
+    0 4px 10px -4px oklch(0.5 0.06 50 / 0.14),
+    0 8px 20px -8px oklch(0.5 0.06 50 / 0.10);
 }
 
 .shell-screen .btn-ghost {
-  background: oklch(0.98 0.012 80 / 0.55);
+  background: oklch(0.98 0.012 80 / 0.60);
   color: var(--fg-1);
-  border: 1px solid oklch(0.78 0.04 65 / 0.35);
-  backdrop-filter: blur(6px);
+  border: 1px solid oklch(0.80 0.04 65 / 0.38);
+  backdrop-filter: blur(8px) saturate(150%);
+  -webkit-backdrop-filter: blur(8px) saturate(150%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
 }
 
 .shell-screen .btn-block {
@@ -218,13 +311,13 @@
 }
 
 .shell-screen .screen-enter {
-  animation: shellScreenIn 0.28s cubic-bezier(0.25, 0.1, 0.25, 1);
+  animation: shellScreenIn 0.34s cubic-bezier(0.23, 1, 0.32, 1) both;
 }
 
 @keyframes shellScreenIn {
   from {
     opacity: 0;
-    transform: translateY(5px);
+    transform: translateY(8px) scale(0.985);
   }
   to {
     opacity: 1;
@@ -278,12 +371,17 @@
 .shell-screen .gcard {
   position: relative;
   border-radius: 20px;
-  background: radial-gradient(120% 80% at 30% 0%, oklch(0.98 0.04 85), oklch(0.93 0.05 80) 60%, oklch(0.86 0.06 75)),
-    oklch(0.95 0.04 80);
+  background:
+    radial-gradient(120% 80% at 30% 0%, oklch(0.99 0.03 90), oklch(0.94 0.05 82) 55%, oklch(0.87 0.07 72)),
+    oklch(0.96 0.04 80);
   color: oklch(0.25 0.04 40);
   box-shadow: var(--sh-card);
   overflow: hidden;
   transform-style: preserve-3d;
+  /* Subtle specular ring */
+  border: 1px solid oklch(0.82 0.06 68 / 0.42);
+  outline: 1px solid rgba(255, 255, 255, 0.65);
+  outline-offset: 0px;
 }
 
 .shell-screen .gcard-back {
@@ -296,8 +394,8 @@
   position: absolute;
   pointer-events: none;
   border-radius: 50%;
-  background: radial-gradient(closest-side, oklch(0.78 0.18 65 / 0.3), transparent 70%);
-  filter: blur(6px);
+  background: radial-gradient(closest-side, oklch(0.80 0.18 65 / 0.38), oklch(0.78 0.16 70 / 0.14) 55%, transparent 80%);
+  filter: blur(10px);
 }
 
 .shell-screen .embers {
@@ -438,10 +536,13 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 5px 11px 5px 6px;
+  padding: 5px 12px 5px 6px;
   border-radius: 999px;
-  background: linear-gradient(180deg, oklch(0.96 0.025 80), oklch(0.92 0.04 75));
-  border: 1px solid oklch(0.75 0.06 60 / 0.5);
+  background: linear-gradient(180deg,
+    oklch(0.97 0.022 82) 0%,
+    oklch(0.93 0.038 76) 100%
+  );
+  border: 1px solid oklch(0.78 0.07 62 / 0.45);
   color: var(--fg-0);
   font-family: var(--mono);
   font-weight: 700;
@@ -451,7 +552,12 @@
   white-space: nowrap;
   max-width: none;
   font-variant-numeric: tabular-nums;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), 0 2px 4px oklch(0.5 0.06 50 / 0.1);
+  box-shadow:
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.88),
+    inset 0 -1px 0 oklch(0.72 0.06 58 / 0.15),
+    0 3px 8px -2px oklch(0.5 0.08 52 / 0.14),
+    0 6px 16px -6px oklch(0.62 0.12 58 / 0.12);
+  transition: transform 0.18s var(--ease-out), box-shadow 0.18s var(--ease-out);
 }
 
 .shell-screen .coin-compact {

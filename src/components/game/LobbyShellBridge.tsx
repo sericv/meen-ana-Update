@@ -5,6 +5,7 @@ import { ShellLobbyView, type ShellLobbyPlayer } from "@/components/shell/lobby/
 import { getCategoryById } from "@/lib/game/categories";
 import type { PlayerCosmetic } from "@/lib/profile/cosmetics";
 import type { Room } from "@/types";
+import type { LivePublicProfile } from "@/hooks/useLiveUserProfiles";
 
 export function LobbyShellBridge({
   room,
@@ -12,6 +13,9 @@ export function LobbyShellBridge({
   displayName,
   userPhotoURL,
   cosmeticsMap,
+  liveProfilesMap,
+  myXp,
+  myMatchWins,
   myReady,
   isHost,
   busy,
@@ -37,6 +41,12 @@ export function LobbyShellBridge({
   displayName: string;
   userPhotoURL?: string | null;
   cosmeticsMap: Record<string, PlayerCosmetic>;
+  /** Live XP + wins for players in the lobby (keyed by uid). */
+  liveProfilesMap?: Record<string, LivePublicProfile>;
+  /** Current user's XP (from their own live profile). */
+  myXp?: number;
+  /** Current user's wins (from their own live profile). */
+  myMatchWins?: number;
   myReady: boolean;
   isHost: boolean;
   busy: boolean;
@@ -67,15 +77,20 @@ export function LobbyShellBridge({
     ready: myReadyOptimistic,
     cosmetic: cosmeticsMap[uid],
     photoURL: userPhotoURL,
+    xp: myXp,
+    matchWins: myMatchWins,
     isHost,
   };
 
+  const oppLive = opponent && liveProfilesMap ? liveProfilesMap[opponent.uid] : undefined;
   const opp: ShellLobbyPlayer | null = opponent
     ? {
         uid: opponent.uid,
         displayName: opponent.displayName,
         ready: opponent.ready,
         cosmetic: cosmeticsMap[opponent.uid],
+        xp: oppLive?.xp,
+        matchWins: oppLive?.matchWins,
         isHost: opponent.uid === room.hostUid,
       }
     : null;

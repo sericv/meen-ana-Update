@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import Image from "next/image";
 import { memo, useState } from "react";
 import { GP } from "@/components/game/play/tokens";
+import { EASE_OUT } from "@/lib/motion";
 import type { GameCard } from "@/types";
 
 const PLACEHOLDER = "/cards/_placeholder.svg";
@@ -40,65 +41,127 @@ export function GameplayHeroCard({ opponentCard, categoryLabel, size = "stage" }
       className="relative mx-auto grid place-items-center"
       style={{ width: w, height: h }}
     >
+      {/* Outer distant bloom — large, soft */}
       <motion.div
         aria-hidden
-        className="pointer-events-none absolute -inset-8 rounded-[32px]"
-        animate={{ opacity: [0.55, 0.85, 0.55] }}
-        transition={{ duration: 3.2, repeat: Infinity, ease: "easeInOut" }}
+        className="pointer-events-none absolute rounded-[32px]"
         style={{
-          background: `radial-gradient(ellipse, ${GP.orange}44 0%, transparent 70%)`,
-          filter: "blur(12px)",
+          inset: -24,
+          background: `radial-gradient(ellipse, ${GP.orange}38 0%, transparent 68%)`,
+          filter: "blur(18px)",
         }}
+        animate={{ opacity: [0.4, 0.75, 0.4], scale: [1, 1.04, 1] }}
+        transition={{ duration: 3.8, repeat: Infinity, ease: "easeInOut" }}
       />
-      <div
-        className="relative flex h-full w-full flex-col overflow-hidden rounded-[20px] border-[1.5px] border-[rgba(255,138,61,0.28)]"
+
+      {/* Inner tight glow — tighter, brighter */}
+      <motion.div
+        aria-hidden
+        className="pointer-events-none absolute rounded-[24px]"
         style={{
-          background: "linear-gradient(160deg, #fff 0%, #fff1dd 48%, #fbe0bd 100%)",
-          boxShadow:
-            "0 18px 36px rgba(180,100,30,0.24), inset 0 2px 0 #fff, inset 0 -3px 0 #fbe0bd",
+          inset: -8,
+          background: `radial-gradient(ellipse, ${GP.gold}28 0%, transparent 72%)`,
+          filter: "blur(7px)",
         }}
+        animate={{ opacity: [0.5, 0.85, 0.5] }}
+        transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut", delay: 0.4 }}
+      />
+
+      {/* Card surface */}
+      <motion.div
+        className="relative flex h-full w-full flex-col overflow-hidden rounded-[20px]"
+        style={{
+          border: "1.5px solid rgba(255,138,61,0.3)",
+          outline: "1px solid rgba(255,255,255,0.55)",
+          background: "linear-gradient(160deg, #fff 0%, #fff3e2 48%, #fbe0bd 100%)",
+          boxShadow: [
+            "0 1px 1px rgba(0,0,0,0.05)",
+            "0 6px 12px -2px rgba(180,100,30,0.18)",
+            "0 18px 36px -4px rgba(180,100,30,0.22)",
+            "inset 0 2px 0 #fff",
+            "inset 0 -2px 0 #f5d4a0",
+          ].join(", "),
+        }}
+        initial={{ opacity: 0, scale: 0.92, y: 12 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ duration: 0.38, ease: EASE_OUT }}
       >
-        <div
+        {/* Top specular streak */}
+        <span
           aria-hidden
-          className="pointer-events-none absolute -left-6 -top-6 h-40 w-16 rotate-[18deg] opacity-40"
+          className="pointer-events-none absolute -left-6 -top-6 h-40 w-16 rotate-[18deg] opacity-45"
           style={{
-            background: "linear-gradient(110deg, transparent, rgba(255,255,255,0.7), transparent)",
+            background: "linear-gradient(110deg, transparent, rgba(255,255,255,0.75), transparent)",
           }}
         />
-        <div className="relative min-h-0 flex-1 overflow-hidden bg-gradient-to-b from-[#FFF6E5] to-[#FFE8BF]">
+
+        {/* Image area */}
+        <div className="shimmer-sweep relative min-h-0 flex-1 overflow-hidden bg-gradient-to-b from-[#FFF8EF] to-[#FFE8BF]">
           {hasImage ? (
             <CardImg src={opponentCard!.imageUrl!} alt={opponentCard?.nameAr ?? "بطاقة"} />
           ) : (
             <motion.div
               className="flex h-full items-center justify-center"
-              animate={{ y: [0, -4, 0] }}
-              transition={{ duration: 2.6, repeat: Infinity, ease: "easeInOut" }}
+              animate={{ y: [0, -5, 0] }}
+              transition={{ duration: 2.8, repeat: Infinity, ease: "easeInOut" }}
             >
+              {/* Shadow ؟ behind */}
               <span
-                className="text-6xl font-black"
+                aria-hidden
+                className="absolute text-6xl font-black select-none"
                 style={{
-                  background: `linear-gradient(180deg, #fff 0%, ${GP.gold} 100%)`,
+                  transform: "translate(3px, 4px)",
+                  color: `${GP.gold}28`,
+                  filter: "blur(3px)",
+                  userSelect: "none",
+                }}
+              >
+                ؟
+              </span>
+              {/* Main ؟ */}
+              <span
+                className="relative text-6xl font-black"
+                style={{
+                  background: `linear-gradient(160deg, #fff 0%, ${GP.gold} 60%, ${GP.goldDeep} 100%)`,
                   WebkitBackgroundClip: "text",
                   backgroundClip: "text",
                   color: "transparent",
+                  filter: `drop-shadow(0 0 8px ${GP.gold}88)`,
                 }}
               >
                 ؟
               </span>
             </motion.div>
           )}
+
+          {/* Bottom image vignette */}
+          <div
+            aria-hidden
+            className="pointer-events-none absolute bottom-0 left-0 right-0 h-16"
+            style={{
+              background: "linear-gradient(to top, rgba(251,224,189,0.82) 0%, transparent 100%)",
+            }}
+          />
         </div>
+
+        {/* Name / category footer */}
         <div className="relative z-[1] shrink-0 px-3 pb-3 pt-2 text-center">
-          <p className="truncate text-sm font-extrabold" style={{ color: GP.ink }}>
+          <p
+            className="truncate text-sm font-extrabold"
+            style={{
+              color: GP.ink,
+              textShadow: `0 1px 0 rgba(255,255,255,0.8)`,
+            }}
+          >
             {opponentCard?.nameAr ?? "بطاقة الخصم"}
           </p>
           {categoryLabel ? (
-            <p className="mt-1 text-[10px] font-bold" style={{ color: GP.inkSoft }}>
+            <p className="mt-0.5 text-[10px] font-bold" style={{ color: GP.inkSoft }}>
               {categoryLabel}
             </p>
           ) : null}
         </div>
-      </div>
+      </motion.div>
     </motion.div>
   );
 }

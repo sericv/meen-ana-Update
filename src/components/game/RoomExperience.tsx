@@ -63,6 +63,7 @@ import { GuessRemainingIndicator } from "@/components/game/play/GuessRemainingIn
 import { TacticalEventBanner } from "@/components/game/play/TacticalEventBanner";
 import { FINAL_GUESS_LIMIT, remainingFinalGuesses } from "@/lib/game/match-progression";
 import { useLiveUserProfile } from "@/hooks/useLiveUserProfile";
+import { useLiveUserProfiles } from "@/hooks/useLiveUserProfiles";
 import { useMatchTactical } from "@/hooks/useMatchTactical";
 import { TIME_PRESSURE_QUESTION_SEC } from "@/lib/profile/tactical-tools";
 import type { TacticalToolId } from "@/lib/profile/tactical-tools";
@@ -103,6 +104,14 @@ export function RoomExperience({ roomId }: Props) {
   const { room, match, messages, opponentCard, wireError } = useRoomWire(roomId, uid);
   const liveProfile = useLiveUserProfile(uid);
   const tacticalInv = liveProfile?.progress.tacticalInventory;
+
+  /* Opponent live profile — only used for VS intro level badge */
+  const opponentUidForVs = useMemo(
+    () => (room && uid ? room.players.find((p) => p.uid !== uid)?.uid ?? null : null),
+    [room, uid],
+  );
+  const opponentLiveProfiles = useLiveUserProfiles(opponentUidForVs ? [opponentUidForVs] : []);
+  const opponentLiveForVs = opponentUidForVs ? opponentLiveProfiles[opponentUidForVs] : null;
   const {
     useTool: activateTactical,
     busy: tacticalBusy,
@@ -1231,6 +1240,9 @@ export function RoomExperience({ roomId }: Props) {
           displayName={displayName}
           userPhotoURL={user?.photoURL}
           cosmeticsMap={cosmeticsMap}
+          liveProfilesMap={opponentLiveProfiles}
+          myXp={liveProfile?.progress.xp}
+          myMatchWins={liveProfile?.progress.matchWins}
           myReady={myReadyOptimistic}
           isHost={isHost}
           busy={busy}
@@ -1366,9 +1378,13 @@ export function RoomExperience({ roomId }: Props) {
         open={matchupVsOpen && !ended && Boolean(opponentPlayer)}
         leftName={opponentPlayer?.displayName ?? "الخصم"}
         leftCosmetic={opponentPlayer ? cosmeticsMap[opponentPlayer.uid] : undefined}
+        leftXp={opponentLiveForVs?.xp}
+        leftMatchWins={opponentLiveForVs?.matchWins}
         rightName={displayName}
         rightCosmetic={uid ? cosmeticsMap[uid] : undefined}
         rightPhotoURL={user?.photoURL}
+        rightXp={liveProfile?.progress.xp}
+        rightMatchWins={liveProfile?.progress.matchWins}
       />
 
       {/* ── Fixed ambient background ── */}

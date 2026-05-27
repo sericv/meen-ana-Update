@@ -3,6 +3,7 @@
 import { collection, onSnapshot, type Timestamp } from "firebase/firestore";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { useDefaultOnlinePresence } from "@/hooks/useDefaultOnlinePresence";
 import { useLiveUserProfile } from "@/hooks/useLiveUserProfile";
@@ -18,7 +19,7 @@ import { ShellCoin } from "@/components/shell/ShellCoin";
 import { ShellFramedAvatar } from "@/components/shell/ShellFramedAvatar";
 import { ShellIcon } from "@/components/shell/ShellIcons";
 import { ShellTabBar } from "@/components/shell/ShellTabBar";
-import { ActionTile, MajlisHero } from "@/components/shell/HomeScreenParts";
+import { ActionTile, ActionGrid, MajlisHero } from "@/components/shell/HomeScreenParts";
 
 type FriendRow = { friendUid: string };
 
@@ -102,23 +103,25 @@ export default function HomePage() {
       <div className="f-1 scroll-y" style={{ padding: "4px 16px 12px" }}>
         <MajlisHero onPlay={() => nav("/play/random")} />
 
-        <div className="mt-5" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-          <ActionTile
-            icon="plus"
-            title="غرفة خاصة"
-            subtitle="ادعُ أصدقاءك"
-            tint="terra"
-            onClick={() => nav("/play/new", true)}
-          />
-          <ActionTile
-            icon="search"
-            title="انضم بكود"
-            subtitle="رمز مكوّن من ٦"
-            tint="sage"
-            onClick={() => nav("/join", true)}
-          />
-          <ActionTile icon="shop" title="المتجر" subtitle="إطارات وعملات" tint="amber" onClick={() => nav("/shop", true)} />
-          <ActionTile icon="trophy" title="التصنيف" subtitle="قريبًا" tint="muted" badge="قريبًا" onClick={() => nav("/ranking")} />
+        <div className="mt-5">
+          <ActionGrid>
+            <ActionTile
+              icon="plus"
+              title="غرفة خاصة"
+              subtitle="ادعُ أصدقاءك"
+              tint="terra"
+              onClick={() => nav("/play/new", true)}
+            />
+            <ActionTile
+              icon="search"
+              title="انضم بكود"
+              subtitle="رمز مكوّن من ٦"
+              tint="sage"
+              onClick={() => nav("/join", true)}
+            />
+            <ActionTile icon="shop" title="المتجر" subtitle="إطارات وعملات" tint="amber" onClick={() => nav("/shop", true)} />
+            <ActionTile icon="trophy" title="التصنيف" subtitle="قريبًا" tint="muted" badge="قريبًا" onClick={() => nav("/ranking")} />
+          </ActionGrid>
         </div>
 
         <div className="mt-5 row between" style={{ padding: "0 4px" }}>
@@ -144,9 +147,11 @@ export default function HomePage() {
               const presence = clientEffectivePresence(p?.gamePresence ?? null, ts);
               const online = presence !== "offline" && presence !== "away";
               return (
-                <div
+                <motion.div
                   key={friendUid}
                   className="surf"
+                  whileTap={{ scale: 0.96 }}
+                  transition={{ type: "spring", stiffness: 400, damping: 28 }}
                   style={{
                     minWidth: 96,
                     padding: 12,
@@ -154,6 +159,7 @@ export default function HomePage() {
                     flexDirection: "column",
                     alignItems: "center",
                     gap: 6,
+                    cursor: "pointer",
                   }}
                 >
                   <ShellFramedAvatar
@@ -163,19 +169,28 @@ export default function HomePage() {
                     frame={FRAME_RING[i % FRAME_RING.length] ?? "simple"}
                     online={online}
                   />
-                  <div className="text-sm fw-7" style={{ whiteSpace: "nowrap" }}>
-                    {name}
+                  <div className="text-sm fw-7" style={{ whiteSpace: "nowrap", textAlign: "center" }}>
+                    {name.length > 10 ? name.slice(0, 9) + "…" : name}
                   </div>
-                  <div className="text-xs muted" style={{ whiteSpace: "nowrap" }}>
+                  <div
+                    className="text-xs"
+                    style={{
+                      whiteSpace: "nowrap",
+                      color: online ? "var(--win)" : "var(--fg-3)",
+                      fontWeight: online ? 700 : 600,
+                    }}
+                  >
                     {presenceLabelAr(presence)}
                   </div>
-                </div>
+                </motion.div>
               );
             })}
-            <button
+            <motion.button
               type="button"
               className="surf"
               onClick={() => nav("/profile/friends", true)}
+              whileTap={{ scale: 0.96 }}
+              transition={{ type: "spring", stiffness: 400, damping: 28 }}
               style={{
                 minWidth: 96,
                 padding: 12,
@@ -191,7 +206,7 @@ export default function HomePage() {
             >
               <ShellIcon name="plus" size={20} />
               <span className="text-xs fw-6">إضافة صديق</span>
-            </button>
+            </motion.button>
           </div>
         </div>
       </div>

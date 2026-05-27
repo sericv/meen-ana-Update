@@ -27,14 +27,35 @@ export function ProfileIdentityCard({
     <div
       className="surf"
       style={{
-        padding: 18,
+        padding: 20,
         position: "relative",
         overflow: "hidden",
-        background: "linear-gradient(180deg, oklch(0.94 0.07 75), oklch(0.90 0.09 65))",
-        border: "1px solid oklch(0.72 0.13 60 / .35)",
+        /* Richer amber gradient — warm top, deeper amber base */
+        background:
+          "linear-gradient(148deg, oklch(0.95 0.06 78) 0%, oklch(0.90 0.10 68) 55%, oklch(0.84 0.12 58) 100%)",
+        border: "1px solid oklch(0.74 0.13 62 / 0.38)",
+        boxShadow:
+          "var(--sh-2), inset 0 1.5px 0 rgba(255,255,255,0.62), inset 0 -1px 0 oklch(0.62 0.14 50 / 0.18)",
       }}
     >
-      <div className="bloom" style={{ top: -40, left: -20, width: 220, height: 220, opacity: 0.6 }} />
+      {/* Ambient double bloom for depth */}
+      <div
+        className="bloom"
+        style={{ top: -50, left: -30, width: 260, height: 260, opacity: 0.55 }}
+      />
+      <div
+        className="bloom"
+        style={{
+          bottom: -30,
+          right: -20,
+          width: 180,
+          height: 180,
+          opacity: 0.28,
+          background: "radial-gradient(closest-side, oklch(0.72 0.17 55 / 0.40), transparent 70%)",
+        }}
+      />
+
+      {/* Identity row */}
       <div className="row gap-3" style={{ position: "relative" }}>
         <ProfileAvatar
           cosmetic={cosmetic}
@@ -44,60 +65,98 @@ export function ProfileIdentityCard({
           idle
         />
         <div className="f-1" style={{ minWidth: 0 }}>
-          <div className="h-display fw-8 text-xl">{displayName}</div>
-          <div className="text-sm muted">@{username ?? "—"}</div>
+          <div
+            className="h-display fw-8 text-xl"
+            style={{ letterSpacing: "-0.02em", lineHeight: 1.1 }}
+          >
+            {displayName}
+          </div>
+          <div
+            className="text-sm"
+            style={{ color: "oklch(0.38 0.06 45)", fontWeight: 600, marginTop: 2 }}
+          >
+            @{username ?? "—"}
+          </div>
           <div className="row gap-1 mt-2">
-            <span className="chip chip-amber" style={{ gap: 4 }}>
+            <span
+              className="chip chip-amber"
+              style={{
+                gap: 4,
+                boxShadow: "inset 0 1.5px 0 rgba(255,255,255,0.55), 0 2px 6px oklch(0.62 0.16 55 / 0.28)",
+              }}
+            >
               <ShellIcon name="sparkle" size={11} />
               Lv.{levelInfo.level}
             </span>
-            <span className="chip">{progress?.xp.toLocaleString("ar") ?? 0} نقطة</span>
+            <span
+              className="chip"
+              style={{
+                background: "oklch(0.98 0.014 80 / 0.65)",
+                boxShadow: "inset 0 1px 0 rgba(255,255,255,0.55)",
+              }}
+            >
+              {progress?.xp.toLocaleString("ar") ?? 0} XP
+            </span>
           </div>
         </div>
       </div>
 
-      <div className="mt-3">
-        <div className="row between text-xs">
-          <span className="muted">التقدم</span>
-          <span className="h-mono muted">
-            {levelInfo.xpInLevel} / {levelInfo.xpToNext}
+      {/* XP progress bar */}
+      <div className="mt-4" style={{ position: "relative" }}>
+        <div className="row between text-xs" style={{ marginBottom: 6 }}>
+          <span style={{ color: "oklch(0.40 0.06 48)", fontWeight: 700 }}>التقدم</span>
+          <span
+            className="h-mono"
+            style={{ color: "oklch(0.40 0.06 48)", fontWeight: 600, fontVariantNumeric: "tabular-nums" }}
+          >
+            {levelInfo.xpInLevel} / {levelInfo.xpToNext} XP
           </span>
         </div>
         <div
           style={{
-            marginTop: 6,
-            height: 8,
+            height: 9,
             borderRadius: 999,
-            background: "oklch(0.40 0.06 50 / .15)",
+            background: "oklch(0.38 0.06 48 / 0.14)",
             overflow: "hidden",
+            boxShadow: "inset 0 1px 2px rgba(0,0,0,0.10)",
           }}
         >
           <div
             style={{
               width: `${levelInfo.pct}%`,
               height: "100%",
-              background: "linear-gradient(90deg, var(--amber), var(--gold))",
-              boxShadow: "0 0 8px var(--amber)",
+              background: "linear-gradient(90deg, oklch(0.82 0.16 72), oklch(0.88 0.14 82), oklch(0.76 0.17 62))",
+              boxShadow: "inset 0 1px 0 rgba(255,255,255,0.48), 0 0 10px oklch(0.78 0.18 68 / 0.5)",
+              borderRadius: 999,
+              transition: "width 0.9s cubic-bezier(0.23,1,0.32,1)",
             }}
           />
         </div>
       </div>
 
-      <div className="mt-3" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 6 }}>
+      {/* Stats grid */}
+      <div className="mt-3" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 7 }}>
         {stats.map((s) => (
           <div
             key={s.label}
             className="col center"
             style={{
-              padding: "8px 4px",
-              borderRadius: 10,
-              background: "oklch(0.98 0.015 80 / .65)",
-              border: "1px solid oklch(0.75 0.05 60 / .3)",
+              padding: "10px 4px",
+              borderRadius: 12,
+              background: "oklch(0.99 0.010 82 / 0.68)",
+              border: "1px solid oklch(0.80 0.05 65 / 0.38)",
+              boxShadow:
+                "inset 0 1.5px 0 rgba(255,255,255,0.82), 0 2px 6px oklch(0.50 0.06 50 / 0.08)",
             }}
           >
             <ShellIcon name={s.icon} size={16} color="var(--amber-3)" />
-            <div className="h-display fw-8 text-md mt-2">{s.value}</div>
-            <div className="text-xs muted">{s.label}</div>
+            <div
+              className="h-display fw-8 text-md mt-2"
+              style={{ letterSpacing: "-0.02em", lineHeight: 1 }}
+            >
+              {s.value}
+            </div>
+            <div className="text-xs muted" style={{ marginTop: 2 }}>{s.label}</div>
           </div>
         ))}
       </div>

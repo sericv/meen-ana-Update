@@ -45,6 +45,8 @@ function RandomInner() {
   const [err, setErr] = useState<string | null>(null);
   const [opponentName, setOpponentName] = useState<string>("خصم جديد");
   const [opponentCosmetic, setOpponentCosmetic] = useState<PlayerCosmetic | null>(null);
+  const [opponentXp, setOpponentXp] = useState<number | undefined>(undefined);
+  const [opponentWins, setOpponentWins] = useState<number | undefined>(undefined);
   const [countdown, setCountdown] = useState<number>(0);
   const [elapsedSec, setElapsedSec] = useState(0);
 
@@ -105,7 +107,7 @@ function RandomInner() {
   }, [phase]);
 
   const fetchOpponentProfile = useCallback(
-    async (roomId: string, uid: string): Promise<{ name: string; cosmetic: PlayerCosmetic }> => {
+    async (roomId: string, uid: string): Promise<{ name: string; cosmetic: PlayerCosmetic; xp?: number; matchWins?: number }> => {
       const fallback = { name: "خصم جديد", cosmetic: normalizeCosmetic(undefined) };
       const db = getFirebaseDb();
       const roomPath = `${col.rooms}/${roomId}`;
@@ -137,7 +139,9 @@ function RandomInner() {
         const uSnap = await getDoc(doc(db, col.users, ouid));
         if (!uSnap.exists()) return { name, cosmetic: normalizeCosmetic(undefined) };
         const raw = uSnap.data() as Record<string, unknown>;
-        return { name, cosmetic: normalizeCosmetic(raw) };
+        const xp = typeof raw.xp === "number" && Number.isFinite(raw.xp) ? Math.max(0, Math.floor(raw.xp)) : undefined;
+        const matchWins = typeof raw.matchWins === "number" && Number.isFinite(raw.matchWins) ? Math.max(0, Math.floor(raw.matchWins)) : undefined;
+        return { name, cosmetic: normalizeCosmetic(raw), xp, matchWins };
       } catch (err) {
         if (isFirebaseFirestoreError(err)) {
           logFsOpFailure({
@@ -169,9 +173,11 @@ function RandomInner() {
       setPhase("found");
 
       if (user?.uid) {
-        void fetchOpponentProfile(roomId, user.uid).then(({ name, cosmetic }) => {
+        void fetchOpponentProfile(roomId, user.uid).then(({ name, cosmetic, xp, matchWins }) => {
           setOpponentName(name);
           setOpponentCosmetic(cosmetic);
+          setOpponentXp(xp);
+          setOpponentWins(matchWins);
         });
       }
 
@@ -205,6 +211,8 @@ function RandomInner() {
     setPhase("searching");
     setErr(null);
     setOpponentCosmetic(null);
+    setOpponentXp(undefined);
+    setOpponentWins(undefined);
     cleanupListen();
     cleanupNav();
     handledRoomRef.current = null;
@@ -376,6 +384,8 @@ function RandomInner() {
       myWins={liveProfile?.progress.matchWins}
       opponentName={opponentName}
       opponentCosmetic={opponentCosmetic ?? undefined}
+      opponentXp={opponentXp}
+      opponentWins={opponentWins}
       statusTitle={statusTitle}
       statusSubtitle={statusSubtitle}
       searching={phase === "searching"}

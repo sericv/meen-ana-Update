@@ -12,6 +12,7 @@ import { useLiveUserProfiles } from "@/hooks/useLiveUserProfiles";
 import { clientEffectivePresence } from "@/lib/social/game-presence-client";
 import { INVITE_BLOCKING_PRESENCE, presenceLabelAr } from "@/lib/social/presence-constants";
 import { playUIButton, resumeAudioContext } from "@/lib/audio/game-sounds";
+import { levelFromXp } from "@/lib/profile/level";
 
 type FriendRow = { friendUid: string; since?: Timestamp | null };
 
@@ -164,6 +165,13 @@ export function RoomInviteFriendsPanel({
                           {p?.username ? `@${p.username}` : p?.displayName ?? f.friendUid.slice(0, 8)}
                         </p>
                         <p className="text-[11px] font-bold text-[#bc7a45]">{presenceLabelAr(eff)}</p>
+                        {p && (p.xp > 0 || p.matchWins > 0) ? (
+                          <p className="mt-0.5 text-[10px] font-bold text-[#bc7a45]/70">
+                            ⭐ {levelFromXp(p.xp ?? 0)}
+                            <span className="mx-1 opacity-50">·</span>
+                            {p.matchWins ?? 0} فوز
+                          </p>
+                        ) : null}
                       </div>
                       <Button
                         type="button"

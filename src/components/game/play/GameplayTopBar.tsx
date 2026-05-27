@@ -1,9 +1,10 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { ProfileAvatar } from "@/components/profile/ProfileAvatar";
 import { GameplayTurnArc } from "@/components/game/play/GameplayTurnArc";
 import { GP } from "@/components/game/play/tokens";
+import { EASE_OUT } from "@/lib/motion";
 import type { PlayerCosmetic } from "@/lib/profile/cosmetics";
 
 type PlayerProps = {
@@ -17,25 +18,56 @@ type PlayerProps = {
 
 function PlayerCorner({ name, uid, cosmetic, photoURL, active, reverse }: PlayerProps) {
   return (
-    <div
+    <motion.div
       className="flex min-w-0 items-center gap-2"
-      style={{
-        flexDirection: reverse ? "row-reverse" : "row",
-        opacity: active ? 1 : 0.55,
-        transition: "opacity 0.3s",
-      }}
+      style={{ flexDirection: reverse ? "row-reverse" : "row" }}
+      animate={{ opacity: active ? 1 : 0.52 }}
+      transition={{ duration: 0.35, ease: EASE_OUT }}
     >
       <div className="relative shrink-0">
-        {active ? (
-          <motion.div
-            aria-hidden
-            className="pointer-events-none absolute -inset-2 rounded-full opacity-70"
-            style={{
-              background: `radial-gradient(circle, ${GP.gold}55 0%, transparent 70%)`,
-              filter: "blur(6px)",
-            }}
-          />
-        ) : null}
+        {/* Active glow — layered rings for depth */}
+        <AnimatePresence>
+          {active && (
+            <>
+              {/* Outer ambient bloom */}
+              <motion.div
+                key="bloom-outer"
+                aria-hidden
+                className="pointer-events-none absolute rounded-full"
+                style={{
+                  inset: -10,
+                  background: `radial-gradient(circle, ${GP.gold}44 0%, transparent 68%)`,
+                  filter: "blur(7px)",
+                }}
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{
+                  opacity: [0.55, 0.9, 0.55],
+                  scale: [1, 1.05, 1],
+                }}
+                exit={{ opacity: 0, scale: 0.8 }}
+                transition={{
+                  opacity: { duration: 2.2, repeat: Infinity, ease: "easeInOut" },
+                  scale:   { duration: 2.2, repeat: Infinity, ease: "easeInOut" },
+                }}
+              />
+              {/* Inner tight ring */}
+              <motion.div
+                key="ring-inner"
+                aria-hidden
+                className="pointer-events-none absolute rounded-full"
+                style={{
+                  inset: -4,
+                  boxShadow: `0 0 0 1.5px ${GP.gold}55, 0 0 8px 2px ${GP.gold}33`,
+                }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.3 }}
+              />
+            </>
+          )}
+        </AnimatePresence>
+
         <ProfileAvatar
           cosmetic={uid ? cosmetic : null}
           fallbackPhotoURL={photoURL}
@@ -45,15 +77,23 @@ function PlayerCorner({ name, uid, cosmetic, photoURL, active, reverse }: Player
           idle={!active}
         />
       </div>
+
       <div
         className="flex min-w-0 flex-col"
         style={{ alignItems: reverse ? "flex-end" : "flex-start", lineHeight: 1.1 }}
       >
-        <span className="max-w-[5.5rem] truncate text-sm font-extrabold" style={{ color: GP.ink }}>
+        <motion.span
+          className="max-w-[5.5rem] truncate text-sm font-extrabold"
+          animate={{
+            color: active ? GP.ink : GP.inkSoft,
+            textShadow: active ? `0 0 16px ${GP.gold}55` : "none",
+          }}
+          transition={{ duration: 0.35, ease: EASE_OUT }}
+        >
           {name}
-        </span>
+        </motion.span>
       </div>
-    </div>
+    </motion.div>
   );
 }
 
@@ -90,6 +130,8 @@ export function GameplayTopBar({
       : "دورك تسأل"
     : "دور الخصم";
 
+  const turnColor = myTurn ? GP.gold : GP.rose;
+
   return (
     <div
       dir="ltr"
@@ -103,18 +145,28 @@ export function GameplayTopBar({
         active={myTurn}
         reverse
       />
+
+      {/* Center: arc + turn label */}
       <div className="flex flex-col items-center gap-1">
         <GameplayTurnArc secLeft={secLeft} maxSec={maxPhaseSec} active={myTurn} />
-        <span
-          className="text-xs font-extrabold"
-          style={{
-            color: myTurn ? GP.gold : GP.rose,
-            textShadow: myTurn ? `0 0 12px ${GP.gold}88` : `0 0 12px ${GP.rose}66`,
-          }}
-        >
-          {turnLabel}
-        </span>
+        <AnimatePresence mode="wait">
+          <motion.span
+            key={turnLabel}
+            initial={{ opacity: 0, y: 4, scale: 0.92 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -3, scale: 0.94 }}
+            transition={{ duration: 0.22, ease: EASE_OUT }}
+            className="text-xs font-extrabold"
+            style={{
+              color: turnColor,
+              textShadow: `0 0 14px ${turnColor}99`,
+            }}
+          >
+            {turnLabel}
+          </motion.span>
+        </AnimatePresence>
       </div>
+
       <PlayerCorner
         name={opponentName}
         uid={opponentUid}

@@ -142,28 +142,29 @@ export const ShopItemCard = memo(function ShopItemCard({
 
   return (
     <motion.article
-      whileTap={reduced ? {} : { scale: 0.965 }}
-      transition={{ duration: 0.12, ease: [0.22, 1, 0.36, 1] }}
+      whileTap={reduced ? {} : { scale: 0.97 }}
+      transition={{ type: "spring", stiffness: 420, damping: 28 }}
       style={{
-        background: "linear-gradient(180deg, oklch(0.995 0.006 80 / .98) 0%, oklch(0.960 0.016 74 / .99) 100%)",
+        background: "linear-gradient(165deg, rgba(255,255,255,0.99) 0%, oklch(0.965 0.014 76) 100%)",
         borderRadius: 18,
         border: `1.5px solid ${rs.border}`,
         overflow: "hidden",
         cursor: "pointer",
         userSelect: "none",
         WebkitTapHighlightColor: "transparent",
-        boxShadow: rs.shadowIdle,
+        boxShadow: `inset 0 1.5px 0 rgba(255,255,255,0.88), ${rs.shadowIdle}, 0 1px 3px rgba(0,0,0,0.04)`,
         contain: "layout style paint",
-        transition: "box-shadow 0.18s ease, border-color 0.18s ease",
+        transition: "box-shadow 0.22s cubic-bezier(0.23,1,0.32,1), border-color 0.22s cubic-bezier(0.23,1,0.32,1)",
         display: "flex",
         flexDirection: "column",
+        willChange: "transform",
       }}
     >
       {/* ── Icon Zone ── */}
       <div
         style={{
           position: "relative",
-          height: 88,
+          height: 90,
           background: rs.iconBg,
           display: "flex",
           alignItems: "center",
@@ -171,14 +172,27 @@ export const ShopItemCard = memo(function ShopItemCard({
           overflow: "hidden",
         }}
       >
-        {/* Subtle inner vignette — no blur, pure gradient */}
+        {/* Top specular highlight streak */}
+        <div
+          aria-hidden
+          style={{
+            position: "absolute",
+            inset: "0 20% auto",
+            height: 4,
+            background: "rgba(255,255,255,0.38)",
+            borderRadius: "0 0 999px 999px",
+            filter: "blur(1.5px)",
+            pointerEvents: "none",
+          }}
+        />
+        {/* Bottom vignette */}
         <div
           aria-hidden
           style={{
             position: "absolute",
             inset: 0,
             background:
-              "radial-gradient(ellipse at 50% 110%, rgba(0,0,0,0.10) 0%, transparent 70%)",
+              "radial-gradient(ellipse at 50% 120%, rgba(0,0,0,0.12) 0%, transparent 65%)",
             pointerEvents: "none",
           }}
         />

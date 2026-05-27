@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { motion } from "framer-motion";
 import { ShellEmbers } from "@/components/shell/ShellEmbers";
 import { ShellIcon } from "@/components/shell/ShellIcons";
 import {
@@ -17,6 +18,7 @@ export type ShellLobbyPlayer = {
   cosmetic?: PlayerCosmetic;
   photoURL?: string | null;
   xp?: number;
+  matchWins?: number;
   isHost?: boolean;
 };
 
@@ -106,38 +108,69 @@ export function ShellLobbyView({
         ) : null}
 
         {!randomLobby && roomCode ? (
-          <div className="surf" style={{ padding: 16 }}>
-            <div className="text-xs muted">رمز الغرفة</div>
-            <div className="row between mt-2">
+          <div
+            className="surf"
+            style={{
+              padding: 16,
+              background: "linear-gradient(160deg, oklch(0.99 0.006 82), oklch(0.95 0.022 76))",
+            }}
+          >
+            <div className="text-xs muted" style={{ fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", fontSize: 9.5 }}>
+              رمز الغرفة
+            </div>
+            <div className="row between mt-2" style={{ alignItems: "center" }}>
               <div
                 className="h-mono fw-8"
-                style={{ fontSize: 30, letterSpacing: ".15em", color: "var(--fg-0)" }}
+                style={{
+                  fontSize: 32,
+                  letterSpacing: ".18em",
+                  color: "var(--fg-0)",
+                  /* Subtle amber text glow for warmth */
+                  filter: "drop-shadow(0 1px 3px oklch(0.78 0.16 68 / 0.20))",
+                  fontVariantNumeric: "tabular-nums",
+                }}
               >
                 {roomCode}
               </div>
               <div className="row gap-2">
-                <button
+                <motion.button
                   type="button"
+                  whileTap={{ scale: 0.94 }}
+                  transition={{ type: "spring", stiffness: 420, damping: 28 }}
                   className="btn btn-ghost btn-sm"
                   style={{ padding: 10, borderRadius: 12 }}
                   onClick={onCopyCode}
                   aria-label="نسخ الرمز"
                 >
                   <ShellIcon name="copy" size={18} />
-                </button>
+                </motion.button>
               </div>
             </div>
             {showInviteFriends ? (
               <div className="row gap-2 mt-3">
-                <button type="button" className="btn btn-secondary btn-sm f-1" onClick={onInviteFriends}>
+                <motion.button
+                  type="button"
+                  whileTap={{ scale: 0.97 }}
+                  transition={{ type: "spring", stiffness: 420, damping: 28 }}
+                  className="btn btn-secondary btn-sm f-1"
+                  onClick={onInviteFriends}
+                >
                   <ShellIcon name="friends" size={16} />
                   دعوة صديق
-                </button>
+                </motion.button>
               </div>
             ) : null}
           </div>
         ) : randomLobby ? (
-          <div className="surf mb-3" style={{ padding: 14, textAlign: "center" }}>
+          <div
+            className="surf mb-3"
+            style={{
+              padding: 16,
+              textAlign: "center",
+              background: "linear-gradient(160deg, rgba(62,184,122,0.08), oklch(0.99 0.006 82))",
+              boxShadow: "var(--sh-2), inset 0 0 0 1.5px oklch(0.62 0.14 150 / 0.22)",
+            }}
+          >
             <span className="chip chip-win">مطابقة عشوائية</span>
             <p className="text-sm muted mt-2">خصمك جاهز — تبدأ المباراة تلقائياً</p>
           </div>
@@ -149,6 +182,7 @@ export function ShellLobbyView({
             cosmetic={me.cosmetic}
             photoURL={me.photoURL}
             xp={me.xp}
+            matchWins={me.matchWins}
             ready={myReady}
             isMe
           />
@@ -158,6 +192,7 @@ export function ShellLobbyView({
               cosmetic={opponent.cosmetic}
               photoURL={opponent.photoURL}
               xp={opponent.xp}
+              matchWins={opponent.matchWins}
               ready={opponent.ready}
             />
           ) : (
@@ -182,15 +217,17 @@ export function ShellLobbyView({
       <div
         style={{
           padding: "10px 16px calc(14px + env(safe-area-inset-bottom, 0px))",
-          background: "linear-gradient(180deg, transparent, oklch(0.95 0.025 78) 30%)",
+          background: "linear-gradient(180deg, transparent, oklch(0.95 0.030 77) 28%, oklch(0.93 0.038 75) 100%)",
         }}
       >
         {!randomLobby ? (
-          <button
+          <motion.button
             type="button"
             disabled={busy}
+            whileTap={{ scale: 0.97 }}
+            transition={{ type: "spring", stiffness: 420, damping: 28 }}
             className={`btn btn-block btn-lg ${myReady ? "btn-secondary" : "btn-primary"}`}
-            style={{ height: 56, marginBottom: 10 }}
+            style={{ height: 56, marginBottom: 10, willChange: "transform" }}
             onClick={onToggleReady}
           >
             {myReady ? (
@@ -204,21 +241,28 @@ export function ShellLobbyView({
                 أنا مستعد
               </>
             )}
-          </button>
+          </motion.button>
         ) : null}
 
         {!randomLobby && isHost ? (
           <>
-            <button
+            <motion.button
               type="button"
               disabled={busy || !canStart}
+              whileTap={canStart ? { scale: 0.97 } : {}}
+              transition={{ type: "spring", stiffness: 420, damping: 28 }}
               className="btn btn-block btn-lg btn-primary"
-              style={{ height: 56, marginBottom: 10, opacity: canStart ? 1 : 0.55 }}
+              style={{
+                height: 56,
+                marginBottom: 10,
+                opacity: canStart ? 1 : 0.52,
+                willChange: "transform",
+              }}
               onClick={onStartMatch}
             >
               <ShellIcon name="play" size={20} />
               بدء المباراة
-            </button>
+            </motion.button>
             {!canStart && startMissing.length > 0 ? (
               <p className="text-xs muted text-center mb-3">ينقص: {startMissing.join(" • ")}</p>
             ) : null}
@@ -233,9 +277,16 @@ export function ShellLobbyView({
           <p className="text-xs muted text-center mb-3">جاري البدء تلقائياً…</p>
         ) : null}
 
-        <button type="button" className="btn btn-block btn-secondary" onClick={onLeave}>
+        <motion.button
+          type="button"
+          whileTap={{ scale: 0.97 }}
+          transition={{ type: "spring", stiffness: 420, damping: 28 }}
+          className="btn btn-block btn-secondary"
+          style={{ willChange: "transform" }}
+          onClick={onLeave}
+        >
           مغادرة الغرفة
-        </button>
+        </motion.button>
       </div>
 
       {overlays}

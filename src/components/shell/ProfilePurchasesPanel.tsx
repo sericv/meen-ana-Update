@@ -34,9 +34,6 @@ export function ProfilePurchasesPanel({
   );
   const selectableFrames = useMemo(() => ["none" as const, ...ownedFrames], [ownedFrames]);
 
-  const letterHints = progress?.hintLetterCredits ?? 0;
-  const countHints = progress?.hintCountCredits ?? 0;
-
   const equip = useCallback(
     async (fid: FrameId) => {
       if (!google) return;
@@ -69,28 +66,6 @@ export function ProfilePurchasesPanel({
           {toast}
         </p>
       ) : null}
-
-      <section className="surf" style={{ padding: 14 }}>
-        <p className="h-display fw-7 text-md mb-2">تلميحاتك المحفوظة</p>
-        <div className="row gap-2" style={{ flexWrap: "wrap" }}>
-          <span className="chip chip-amber" style={{ gap: 6 }}>
-            <ShellIcon name="lightbulb" size={14} />
-            حرف: {letterHints}
-          </span>
-          <span className="chip" style={{ gap: 6 }}>
-            <ShellIcon name="search" size={14} />
-            عدد: {countHints}
-          </span>
-        </div>
-        {letterHints + countHints === 0 ? (
-          <p className="text-xs muted mt-2">اشترِ تلميحات من المتجر لاستخدامها في المباراة.</p>
-        ) : (
-          <p className="text-xs muted mt-2">يمكن استخدام تلميح واحد فقط في كل مباراة — لا يمكن الشراء أثناء اللعب.</p>
-        )}
-        <button type="button" className="btn btn-secondary btn-sm mt-3" onClick={() => router.push("/shop")}>
-          المتجر
-        </button>
-      </section>
 
       <p className="h-display fw-7 text-md px-1">إطاراتك</p>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>

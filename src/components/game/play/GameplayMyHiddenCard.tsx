@@ -1,8 +1,9 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { IconHintBulb } from "@/components/game/play/icons";
 import { GP } from "@/components/game/play/tokens";
+import { SPRING_UI } from "@/lib/motion";
 
 type Props = {
   hintsLeft: number;
@@ -31,50 +32,89 @@ export function GameplayMyHiddenCard({
   const hasStoreHint = bonusLetterHints + bonusCountHints > 0;
   const badge = hintUsed ? 0 : hasStoreHint ? 1 : hintsLeft;
   const bulbSize = voice ? 34 : 30;
+  const hasBadge = badge > 0;
 
   return (
     <motion.button
       type="button"
-      whileTap={{ scale: 0.97 }}
+      whileTap={{ scale: 0.93 }}
+      transition={SPRING_UI}
       onClick={onPress}
-      className="relative flex flex-col overflow-hidden rounded-[12px] border text-center"
+      className="relative flex flex-col overflow-hidden text-center"
       style={{
         width: w,
         height: h,
-        borderColor: "rgba(255,190,100,0.55)",
+        borderRadius: 14,
+        border: "1.5px solid rgba(255,190,100,0.6)",
+        outline: "1px solid rgba(255,255,255,0.18)",
         background:
           "repeating-linear-gradient(45deg, #8a4520 0 5px, #7a3c18 5px 10px)",
-        boxShadow: "0 6px 14px -4px rgba(80,40,10,0.32)",
+        boxShadow: [
+          "0 1px 1px rgba(0,0,0,0.1)",
+          "0 4px 8px -2px rgba(80,40,10,0.3)",
+          "0 12px 24px -6px rgba(80,40,10,0.25)",
+          "inset 0 1.5px 0 rgba(255,180,80,0.22)",
+        ].join(", "),
+        willChange: "transform",
       }}
       aria-label="كرتك والتلميحات"
     >
-      <span
-        className="absolute right-0.5 top-0.5 z-10 inline-flex min-w-[22px] items-center justify-center gap-0.5 rounded-full px-1.5 py-px text-[8px] font-extrabold tabular-nums"
+      {/* Ambient inner glow on press hint */}
+      <motion.span
+        aria-hidden
+        className="pointer-events-none absolute inset-0 rounded-[13px]"
+        initial={{ opacity: 0 }}
+        whileTap={{ opacity: 1 }}
+        transition={{ duration: 0.12 }}
         style={{
-          background: `linear-gradient(180deg, ${GP.gold} 0%, ${GP.goldDeep} 100%)`,
-          color: GP.ink,
-          boxShadow: "0 2px 6px rgba(120,70,10,0.25)",
+          background: `radial-gradient(circle at 50% 40%, ${GP.gold}55 0%, transparent 70%)`,
         }}
-      >
-        {badge}
-      </span>
+      />
+
+      {/* Badge */}
+      <AnimatePresence>
+        {hasBadge && (
+          <motion.span
+            key="badge"
+            initial={{ scale: 0.5, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.5, opacity: 0 }}
+            transition={SPRING_UI}
+            className="absolute right-0.5 top-0.5 z-10 inline-flex min-w-[22px] items-center justify-center gap-0.5 rounded-full px-1.5 py-px text-[8px] font-extrabold tabular-nums"
+            style={{
+              background: `linear-gradient(160deg, ${GP.gold} 0%, ${GP.goldDeep} 100%)`,
+              color: GP.ink,
+              boxShadow: `0 2px 6px rgba(120,70,10,0.3), inset 0 1px 0 rgba(255,255,255,0.4)`,
+            }}
+          >
+            {badge}
+          </motion.span>
+        )}
+      </AnimatePresence>
 
       <div className="flex flex-1 flex-col items-center justify-center px-1 pb-0.5 pt-3">
-        <div
+        {/* Bulb glow halo */}
+        <motion.div
           className="grid place-items-center rounded-full"
+          animate={{ opacity: [0.5, 0.9, 0.5] }}
+          transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
           style={{
             width: bulbSize + 14,
             height: bulbSize + 14,
-            background: "radial-gradient(circle, rgba(255,230,160,0.45) 0%, transparent 70%)",
+            background: `radial-gradient(circle, ${GP.gold}55 0%, transparent 70%)`,
           }}
         >
           <IconHintBulb size={bulbSize} variant="illustrated" />
-        </div>
+        </motion.div>
       </div>
 
       <span
         className="shrink-0 py-0.5 text-[7px] font-extrabold leading-tight"
-        style={{ background: "rgba(58,37,23,0.92)", color: "#fff7e8" }}
+        style={{
+          background: "rgba(48,28,14,0.94)",
+          color: "#fff7e8",
+          letterSpacing: "0.03em",
+        }}
       >
         تلميحات
       </span>

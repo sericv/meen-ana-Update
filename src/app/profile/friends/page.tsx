@@ -31,12 +31,6 @@ type InboxRow = {
   username: string;
 };
 
-type OutboxRow = {
-  toUid: string;
-  displayName: string;
-  photoURL: string | null;
-  username: string;
-};
 
 function SocialPlayerRow({
   displayName,
@@ -92,7 +86,6 @@ function FriendsPageInner() {
 
   const [friends, setFriends] = useState<FriendRow[]>([]);
   const [inbox, setInbox] = useState<InboxRow[]>([]);
-  const [outbox, setOutbox] = useState<OutboxRow[]>([]);
   const [searchQ, setSearchQ] = useState("");
   const [searchBusy, setSearchBusy] = useState(false);
   const [hits, setHits] = useState<SearchHit[]>([]);
@@ -102,7 +95,6 @@ function FriendsPageInner() {
     if (!uid || !google) {
       setFriends([]);
       setInbox([]);
-      setOutbox([]);
       return;
     }
     const db = getFirebaseDb();
@@ -131,34 +123,16 @@ function FriendsPageInner() {
       },
       () => setInbox([]),
     );
-    const uOutbox = onSnapshot(
-      collection(db, col.users, uid, userSub.friendOutbox),
-      (snap) => {
-        const rows: OutboxRow[] = [];
-        for (const d of snap.docs) {
-          const x = d.data() as Record<string, unknown>;
-          rows.push({
-            toUid: String(x.toUid ?? d.id),
-            displayName: String(x.displayName ?? "لاعب"),
-            photoURL: x.photoURL != null ? String(x.photoURL) : null,
-            username: String(x.username ?? ""),
-          });
-        }
-        setOutbox(rows);
-      },
-      () => setOutbox([]),
-    );
     return () => {
       uFriends();
       uInbox();
-      uOutbox();
     };
   }, [uid, google]);
 
   const friendUids = useMemo(() => friends.map((f) => f.friendUid), [friends]);
   const requestUids = useMemo(
-    () => [...inbox.map((r) => r.fromUid), ...outbox.map((r) => r.toUid)],
-    [inbox, outbox],
+    () => inbox.map((r) => r.fromUid),
+    [inbox],
   );
   const liveUids = useMemo(
     () => [...new Set([...friendUids, ...requestUids])],
@@ -316,33 +290,6 @@ function FriendsPageInner() {
                 </div>
               )}
             </section>
-
-            {outbox.length > 0 ? (
-              <section className="surf mb-3" style={{ padding: 14 }}>
-                <p className="h-display fw-7 text-md mb-2">طلبات مرسلة</p>
-                <div className="col gap-2">
-                  {outbox.map((row) => {
-                    const live = liveMap[row.toUid];
-                    const photo = live?.photoURL ?? row.photoURL;
-                    const name = live?.displayName ?? row.displayName;
-                    const userName = live?.username ?? row.username;
-                    return (
-                      <SocialPlayerRow
-                        key={row.toUid}
-                        displayName={name}
-                        username={userName}
-                        photoURL={photo}
-                        cosmetic={live?.cosmetic}
-                        xp={live?.xp ?? 0}
-                        matchWins={live?.matchWins ?? 0}
-                        subtitle="في انتظار الرد"
-                        trailing={<span className="chip">معلّق</span>}
-                      />
-                    );
-                  })}
-                </div>
-              </section>
-            ) : null}
 
             <section className="surf mb-3" style={{ padding: 14 }}>
               <p className="h-display fw-7 text-md mb-2">بحث بالاسم العام</p>

@@ -1,9 +1,11 @@
 "use client";
 
+import { motion } from "framer-motion";
 import { ShellIcon } from "@/components/shell/ShellIcons";
 import { ShellGameCard } from "@/components/shell/ShellGameCard";
 import { ALL_CARDS } from "@/lib/game/cards";
 import { getCategoryById } from "@/lib/game/categories";
+import { SPRING_UI, SPRING_DRAMATIC, staggerContainer, staggerItem, EASE_OUT } from "@/lib/motion";
 
 const HERO_CARD = ALL_CARDS.find((c) => c.nameAr.includes("ابن")) ?? ALL_CARDS[0]!;
 const HOME_HERO_IMAGE_URL =
@@ -27,70 +29,130 @@ export function ActionTile({
   const tints = {
     amber: "linear-gradient(160deg, oklch(0.94 0.07 75), oklch(0.88 0.10 65))",
     terra: "linear-gradient(160deg, oklch(0.92 0.07 35), oklch(0.85 0.10 28))",
-    sage: "linear-gradient(160deg, oklch(0.93 0.04 165), oklch(0.87 0.05 160))",
+    sage:  "linear-gradient(160deg, oklch(0.93 0.04 165), oklch(0.87 0.05 160))",
     muted: "linear-gradient(160deg, oklch(0.95 0.02 75), oklch(0.90 0.03 70))",
   };
   const borderColors = {
-    amber: "oklch(0.78 0.13 65 / .45)",
-    terra: "oklch(0.72 0.13 30 / .45)",
-    sage: "oklch(0.70 0.07 165 / .40)",
+    amber: "oklch(0.78 0.13 65 / .48)",
+    terra: "oklch(0.72 0.13 30 / .48)",
+    sage:  "oklch(0.70 0.07 165 / .42)",
     muted: "oklch(0.78 0.05 65 / .40)",
   };
   const iconBg = {
-    amber: "linear-gradient(180deg, oklch(0.86 0.14 70), oklch(0.74 0.16 55))",
-    terra: "linear-gradient(180deg, oklch(0.78 0.13 35), oklch(0.66 0.15 28))",
-    sage: "linear-gradient(180deg, oklch(0.78 0.07 165), oklch(0.62 0.08 160))",
-    muted: "linear-gradient(180deg, oklch(0.86 0.03 70), oklch(0.78 0.04 65))",
+    amber: "linear-gradient(160deg, oklch(0.86 0.14 70), oklch(0.74 0.16 55))",
+    terra: "linear-gradient(160deg, oklch(0.78 0.13 35), oklch(0.66 0.15 28))",
+    sage:  "linear-gradient(160deg, oklch(0.78 0.07 165), oklch(0.62 0.08 160))",
+    muted: "linear-gradient(160deg, oklch(0.86 0.03 70), oklch(0.78 0.04 65))",
   };
   const iconColors = {
     amber: "oklch(0.30 0.08 45)",
     terra: "oklch(0.96 0.02 80)",
-    sage: "oklch(0.96 0.02 80)",
+    sage:  "oklch(0.96 0.02 80)",
     muted: "var(--fg-2)",
+  };
+  const glowColors = {
+    amber: "oklch(0.78 0.15 65 / .18)",
+    terra: "oklch(0.68 0.13 30 / .18)",
+    sage:  "oklch(0.68 0.09 165 / .16)",
+    muted: "oklch(0.78 0.04 65 / .12)",
   };
 
   return (
-    <button
+    <motion.button
       type="button"
       onClick={onClick}
+      variants={staggerItem}
+      whileTap={{ scale: 0.95 }}
+      transition={SPRING_UI}
       style={{
         padding: 14,
         textAlign: "right",
         background: tints[tint],
-        border: `1px solid ${borderColors[tint]}`,
+        border: `1.5px solid ${borderColors[tint]}`,
+        outline: "1px solid rgba(255,255,255,0.6)",
         borderRadius: 18,
-        boxShadow: "var(--sh-2), inset 0 1px 0 rgba(255,255,255,.55)",
+        boxShadow: [
+          "0 1px 1px rgba(0,0,0,0.04)",
+          `0 4px 10px -2px ${glowColors[tint]}`,
+          `0 10px 24px -4px ${glowColors[tint]}`,
+          "inset 0 1.5px 0 rgba(255,255,255,.75)",
+          "inset 0 -1px 0 rgba(0,0,0,0.03)",
+        ].join(", "),
         position: "relative",
         display: "flex",
         flexDirection: "column",
         gap: 16,
         minHeight: 110,
+        cursor: "pointer",
+        overflow: "hidden",
+        willChange: "transform",
       }}
     >
+      {/* Inner gloss highlight */}
+      <span
+        aria-hidden
+        style={{
+          position: "absolute",
+          inset: 0,
+          borderRadius: 18,
+          background: "linear-gradient(180deg, rgba(255,255,255,0.32) 0%, transparent 50%)",
+          pointerEvents: "none",
+        }}
+      />
+
+      {/* Icon box */}
       <div
         style={{
-          width: 40,
-          height: 40,
-          borderRadius: 12,
+          width: 42,
+          height: 42,
+          borderRadius: 13,
           background: iconBg[tint],
           color: iconColors[tint],
           display: "grid",
           placeItems: "center",
-          boxShadow: "inset 0 1px 0 rgba(255,255,255,.5), 0 2px 4px oklch(0.45 0.06 50 / .15)",
+          position: "relative",
+          boxShadow: [
+            "inset 0 1.5px 0 rgba(255,255,255,.65)",
+            "inset 0 -1px 0 rgba(0,0,0,.10)",
+            "0 3px 8px oklch(0.45 0.06 50 / .22)",
+          ].join(", "),
         }}
       >
         <ShellIcon name={icon} size={22} />
       </div>
+
       <div>
         <div className="h-display fw-7 text-md">{title}</div>
         <div className="text-xs muted">{subtitle}</div>
       </div>
+
       {badge ? (
-        <span className="chip chip-amber" style={{ position: "absolute", top: 10, left: 10, fontSize: 10 }}>
+        <span
+          className="chip chip-amber"
+          style={{ position: "absolute", top: 10, left: 10, fontSize: 10 }}
+        >
           {badge}
         </span>
       ) : null}
-    </button>
+    </motion.button>
+  );
+}
+
+/** Wrapper — stagger-animates its ActionTile children on mount */
+export function ActionGrid({ children }: { children: React.ReactNode }) {
+  return (
+    <motion.div
+      variants={staggerContainer(0.07, 0.05)}
+      initial="hidden"
+      animate="show"
+      style={{
+        display: "grid",
+        gridTemplateColumns: "1fr 1fr",
+        gap: 10,
+      }}
+    >
+      {children}
+    </motion.div>
   );
 }
 
@@ -99,29 +161,61 @@ export function MajlisHero({ onPlay }: { onPlay: () => void }) {
 
   return (
     <div style={{ position: "relative", padding: "12px 4px 0" }}>
-      <div
+      {/* Hero headline — staggered entry */}
+      <motion.div
         className="h-display fw-7"
-        style={{ fontSize: 32, lineHeight: 1.05, color: "var(--fg-0)" }}
+        initial={{ opacity: 0, y: 14, scale: 0.97 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.38, ease: EASE_OUT }}
+        style={{
+          fontSize: 34,
+          lineHeight: 1.0,
+          color: "var(--fg-0)",
+          letterSpacing: "-0.02em",
+        }}
       >
         مَن أنا؟
-      </div>
-      <div className="text-sm muted mt-2">اسأل، خمّن، اكتشف نفسك في عيون خصمك.</div>
+      </motion.div>
+      <motion.div
+        className="text-sm muted mt-2"
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, ease: EASE_OUT, delay: 0.08 }}
+      >
+        اسأل، خمّن، اكتشف نفسك في عيون خصمك.
+      </motion.div>
 
-      <div
+      <motion.div
         className="mt-4"
+        initial={{ opacity: 0, scale: 0.96 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.42, ease: EASE_OUT, delay: 0.12 }}
         style={{
           position: "relative",
-          height: 200,
+          height: 208,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
         }}
       >
-        <div className="bloom" style={{ inset: -20, opacity: 0.65 }} />
-        <div style={{ position: "absolute", right: 30, top: 6 }}>
+        {/* Outer distant bloom */}
+        <div
+          className="bloom"
+          style={{ inset: -30, opacity: 0.55 }}
+        />
+        {/* Inner tighter bloom */}
+        <div
+          className="bloom"
+          style={{
+            inset: 20,
+            opacity: 0.35,
+            background: "radial-gradient(closest-side, oklch(0.70 0.16 55 / 0.25), transparent)",
+          }}
+        />
+        <div style={{ position: "absolute", right: 24, top: 4 }}>
           <ShellGameCard
-            width={130}
-            height={180}
+            width={132}
+            height={184}
             title={HERO_CARD.nameAr}
             category={cat}
             imageUrl={HOME_HERO_IMAGE_URL}
@@ -129,15 +223,24 @@ export function MajlisHero({ onPlay }: { onPlay: () => void }) {
             priority
           />
         </div>
-        <div style={{ position: "absolute", left: 24, bottom: 6 }}>
-          <ShellGameCard width={120} height={166} variant="back" tilt={7} />
+        <div style={{ position: "absolute", left: 20, bottom: 4 }}>
+          <ShellGameCard width={120} height={168} variant="back" tilt={7} />
         </div>
-      </div>
+      </motion.div>
 
-      <button type="button" className="btn btn-primary btn-lg btn-block mt-4" onClick={onPlay} style={{ height: 60, fontSize: 19 }}>
+      <motion.button
+        type="button"
+        className="btn btn-primary btn-lg btn-block mt-4"
+        onClick={onPlay}
+        initial={{ opacity: 0, y: 12, scale: 0.96 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ ...SPRING_DRAMATIC, delay: 0.18 }}
+        whileTap={{ scale: 0.97 }}
+        style={{ height: 62, fontSize: 19, willChange: "transform" }}
+      >
         <ShellIcon name="play" size={22} />
         ابحث عن خصم
-      </button>
+      </motion.button>
     </div>
   );
 }

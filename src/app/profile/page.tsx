@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Suspense, useMemo, useState } from "react";
+import { motion } from "framer-motion";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AuthGate } from "@/components/auth/AuthGate";
 import { useAuth } from "@/components/providers/AuthProvider";
@@ -101,26 +102,35 @@ function ProfileScreenInner() {
               { k: "settings" as const, l: "الإعدادات" },
             ] as const
           ).map((t) => (
-            <button
+            <motion.button
               key={t.k}
               type="button"
               onClick={() => tapTab(t.k)}
+              whileTap={{ scale: 0.97 }}
+              transition={{ type: "spring", stiffness: 420, damping: 28 }}
               className="f-1"
               style={{
                 padding: "10px 0",
                 borderRadius: 10,
                 background:
                   tab === t.k
-                    ? "linear-gradient(180deg, oklch(0.98 0.02 80), oklch(0.94 0.03 76))"
+                    ? "linear-gradient(180deg, rgba(255,255,255,0.98), oklch(0.95 0.025 78))"
                     : "transparent",
+                boxShadow:
+                  tab === t.k
+                    ? "inset 0 1.5px 0 rgba(255,255,255,0.92), 0 3px 8px oklch(0.5 0.06 50 / 0.10)"
+                    : "none",
                 color: tab === t.k ? "var(--fg-0)" : "var(--fg-3)",
                 fontFamily: "var(--display)",
                 fontWeight: 700,
                 fontSize: 14,
+                transition: "color 0.22s cubic-bezier(0.23,1,0.32,1), background 0.22s cubic-bezier(0.23,1,0.32,1), box-shadow 0.22s cubic-bezier(0.23,1,0.32,1)",
+                cursor: "pointer",
+                willChange: "transform",
               }}
             >
               {t.l}
-            </button>
+            </motion.button>
           ))}
         </div>
 

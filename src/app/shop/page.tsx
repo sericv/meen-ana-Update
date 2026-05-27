@@ -22,6 +22,7 @@ import { TacticalToolIcon } from "@/components/game/play/TacticalToolIcons";
 import { IconHintBulb } from "@/components/game/play/icons";
 import { ShopItemCard } from "@/components/shop/ShopItemCard";
 import { PurchaseToast } from "@/components/shop/PurchaseToast";
+import { XpExchangeCard } from "@/components/shop/XpExchangeCard";
 
 import type { TacticalToolId } from "@/lib/profile/tactical-tools";
 
@@ -191,12 +192,17 @@ function ShopInner() {
             display: "grid",
             gridTemplateColumns: "repeat(2, 1fr)",
             gap: 12,
+            marginBottom: 28,
           }}
         >
           {HINT_SHOP_ITEMS.map((item) => {
             const busy = busyId === item.id;
             const canBuy = !!(google && progress);
             const insufficientCoins = Boolean(canBuy && progress!.coins < item.price);
+            const ownedHints =
+              item.kind === "letter"
+                ? (progress?.hintLetterCredits ?? 0)
+                : (progress?.hintCountCredits ?? 0);
             return (
               <ShopItemCard
                 key={item.id}
@@ -205,6 +211,8 @@ function ShopInner() {
                 subtitle={item.subtitleAr}
                 price={item.price}
                 rarity="common"
+                ownedCount={ownedHints}
+                showOwnedCount
                 icon={<IconHintBulb size={22} variant="illustrated" />}
                 busy={busy}
                 canBuy={canBuy}
@@ -218,6 +226,18 @@ function ShopInner() {
             );
           })}
         </div>
+
+        {/* ── XP Exchange section ── */}
+        <SectionLabel
+          title="استبدال الخبرة"
+          note="حوّل نقاط خبرتك إلى عملات"
+        />
+        <XpExchangeCard
+          uid={uid}
+          xp={progress?.xp ?? 0}
+          coins={progress?.coins ?? 0}
+          google={google}
+        />
       </div>
 
       {/* ── Purchase toast (bottom-center fixed) ── */}
@@ -231,29 +251,47 @@ function SectionLabel({ title, note }: { title: string; note?: string }) {
   return (
     <div
       style={{
-        marginBottom: 12,
-        paddingBottom: 8,
-        borderBottom: "1px solid oklch(0.82 0.04 70 / .30)",
+        marginBottom: 14,
+        paddingBottom: 10,
+        borderBottom: "1px solid oklch(0.84 0.04 70 / 0.32)",
+        display: "flex",
+        flexDirection: "column",
+        gap: 3,
       }}
     >
       <div
         style={{
           fontFamily: "var(--display)",
           fontWeight: 800,
-          fontSize: 14.5,
-          color: "oklch(0.26 0.06 48)",
+          fontSize: 15,
+          color: "oklch(0.24 0.06 46)",
           letterSpacing: "-0.01em",
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
         }}
       >
+        {/* Accent bar */}
+        <span
+          style={{
+            display: "inline-block",
+            width: 3,
+            height: 16,
+            borderRadius: 999,
+            background: "linear-gradient(180deg, oklch(0.82 0.16 70), oklch(0.66 0.18 55))",
+            flexShrink: 0,
+          }}
+        />
         {title}
       </div>
       {note && (
         <div
           style={{
-            fontSize: 10.5,
+            fontSize: 11,
             color: "oklch(0.52 0.04 58)",
-            marginTop: 2,
             fontFamily: "var(--display)",
+            fontWeight: 600,
+            paddingRight: 11,
           }}
         >
           {note}

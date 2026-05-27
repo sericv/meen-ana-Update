@@ -600,16 +600,33 @@ export function MatchResultScreen({
         className="relative z-10 flex shrink-0 items-center justify-between px-4 pb-1"
         style={{ paddingTop: "max(0.5rem, env(safe-area-inset-top))" }}
       >
-        <button
+        <motion.button
           type="button"
           onClick={onHome}
-          className="rounded-xl bg-white/80 p-2"
-          style={{ boxShadow: "0 1px 6px rgba(180,100,30,0.10)" }}
+          whileTap={{ scale: 0.94 }}
+          transition={{ type: "spring", stiffness: 420, damping: 28 }}
+          className="rounded-xl p-2"
+          style={{
+            background: "linear-gradient(180deg, rgba(255,255,255,0.96), rgba(255,248,236,0.92))",
+            border: "1px solid rgba(244,196,141,0.40)",
+            boxShadow: "inset 0 1.5px 0 rgba(255,255,255,0.90), 0 3px 10px rgba(180,100,30,0.10)",
+            cursor: "pointer",
+          }}
           aria-label="إغلاق"
         >
           <IconClose />
-        </button>
-        <span style={{ fontSize: 11, fontWeight: 600, color: W_INK_SOFT }}>
+        </motion.button>
+        <span
+          style={{
+            fontSize: 11,
+            fontWeight: 700,
+            color: W_INK_SOFT,
+            padding: "4px 10px",
+            borderRadius: 999,
+            background: "rgba(255,255,255,0.55)",
+            border: "1px solid rgba(244,196,141,0.35)",
+          }}
+        >
           المباراة #{shortRoom}
         </span>
         <span style={{ width: 36 }} aria-hidden />
@@ -815,12 +832,12 @@ export function MatchResultScreen({
                 alignItems: "center",
                 justifyContent: "space-between",
                 fontSize: 11,
-                fontWeight: 600,
+                fontWeight: 700,
                 color: W_INK_SOFT,
-                marginBottom: 5,
+                marginBottom: 6,
               }}
             >
-              <span>المستوى {levelAfter}</span>
+              <span style={{ fontWeight: 800, color: W_INK }}>المستوى {levelAfter}</span>
               <span style={{ fontVariantNumeric: "tabular-nums" }}>
                 {xpInLevel} / {xpToNext} XP
               </span>
@@ -828,10 +845,11 @@ export function MatchResultScreen({
             <div
               style={{
                 position: "relative",
-                height: 8,
+                height: 9,
                 borderRadius: 999,
                 overflow: "hidden",
-                background: "rgba(58,37,23,0.10)",
+                background: "rgba(58,37,23,0.09)",
+                boxShadow: "inset 0 1px 2px rgba(0,0,0,0.08)",
               }}
             >
               <div
@@ -839,9 +857,9 @@ export function MatchResultScreen({
                   height: "100%",
                   borderRadius: 999,
                   width: `${levelPctAnimated}%`,
-                  background: `linear-gradient(90deg, ${W_GOLD}, ${W_GOLD_DEEP})`,
-                  boxShadow: `0 0 8px ${W_GOLD}88`,
-                  transition: "width 1s ease-out 0.4s",
+                  background: `linear-gradient(90deg, ${W_GOLD}, #f5a820, ${W_GOLD_DEEP})`,
+                  boxShadow: `inset 0 1px 0 rgba(255,255,255,0.45), 0 0 10px ${W_GOLD}99`,
+                  transition: "width 1.1s cubic-bezier(0.23, 1, 0.32, 1) 0.35s",
                 }}
               />
             </div>
@@ -851,42 +869,45 @@ export function MatchResultScreen({
         {/* ── Level-up celebration ── */}
         {leveledUp && (
           <motion.div
-            initial={{ opacity: 0, scale: 0.88, y: 16 }}
+            initial={{ opacity: 0, scale: 0.82, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            transition={{ type: "spring", stiffness: 340, damping: 24, delay: 0.65 }}
+            transition={{ type: "spring", stiffness: 380, damping: 22, delay: 0.62 }}
             style={{
               marginTop: 12,
-              borderRadius: 20,
-              padding: "16px 20px",
-              background: `linear-gradient(135deg, ${W_GOLD} 0%, ${W_ORANGE} 100%)`,
-              border: "1.5px solid rgba(255,255,255,0.35)",
-              boxShadow: `inset 0 1.5px 0 rgba(255,255,255,0.5), 0 12px 32px ${W_ORANGE_DEEP}55`,
+              borderRadius: 22,
+              padding: "18px 20px",
+              background: `linear-gradient(138deg, #FFE27A 0%, ${W_GOLD} 30%, ${W_ORANGE} 70%, ${W_ORANGE_DEEP} 100%)`,
+              border: "1.5px solid rgba(255,255,255,0.42)",
+              boxShadow: `inset 0 2px 0 rgba(255,255,255,0.60), inset 0 -2px 0 rgba(0,0,0,0.10), 0 2px 0 rgba(160,70,0,0.30), 0 10px 28px ${W_ORANGE_DEEP}55, 0 0 40px -4px ${W_GOLD}88`,
               display: "flex",
               alignItems: "center",
               gap: 14,
             }}
           >
-            {/* star burst */}
-            <div
+            {/* Pulsing star circle */}
+            <motion.div
+              animate={{ scale: [1, 1.08, 1] }}
+              transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
               style={{
-                width: 48,
-                height: 48,
+                width: 50,
+                height: 50,
                 borderRadius: "50%",
-                background: "rgba(255,255,255,0.25)",
-                border: "1.5px solid rgba(255,255,255,0.50)",
+                background: "rgba(255,255,255,0.28)",
+                border: "1.5px solid rgba(255,255,255,0.55)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 flexShrink: 0,
+                boxShadow: "0 0 14px rgba(255,255,255,0.35)",
               }}
             >
               <IconStar />
-            </div>
+            </motion.div>
             <div>
-              <p style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.8)" }}>
-                ارتقيت مستوى
+              <p style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.82)", letterSpacing: "0.01em" }}>
+                ارتقيت مستوى 🎉
               </p>
-              <p style={{ fontSize: 22, fontWeight: 900, color: "#fff", letterSpacing: "-0.03em", lineHeight: 1.1 }}>
+              <p style={{ fontSize: 24, fontWeight: 900, color: "#fff", letterSpacing: "-0.03em", lineHeight: 1.08, textShadow: "0 2px 8px rgba(0,0,0,0.18)" }}>
                 المستوى {levelAfter}
               </p>
             </div>
@@ -912,30 +933,38 @@ export function MatchResultScreen({
       {/* ── Footer ── */}
       <footer
         className="relative z-10 flex shrink-0 gap-2.5 px-4 pt-2"
-        style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
+        style={{
+          paddingBottom: "max(1rem, env(safe-area-inset-bottom))",
+          background: "linear-gradient(180deg, transparent, rgba(252,232,210,0.65) 40%)",
+        }}
       >
-        <button
+        <motion.button
           type="button"
           onClick={onHome}
+          whileTap={{ scale: 0.97 }}
+          transition={{ type: "spring", stiffness: 420, damping: 28 }}
           style={{
             flex: 1,
             borderRadius: 18,
-            border: "1.5px solid rgba(244,196,141,0.48)",
-            background: "rgba(255,255,255,0.92)",
+            border: "1.5px solid rgba(244,196,141,0.52)",
+            background: "linear-gradient(180deg, rgba(255,255,255,0.98), rgba(255,248,236,0.95))",
             padding: "14px 0",
             fontSize: 14,
             fontWeight: 800,
             color: W_INK,
-            boxShadow: "inset 0 1px 0 rgba(255,255,255,0.9), 0 3px 12px rgba(180,100,30,0.08)",
+            boxShadow:
+              "inset 0 1.5px 0 rgba(255,255,255,0.95), inset 0 -1px 0 rgba(196,130,60,0.10), 0 2px 0 rgba(196,130,60,0.22), 0 6px 16px rgba(180,100,30,0.10)",
+            cursor: "pointer",
           }}
         >
           القائمة
-        </button>
+        </motion.button>
         <motion.button
           type="button"
           onClick={onReplay}
           disabled={replayBusy}
-          whileTap={{ scale: 0.96 }}
+          whileTap={{ scale: 0.97 }}
+          transition={{ type: "spring", stiffness: 420, damping: 28 }}
           style={{
             flex: 1,
             display: "flex",
@@ -948,9 +977,10 @@ export function MatchResultScreen({
             fontSize: 14,
             fontWeight: 800,
             color: "#fff",
-            background: `linear-gradient(180deg, ${W_ORANGE} 0%, ${W_ORANGE_DEEP} 100%)`,
-            boxShadow: `inset 0 1.5px 0 rgba(255,255,255,0.45), 0 10px 24px ${W_ORANGE_DEEP}55`,
+            background: `linear-gradient(180deg, ${W_ORANGE} 0%, #f06018 60%, ${W_ORANGE_DEEP} 100%)`,
+            boxShadow: `inset 0 1.5px 0 rgba(255,255,255,0.48), inset 0 -2px 0 rgba(0,0,0,0.12), 0 2px 0 #b84a00, 0 8px 20px ${W_ORANGE_DEEP}55, 0 16px 40px -8px ${W_ORANGE_DEEP}38`,
             opacity: replayBusy ? 0.55 : 1,
+            cursor: replayBusy ? "not-allowed" : "pointer",
           }}
         >
           <IconRefresh />

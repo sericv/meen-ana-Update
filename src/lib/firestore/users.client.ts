@@ -218,4 +218,42 @@ export async function purchaseHintPack(uid: string): Promise<void> {
   return purchaseHintItem(uid, "letter_3");
 }
 
+/* ── XP ↔ Coins exchange ────────────────────────────────────
+ *  Conversion:  500 XP  =  10 coins  (floor to nearest 500 block)
+ *  Partial XP:  only exact multiples of 500 are consumed.
+ *  Example: 1200 XP → consumes 1000, awards 20, leaves 200 XP.
+ * ──────────────────────────────────────────────────────────── */
+export const XP_EXCHANGE_BLOCK = 500;   // XP per exchange block
+export const COINS_PER_BLOCK   = 10;    // coins awarded per block
+
+/** Exchange XP for coins (client-side Firestore transaction).
+ *  `xpToExchange` MUST be a positive multiple of `XP_EXCHANGE_BLOCK`.
+ *  Throws `ShopPurchaseError` on validation / insufficient XP. */
+export async function exchangeXpForCoins(uid: string, xpToExchange: number): Promise<{ coinsAwarded: number; xpRemaining: number }> {
+  if (xpToExchange <= 0 || xpToExchange % XP_EXCHANGE_BLOCK !== 0) {
+    throw new ShopPurchaseError("يجب أن تكون نقاط الاستبدال مضاعفاً من 500.", "insufficient_funds");
+  }
+  const coinsAwarded = (xpToExchange / XP_EXCHANGE_BLOCK) * COINS_PER_BLOCK;
+  const db = getFirebaseDb();
+  const ref = doc(db, col.users, uid);
+  let xpRemaining = 0;
+  await runTransaction(db, async (transaction) => {
+    const snap = await transaction.get(ref);
+    if (!snap.exists()) throw new ShopPurchaseError("لا يوجد ملف لاعب.", "insufficient_funds");
+    const data = snap.data() as Record<string, unknown>;
+    assertNotGuest(data);
+    const currentXp = typeof data.xp === "number" && Number.isFinite(data.xp) ? Math.max(0, Math.floor(data.xp)) : 0;
+    if (currentXp < xpToExchange) {
+      throw new ShopPurchaseError("نقاط خبرتك غير كافية للاستبدال.", "insufficient_funds");
+    }
+    xpRemaining = currentXp - xpToExchange;
+    transaction.update(ref, {
+      xp: increment(-xpToExchange),
+      coins: increment(coinsAwarded),
+      lastSeen: serverTimestamp(),
+    });
+  });
+  return { coinsAwarded, xpRemaining };
+}
+
 export { awardMatchEndRewards, awardMatchWinRewards } from "@/lib/firestore/match-rewards.client";
