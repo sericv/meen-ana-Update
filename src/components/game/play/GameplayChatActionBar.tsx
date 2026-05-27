@@ -22,6 +22,11 @@ type Props = {
   draft: string;
   busy: boolean;
   guessRemaining?: number;
+  /**
+   * When true, extra-question tool is active and the player still has their
+   * second question to ask this turn (questionsThisTurn < questionQuota).
+   */
+  extraQuestionPending?: boolean;
   onDraftChange: (v: string) => void;
   onSend: () => void;
   onGuess: () => void;
@@ -37,6 +42,7 @@ export function GameplayChatActionBar({
   draft,
   busy,
   guessRemaining = 3,
+  extraQuestionPending = false,
   onDraftChange,
   onSend,
   onGuess,
@@ -45,11 +51,13 @@ export function GameplayChatActionBar({
   keyboardOverlapPx = 0,
 }: Props) {
   const canSend = myTurn && draft.trim().length > 0 && !busy;
-  const canGuess = myTurn && phase === "question" && guessRemaining > 0 && !busy;
+  const canGuess = myTurn && phase === "question" && guessRemaining > 0 && !busy && !extraQuestionPending;
   const placeholder = myTurn
     ? phase === "answer"
       ? "أجب بـ نعم أو لا…"
-      : "اطرح سؤالًا بـ نعم/لا…"
+      : extraQuestionPending
+        ? "سؤالك الثاني — اطرحه الآن…"
+        : "اطرح سؤالًا بـ نعم/لا…"
     : "في انتظار الخصم…";
 
   return (
@@ -59,6 +67,29 @@ export function GameplayChatActionBar({
         paddingBottom: `calc(max(env(safe-area-inset-bottom, 0px), 6px) + ${keyboardOverlapPx}px)`,
       }}
     >
+      {/* Extra question indicator — appears above the input bar */}
+      {extraQuestionPending && myTurn && phase === "question" && (
+        <motion.div
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0 }}
+          style={{
+            marginBottom: 6,
+            padding: "5px 14px",
+            borderRadius: 20,
+            background: "linear-gradient(135deg, oklch(0.62 0.18 148 / .15), oklch(0.52 0.16 144 / .12))",
+            border: "1px solid oklch(0.62 0.16 148 / .45)",
+            color: "oklch(0.36 0.14 148)",
+            fontFamily: "var(--display)",
+            fontWeight: 800,
+            fontSize: 11.5,
+            textAlign: "center",
+            letterSpacing: "-0.01em",
+          }}
+        >
+          سؤال إضافي — اطرح سؤالك الثاني
+        </motion.div>
+      )}
       {/*
        * dir="ltr" so physical left = first flex child = send button,
        * physical right = last flex child = guess button.

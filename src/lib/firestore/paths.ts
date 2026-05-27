@@ -11,6 +11,11 @@ export const col = {
   usernameClaims: "usernameClaims",
 } as const;
 
+/** Path to a player's match history subcollection. Doc ids are matchIds. */
+export function userMatchHistoryCol(uid: string) {
+  return `${col.users}/${uid}/matchHistory` as const;
+}
+
 /** Subcollections under `users/{uid}` — social graph (writes via Admin API). */
 export const userSub = {
   friends: "friends",
@@ -19,6 +24,8 @@ export const userSub = {
   friendOutbox: "friendOutbox",
   roomInvites: "roomInvites",
   socialInbox: "socialInbox",
+  /** Persistent match history — one doc per match, keyed by matchId. */
+  matchHistory: "matchHistory",
 } as const;
 
 export function roomMessagesCol(roomId: string) {

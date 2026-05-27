@@ -11,6 +11,7 @@ import { getCategoryById } from "@/lib/game/categories";
 import type { PlayerCosmetic } from "@/lib/profile/cosmetics";
 import type { AwardMatchRewardsResult } from "@/lib/game/match-rewards";
 import type { ChatMessage, GameCard } from "@/types";
+import type { XpBreakdown } from "@/lib/profile/level";
 
 /* ─── Design tokens (local mirror of GP) ─── */
 const W_ORANGE      = "#FF8A3D";
@@ -410,6 +411,43 @@ function StatCell({ label, value }: { label: string; value: string }) {
 }
 
 /* ═══════════════════════════════════════════════════════════
+   XP breakdown pill
+   ═══════════════════════════════════════════════════════════ */
+function XpPill({
+  label,
+  value,
+  color,
+}: {
+  label: string;
+  value: string;
+  color: "sage" | "amber" | "blue" | "purple";
+}) {
+  const configs = {
+    sage:   { bg: "rgba(62,184,122,0.12)", border: "rgba(62,184,122,0.35)", text: "#2d7c52" },
+    amber:  { bg: "rgba(242,181,68,0.14)", border: "rgba(200,130,60,0.38)", text: "#7a4c14" },
+    blue:   { bg: "rgba(80,140,230,0.12)", border: "rgba(80,140,230,0.35)", text: "#2c4e9a" },
+    purple: { bg: "rgba(150,90,220,0.12)", border: "rgba(150,90,220,0.35)", text: "#5c2a8e" },
+  };
+  const c = configs[color];
+  return (
+    <div
+      style={{
+        padding: "4px 10px",
+        borderRadius: 20,
+        background: c.bg,
+        border: `1px solid ${c.border}`,
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 4,
+      }}
+    >
+      <span style={{ fontSize: 10.5, fontWeight: 700, color: c.text }}>{label}</span>
+      <span style={{ fontSize: 11, fontWeight: 900, color: c.text }}>{value} XP</span>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
    Ambient embers
    ═══════════════════════════════════════════════════════════ */
 function FloatingEmbers({ count }: { count: number }) {
@@ -532,10 +570,13 @@ export function MatchResultScreen({
         ? "غادر خصمك المباراة"
         : "في المرة القادمة تنجح إن شاء الله";
 
-  const coinReward = rewards?.coinsAwarded ?? (iWon ? 1 : 0);
-  const xpReward   = rewards?.xpAwarded   ?? (iWon ? XP_PER_WIN : XP_PER_LOSS);
-  const bonusLabel = rewards?.bonusLabelAr ?? null;
-  const shortRoom  = roomId ? roomId.slice(-4).toUpperCase() : "—";
+  const coinReward  = rewards?.coinsAwarded ?? (iWon ? 1 : 0);
+  const xpReward    = rewards?.xpAwarded   ?? (iWon ? XP_PER_WIN : XP_PER_LOSS);
+  const bonusLabel  = rewards?.bonusLabelAr ?? null;
+  const xpBreakdown: XpBreakdown | null = rewards?.xpBreakdown ?? null;
+  const leveledUp   = rewards?.leveledUp ?? false;
+  const levelAfter  = rewards?.levelAfter ?? level;
+  const shortRoom   = roomId ? roomId.slice(-4).toUpperCase() : "—";
 
   return (
     <motion.div
@@ -721,6 +762,7 @@ export function MatchResultScreen({
             />
           </div>
 
+          {/* coin fast-win label (separate from XP breakdown) */}
           {bonusLabel && coinReward > 0 ? (
             <motion.p
               initial={{ opacity: 0, scale: 0.95 }}
@@ -730,9 +772,9 @@ export function MatchResultScreen({
                 marginTop: 10,
                 borderRadius: 12,
                 border: "1px solid rgba(200,130,60,0.42)",
-                padding: "8px 12px",
+                padding: "7px 12px",
                 textAlign: "center",
-                fontSize: 12,
+                fontSize: 11.5,
                 fontWeight: 800,
                 color: W_INK,
                 background: "linear-gradient(180deg, #fff4e0, #ffe8c8)",
@@ -741,6 +783,29 @@ export function MatchResultScreen({
               {bonusLabel}
             </motion.p>
           ) : null}
+
+          {/* XP breakdown pills */}
+          {xpBreakdown && (
+            <div
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: 6,
+                marginTop: 10,
+              }}
+            >
+              <XpPill label="أساسي" value={`+${xpBreakdown.base}`} color="sage" />
+              {xpBreakdown.fastWinBonus > 0 && (
+                <XpPill label="فوز سريع" value={`+${xpBreakdown.fastWinBonus}`} color="amber" />
+              )}
+              {xpBreakdown.toolBonus > 0 && (
+                <XpPill label="أدوات" value={`+${xpBreakdown.toolBonus}`} color="blue" />
+              )}
+              {xpBreakdown.longMatchBonus > 0 && (
+                <XpPill label="مثابرة" value={`+${xpBreakdown.longMatchBonus}`} color="purple" />
+              )}
+            </div>
+          )}
 
           {/* XP bar */}
           <div style={{ marginTop: 14 }}>
@@ -755,7 +820,7 @@ export function MatchResultScreen({
                 marginBottom: 5,
               }}
             >
-              <span>المستوى {level}</span>
+              <span>المستوى {levelAfter}</span>
               <span style={{ fontVariantNumeric: "tabular-nums" }}>
                 {xpInLevel} / {xpToNext} XP
               </span>
@@ -782,6 +847,51 @@ export function MatchResultScreen({
             </div>
           </div>
         </ResultSurf>
+
+        {/* ── Level-up celebration ── */}
+        {leveledUp && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.88, y: 16 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ type: "spring", stiffness: 340, damping: 24, delay: 0.65 }}
+            style={{
+              marginTop: 12,
+              borderRadius: 20,
+              padding: "16px 20px",
+              background: `linear-gradient(135deg, ${W_GOLD} 0%, ${W_ORANGE} 100%)`,
+              border: "1.5px solid rgba(255,255,255,0.35)",
+              boxShadow: `inset 0 1.5px 0 rgba(255,255,255,0.5), 0 12px 32px ${W_ORANGE_DEEP}55`,
+              display: "flex",
+              alignItems: "center",
+              gap: 14,
+            }}
+          >
+            {/* star burst */}
+            <div
+              style={{
+                width: 48,
+                height: 48,
+                borderRadius: "50%",
+                background: "rgba(255,255,255,0.25)",
+                border: "1.5px solid rgba(255,255,255,0.50)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+              }}
+            >
+              <IconStar />
+            </div>
+            <div>
+              <p style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.8)" }}>
+                ارتقيت مستوى
+              </p>
+              <p style={{ fontSize: 22, fontWeight: 900, color: "#fff", letterSpacing: "-0.03em", lineHeight: 1.1 }}>
+                المستوى {levelAfter}
+              </p>
+            </div>
+          </motion.div>
+        )}
 
         {/* ── Match stats ── */}
         <ResultSurf className="mt-3 p-4" delay={0.30}>

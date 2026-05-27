@@ -165,6 +165,19 @@ export function GameplaySocialSurface({
     ? (getCategoryById(opponentCard.categoryId)?.nameAr ?? null)
     : null;
 
+  /**
+   * True when extra-question tool is active for me this turn:
+   * questionQuota=2 and questionsThisTurn < quota — player has a 2nd question to ask.
+   */
+  const extraQuestionPending = useMemo(() => {
+    if (!match || !uid || !myTurn || phase !== "question") return false;
+    const myTactical = match.tacticalByUid?.[uid];
+    if (!myTactical) return false;
+    const quota = myTactical.questionQuota ?? 1;
+    const asked = myTactical.questionsThisTurn ?? 0;
+    return quota >= 2 && asked > 0 && asked < quota;
+  }, [match, uid, myTurn, phase]);
+
   const chatMessages = useMemo(
     () => messages.filter((m) => !isHintChatMessage(m)),
     [messages],
@@ -332,6 +345,7 @@ export function GameplaySocialSurface({
               draft={draft}
               busy={busy}
               guessRemaining={myGuessRemaining}
+              extraQuestionPending={extraQuestionPending}
               onDraftChange={handleDraftChange}
               onSend={() => void onSendDraft()}
               onGuess={onGuessClick}
