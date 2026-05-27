@@ -60,7 +60,7 @@ import { GameplaySocialSurface } from "@/components/game/GameplaySocialSurface";
 import { VoiceModePlayingPanel } from "@/components/game/VoiceModePlayingPanel";
 import { GameplaySheet } from "@/components/game/play/GameplaySheets";
 import { GuessRemainingIndicator } from "@/components/game/play/GuessRemainingIndicator";
-import { TacticalEventBanner } from "@/components/game/play/TacticalEventBanner";
+import { TacticalActivationOverlay, type TacticalActivation } from "@/components/game/play/TacticalActivationOverlay";
 import { FINAL_GUESS_LIMIT, remainingFinalGuesses } from "@/lib/game/match-progression";
 import { useLiveUserProfile } from "@/hooks/useLiveUserProfile";
 import { useLiveUserProfiles } from "@/hooks/useLiveUserProfiles";
@@ -164,6 +164,7 @@ export function RoomExperience({ roomId }: Props) {
   const [lobbyCustomBusy, setLobbyCustomBusy] = useState(false);
   const [friendInviteOpen, setFriendInviteOpen] = useState(false);
   const [customSavePulse, setCustomSavePulse] = useState(0);
+  const [tacticalOverlay, setTacticalOverlay] = useState<TacticalActivation | null>(null);
 
   const [clock, setClock] = useState(() => Date.now());
   const needLiveClock = Boolean(match?.status === "active" && room?.status === "playing");
@@ -471,10 +472,21 @@ export function RoomExperience({ roomId }: Props) {
     const ev = activeTacticalEvent;
     if (!ev?.id || ev.id === lastTacticalEventId.current) return;
     lastTacticalEventId.current = ev.id;
-    if (ev.actorUid === uid) return;
-    resumeAudioContext();
-    playTacticalAlert(ev.blocked === true);
-  }, [activeTacticalEvent, uid]);
+    const isMe = ev.actorUid === uid;
+    // Show cinematic overlay for the opponent (local player triggered it from
+    // TacticalToolsSheet which already shows the overlay for the actor)
+    if (!isMe) {
+      resumeAudioContext();
+      playTacticalAlert(ev.blocked === true);
+      setTacticalOverlay({
+        toolId: ev.toolId as TacticalToolId,
+        actor: "them",
+        key: Date.now(),
+        myName: displayName,
+        opponentName: opponentPlayer?.displayName ?? "الخصم",
+      });
+    }
+  }, [activeTacticalEvent, uid, displayName, opponentPlayer]);
 
   useEffect(() => {
     seenGuessMessageIds.current.clear();
@@ -1545,7 +1557,6 @@ export function RoomExperience({ roomId }: Props) {
             : undefined
         }
       >
-        <TacticalEventBanner event={activeTacticalEvent} myUid={uid} />
 
         {voiceAwaitMatchUI ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-5 px-4 py-10">
@@ -1676,6 +1687,15 @@ export function RoomExperience({ roomId }: Props) {
           </motion.div>
         ) : null}
       </AnimatePresence>
+
+      {/* ════════════════════════════════════════════════════════
+          TACTICAL ACTIVATION OVERLAY — cinematic full-bleed
+          (opponent-triggered tools; actor side fires from sheet)
+      ════════════════════════════════════════════════════════ */}
+      <TacticalActivationOverlay
+        activation={tacticalOverlay}
+        onComplete={() => setTacticalOverlay(null)}
+      />
 
       {/* ════════════════════════════════════════════════════════
           MATCH RESULT SCREEN — full-screen takeover

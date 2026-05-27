@@ -156,7 +156,7 @@ export function ShellMatchPlayerBlock({
             color: "var(--fg-2)",
           }}
         >
-          <span>⭐ {level}</span>
+          <span>مستوى {level}</span>
           <span style={{ opacity: 0.45 }}>·</span>
           <span>{wins ?? 0} فوز</span>
         </div>
@@ -251,7 +251,7 @@ export function ShellLobbySlotCard({
               letterSpacing: "0.01em",
             }}
           >
-            ⭐ {level}
+            مستوى {level}
             {matchWins !== undefined && (
               <span style={{ opacity: 0.55, margin: "0 4px" }}>·</span>
             )}

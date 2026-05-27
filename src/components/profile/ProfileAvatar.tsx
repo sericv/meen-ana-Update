@@ -51,9 +51,7 @@ export function ProfileAvatar({
       style={{
         width: px,
         height: px,
-        boxShadow: active
-          ? "inset 0 2px 0 rgba(255,255,255,0.55), 0 0 0 2px rgba(255,200,80,0.55)"
-          : "inset 0 2px 0 rgba(255,255,255,0.45), 0 0 0 1.5px rgba(244,196,141,0.45)",
+        boxShadow: "inset 0 2px 0 rgba(255,255,255,0.45), 0 0 0 1.5px rgba(244,196,141,0.38)",
       }}
     >
       {photo ? (

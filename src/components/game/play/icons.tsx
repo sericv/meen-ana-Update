@@ -1,7 +1,7 @@
 export function IconSend({ size = 16, color = "currentColor" }: { size?: number; color?: string }) {
   return (
     <svg width={size} height={size} viewBox="0 0 18 18" fill="none" aria-hidden>
-      <path d="M16.5 9L1.5 1.5l3 7.5-3 7.5L16.5 9z" fill={color} />
+      <path d="M1.5 9L16.5 1.5l-3 7.5 3 7.5L1.5 9z" fill={color} />
     </svg>
   );
 }

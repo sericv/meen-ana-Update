@@ -83,7 +83,7 @@ function XpBlockProgress({ xp }: { xp: number }) {
           marginBottom: 5,
         }}
       >
-        <span>{blockRemainder} / {XP_EXCHANGE_BLOCK} نقطة للبلوك التالي</span>
+        <span>{blockRemainder} / {XP_EXCHANGE_BLOCK} نقطة للاستبدال التالي</span>
         <span style={{ color: "oklch(0.46 0.12 74)" }}>{pct}%</span>
       </div>
       <div

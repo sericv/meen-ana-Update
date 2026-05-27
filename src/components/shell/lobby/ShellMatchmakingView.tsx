@@ -16,17 +16,6 @@ function formatElapsed(sec: number) {
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
-/** Search-ripple rings — three expanding rings on the active player avatar */
-function SearchRipple({ color = "oklch(0.78 0.18 65)" }: { color?: string }) {
-  return (
-    <span aria-hidden style={{ position: "absolute", inset: -20, pointerEvents: "none" }}>
-      <span className="search-ripple" style={{ "--ripple-color": color } as React.CSSProperties} />
-      <span className="search-ripple search-ripple-delay" style={{ "--ripple-color": color } as React.CSSProperties} />
-      <span className="search-ripple search-ripple-delay-2" style={{ "--ripple-color": color } as React.CSSProperties} />
-    </span>
-  );
-}
-
 /** Pulsing status dot — small colored circle that breathes */
 function PulseDot({ color }: { color: string }) {
   return (
@@ -123,31 +112,15 @@ export function ShellMatchmakingView({
         {/* VS players row */}
         <div className="row" style={{ width: "100%", justifyContent: "space-around", alignItems: "center" }}>
 
-          {/* My side — with search ripple while searching */}
-          <div style={{ position: "relative" }}>
-            <AnimatePresence>
-              {searching && !isFound && (
-                <motion.span
-                  key="my-ripple"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.4 }}
-                  style={{ position: "absolute", inset: 0, pointerEvents: "none" }}
-                >
-                  <SearchRipple color="oklch(0.78 0.18 65)" />
-                </motion.span>
-              )}
-            </AnimatePresence>
-            <ShellMatchPlayerBlock
-              side="me"
-              name={myName}
-              cosmetic={myCosmetic}
-              photoURL={myPhotoURL}
-              xp={myXp}
-              wins={myWins}
-            />
-          </div>
+          {/* My side */}
+          <ShellMatchPlayerBlock
+            side="me"
+            name={myName}
+            cosmetic={myCosmetic}
+            photoURL={myPhotoURL}
+            xp={myXp}
+            wins={myWins}
+          />
 
           {/* Center VS badge */}
           <div className="col center" style={{ gap: 8 }}>
@@ -199,23 +172,8 @@ export function ShellMatchmakingView({
             )}
           </div>
 
-          {/* Opponent side — with delayed ripple while searching + reveal on found */}
-          <div style={{ position: "relative" }}>
-            <AnimatePresence>
-              {searching && !isFound && (
-                <motion.span
-                  key="opp-ripple"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 0.7 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.4, delay: 0.3 }}
-                  style={{ position: "absolute", inset: 0, pointerEvents: "none" }}
-                >
-                  <SearchRipple color="oklch(0.68 0.18 22)" />
-                </motion.span>
-              )}
-            </AnimatePresence>
-            <ShellMatchPlayerBlock
+          {/* Opponent side */}
+          <ShellMatchPlayerBlock
               side="them"
               name={opponentName}
               cosmetic={opponentCosmetic}
@@ -224,7 +182,6 @@ export function ShellMatchmakingView({
               wins={opponentWins}
               hidden={opponentHidden}
             />
-          </div>
         </div>
 
         {/* Status card */}
