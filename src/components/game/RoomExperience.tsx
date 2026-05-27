@@ -841,8 +841,11 @@ export function RoomExperience({ roomId }: Props) {
     const text = m.text.trim();
     const isQuestion = m.type === "question";
 
+    // Chat alignment (container is dir="rtl"):
+    //  • Player (me)      → LEFT  → alignSelf: "flex-end"   in RTL
+    //  • Opponent         → RIGHT → alignSelf: "flex-start" in RTL
     const bubbleStyle: CSSProperties = {
-      alignSelf: isMe ? "flex-start" : "flex-end",
+      alignSelf: isMe ? "flex-end" : "flex-start",
       display: "inline-flex",
       alignItems: "center",
       gap: 8,
@@ -865,20 +868,23 @@ export function RoomExperience({ roomId }: Props) {
       lineHeight: 1.55,
       whiteSpace: "pre-wrap",
       wordBreak: "break-word",
+      // Tail direction: me = bottom-right corner, opponent = bottom-left corner
+      borderBottomRightRadius: isMe ? 4 : undefined,
+      borderBottomLeftRadius: !isMe ? 4 : undefined,
     };
 
     return (
       <motion.div
         key={m.id}
         layout
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.22 }}
+        initial={{ opacity: 0, scale: 0.94, y: 6 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
         className="shrink-0"
         style={bubbleStyle}
       >
         {isGuessMsg ? <span aria-hidden>🎯</span> : null}
-        <span>{isGuessMsg ? `تخميني: ${m.text}` : m.text}</span>
+        <span dir="rtl">{isGuessMsg ? `تخميني: ${m.text}` : m.text}</span>
         {isQuestion ? <span className="text-[10px] opacity-60">سؤال</span> : null}
       </motion.div>
     );

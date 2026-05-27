@@ -494,6 +494,35 @@ html.kbd-open .gameplay-card-compact {
   }
 }
 
+/* ─── Shop item card — icon float animations ──────────────────────────
+   Three tiers:
+   · shopIconFloat         — standard gentle float (common/rare)
+   · shopIconFloatEpic     — slightly more dramatic arc (epic)
+   · shopIconFloatLegendary— slow majestic float with golden sheen (legendary)
+
+   All use translateY only — compositor-only, zero layout/paint cost.
+   The `filter: drop-shadow` change is on the same element and is also
+   GPU-composited on modern browsers.
+   ─────────────────────────────────────────────────────────────────── */
+@keyframes shopIconFloat {
+  0%   { transform: translateY(0px);   }
+  50%  { transform: translateY(-4px);  }
+  100% { transform: translateY(0px);   }
+}
+
+@keyframes shopIconFloatEpic {
+  0%   { transform: translateY(0px) scale(1.00);   }
+  48%  { transform: translateY(-5px) scale(1.02);  }
+  100% { transform: translateY(0px) scale(1.00);   }
+}
+
+@keyframes shopIconFloatLegendary {
+  0%   { transform: translateY(0px) scale(1.00);    }
+  45%  { transform: translateY(-6px) scale(1.03);   }
+  55%  { transform: translateY(-6px) scale(1.03);   }
+  100% { transform: translateY(0px) scale(1.00);    }
+}
+
 /* ─── Reduced motion friendliness ─────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   *,

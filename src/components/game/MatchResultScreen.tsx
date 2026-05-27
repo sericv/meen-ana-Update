@@ -4,7 +4,6 @@ import { motion } from "framer-motion";
 import Image from "next/image";
 import { memo, useEffect, useMemo, useState } from "react";
 import { ConfettiBurst } from "@/components/game/ConfettiBurst";
-import { CoinDisplay } from "@/components/ui/CoinDisplay";
 import { useLiveUserProfile } from "@/hooks/useLiveUserProfile";
 import { postGame } from "@/lib/api/game-client";
 import { XP_PER_LOSS, XP_PER_WIN, xpProgressInCurrentLevel } from "@/lib/profile/level";
@@ -13,18 +12,23 @@ import type { PlayerCosmetic } from "@/lib/profile/cosmetics";
 import type { AwardMatchRewardsResult } from "@/lib/game/match-rewards";
 import type { ChatMessage, GameCard } from "@/types";
 
-const CARD_PLACEHOLDER = "/cards/_placeholder.svg";
-
-const W_ORANGE = "#FF8A3D";
+/* ─── Design tokens (local mirror of GP) ─── */
+const W_ORANGE      = "#FF8A3D";
 const W_ORANGE_DEEP = "#F26A1F";
 const W_ORANGE_SOFT = "#FFC58A";
-const W_CREAM = "#FFF1DD";
-const W_INK = "#3A2517";
-const W_INK_SOFT = "#7A5A45";
-const W_GOLD = "#F2B544";
-const W_GOLD_DEEP = "#C8881F";
-const W_GREEN = "#3FB87A";
-const W_SAGE = "#5a9a7a";
+const W_CREAM       = "#FFF1DD";
+const W_INK         = "#3A2517";
+const W_INK_SOFT    = "#7A5A45";
+const W_GOLD        = "#F2B544";
+const W_GOLD_DEEP   = "#C8881F";
+const W_GREEN       = "#3FB87A";
+const W_SAGE        = "#5a9a7a";
+
+const CARD_PLACEHOLDER = "/cards/_placeholder.svg";
+
+/* ─── spring config ─── */
+const SPRING = { type: "spring", stiffness: 340, damping: 28, mass: 0.9 } as const;
+const SPRING_SOFT = { type: "spring", stiffness: 260, damping: 26, mass: 1 } as const;
 
 export type MatchResultScreenProps = {
   roomId: string;
@@ -49,6 +53,10 @@ export type MatchResultScreenProps = {
   myPhotoURL?: string | null;
 };
 
+/* ═══════════════════════════════════════════════════════════
+   Helpers
+   ═══════════════════════════════════════════════════════════ */
+
 function useRevealedCards(roomId: string, myUid: string): {
   myCard: GameCard | null;
   opponentCard: GameCard | null;
@@ -57,11 +65,7 @@ function useRevealedCards(roomId: string, myUid: string): {
   const [oppCard, setOppCard] = useState<GameCard | null>(null);
 
   useEffect(() => {
-    if (!roomId || !myUid) {
-      setMyCard(null);
-      setOppCard(null);
-      return;
-    }
+    if (!roomId || !myUid) { setMyCard(null); setOppCard(null); return; }
     let cancelled = false;
     let attempts = 0;
     const tick = async () => {
@@ -71,20 +75,8 @@ function useRevealedCards(roomId: string, myUid: string): {
         const res = await postGame("/api/game/reveal-cards", { roomId });
         const data = res as {
           ok?: boolean;
-          myCard?: {
-            cardId: string;
-            name: string;
-            nameAr: string;
-            imageUrl: string;
-            categoryId: string;
-          } | null;
-          opponentCard?: {
-            cardId: string;
-            name: string;
-            nameAr: string;
-            imageUrl: string;
-            categoryId: string;
-          } | null;
+          myCard?: { cardId: string; name: string; nameAr: string; imageUrl: string; categoryId: string } | null;
+          opponentCard?: { cardId: string; name: string; nameAr: string; imageUrl: string; categoryId: string } | null;
         };
         if (cancelled) return;
         const mapCard = (c: NonNullable<typeof data.myCard>): GameCard => ({
@@ -98,15 +90,11 @@ function useRevealedCards(roomId: string, myUid: string): {
         if (data.myCard) setMyCard(mapCard(data.myCard));
         if (data.opponentCard) setOppCard(mapCard(data.opponentCard));
       } catch {
-        if (!cancelled && attempts < 5) {
-          setTimeout(() => void tick(), 400 * attempts);
-        }
+        if (!cancelled && attempts < 5) setTimeout(() => void tick(), 400 * attempts);
       }
     };
     void tick();
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [roomId, myUid]);
 
   return { myCard, opponentCard: oppCard };
@@ -119,129 +107,9 @@ function formatDuration(ms: number): string {
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
-const CardImg = memo(function CardImgInner({ src, alt }: { src: string; alt: string }) {
-  const [errored, setErrored] = useState(false);
-  const finalSrc = errored || !src ? CARD_PLACEHOLDER : src;
-  return (
-    <Image
-      src={finalSrc}
-      alt={alt}
-      fill
-      className="object-cover object-center"
-      sizes="70px"
-      unoptimized
-      onError={() => setErrored(true)}
-    />
-  );
-});
-
-function ResultMiniCard({
-  title,
-  category,
-  imageUrl,
-  tilt = 0,
-}: {
-  title: string;
-  category: string | null;
-  imageUrl?: string;
-  tilt?: number;
-}) {
-  return (
-    <div
-      className="relative shrink-0 overflow-hidden rounded-xl border border-[rgba(255,138,61,0.28)]"
-      style={{
-        width: 70,
-        height: 98,
-        transform: `rotate(${tilt}deg)`,
-        background: "linear-gradient(160deg,#fff 0%,#fff1dd 48%,#fbe0bd 100%)",
-        boxShadow: "0 10px 22px rgba(180,100,30,0.2), inset 0 1px 0 #fff",
-      }}
-    >
-      <motion.div className="relative h-[62%] w-full">
-        {imageUrl ? <CardImg src={imageUrl} alt={title} /> : null}
-      </motion.div>
-      <div className="px-1.5 py-1 text-center">
-        <p className="truncate text-[9px] font-extrabold" style={{ color: W_INK }}>
-          {title}
-        </p>
-        {category ? (
-          <p className="truncate text-[7px] font-semibold" style={{ color: W_INK_SOFT }}>
-            {category}
-          </p>
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
-function ResultSurf({
-  children,
-  className = "",
-  style,
-}: {
-  children: React.ReactNode;
-  className?: string;
-  style?: React.CSSProperties;
-}) {
-  return (
-    <motion.div
-      className={`rounded-2xl border border-[rgba(244,196,141,0.45)] bg-white/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.92),0_8px_24px_rgba(196,134,82,0.12)] ${className}`}
-      style={style}
-    >
-      {children}
-    </motion.div>
-  );
-}
-
-function RewardTile({
-  icon,
-  label,
-  value,
-  accent,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-  accent: "amber" | "sage";
-}) {
-  const amber = accent === "amber";
-  return (
-    <div
-      className="flex items-center gap-2.5 rounded-xl border p-3"
-      style={{
-        background: amber
-          ? "linear-gradient(160deg, #fff4e0, #ffe8c8)"
-          : "linear-gradient(160deg, #eef8f2, #e0f0e8)",
-        borderColor: amber ? "rgba(200,130,60,0.4)" : "rgba(90,154,122,0.35)",
-      }}
-    >
-      <motion.div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-[rgba(244,196,141,0.4)] bg-white/90">
-        {icon}
-      </motion.div>
-      <div>
-        <p className="text-[11px] font-semibold" style={{ color: W_INK_SOFT }}>
-          {label}
-        </p>
-        <p className="text-lg font-black" style={{ color: W_INK }}>
-          {value}
-        </p>
-      </div>
-    </div>
-  );
-}
-
-function StatCell({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex flex-col items-center rounded-xl border border-[rgba(244,196,141,0.35)] bg-white/70 px-1.5 py-2.5">
-      <p className="text-lg font-black tabular-nums" style={{ color: W_INK }}>
-        {value}
-      </p>
-      <p className="text-[10px] font-semibold" style={{ color: W_INK_SOFT }}>
-        {label}
-      </p>
-    </div>
-  );
-}
+/* ═══════════════════════════════════════════════════════════
+   SVG Icons & primitives
+   ═══════════════════════════════════════════════════════════ */
 
 function IconClose() {
   return (
@@ -267,7 +135,7 @@ function IconRefresh() {
 
 function IconStar() {
   return (
-    <svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden>
+    <svg width="20" height="20" viewBox="0 0 22 22" fill="none" aria-hidden>
       <path
         d="M11 2l2.4 5.8 6.2.5-4.7 4 1.4 6.1L11 15.8 6.7 18.4l1.4-6.1-4.7-4 6.2-.5L11 2z"
         fill={W_SAGE}
@@ -276,17 +144,274 @@ function IconStar() {
   );
 }
 
-function IconFlame() {
+/**
+ * OfficialCoin — exact visual replica of .coin-ico from shell-tokens.css.
+ * Uses inline SVG so it works outside .shell-screen context.
+ * Radial gradient: oklch(0.96 0.13 90) → oklch(0.72 0.17 60) = #fef3a0 → #c8881f approx
+ */
+function OfficialCoin({ size = 22 }: { size?: number }) {
   return (
-    <svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden>
-      <path
-        d="M11 20c4-2.5 6-5.5 6-9a5.5 5.5 0 0 0-6-5.3C9 8.5 7 10 7 12.5 7 14 8 15.5 9 16.5 8 14.5 8 12 9.5 10.5 10.5 9 10 7.5 8.5 7.5 6.5 8 5 9.5 4 11 4 14.5 6 17.5 11 20z"
-        fill={W_INK}
-      />
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 22 22"
+      fill="none"
+      aria-hidden
+      style={{ flexShrink: 0 }}
+    >
+      <defs>
+        <radialGradient id="coinFace" cx="35%" cy="30%" r="65%">
+          <stop offset="0%"  stopColor="#fef6c8" />
+          <stop offset="45%" stopColor="#f2b544" />
+          <stop offset="100%" stopColor="#b87818" />
+        </radialGradient>
+        <radialGradient id="coinGlow" cx="50%" cy="50%" r="50%">
+          <stop offset="0%"  stopColor="#f2b544" stopOpacity="0.55" />
+          <stop offset="100%" stopColor="#f2b544" stopOpacity="0" />
+        </radialGradient>
+      </defs>
+      {/* outer glow ring */}
+      <circle cx="11" cy="11" r="10.5" fill="url(#coinGlow)" />
+      {/* coin face */}
+      <circle cx="11" cy="11" r="9" fill="url(#coinFace)" />
+      {/* inner bottom shadow */}
+      <ellipse cx="11" cy="16" rx="5.5" ry="2.5" fill="rgba(80,40,0,0.18)" />
+      {/* specular highlight */}
+      <ellipse cx="9" cy="7.5" rx="3" ry="1.5" fill="rgba(255,255,255,0.42)" transform="rotate(-18 9 7.5)" />
     </svg>
   );
 }
 
+/* ═══════════════════════════════════════════════════════════
+   Card image
+   ═══════════════════════════════════════════════════════════ */
+
+const CardImg = memo(function CardImgInner({ src, alt }: { src: string; alt: string }) {
+  const [errored, setErrored] = useState(false);
+  const finalSrc = errored || !src ? CARD_PLACEHOLDER : src;
+  return (
+    <Image
+      src={finalSrc}
+      alt={alt}
+      fill
+      className="object-cover object-center"
+      sizes="80px"
+      unoptimized
+      onError={() => setErrored(true)}
+    />
+  );
+});
+
+/* ═══════════════════════════════════════════════════════════
+   ResultMiniCard — used inside the dual-card fan composition
+   ═══════════════════════════════════════════════════════════ */
+function ResultMiniCard({
+  title,
+  category,
+  imageUrl,
+  label,
+  tilt = 0,
+  delay = 0,
+  highlighted = false,
+}: {
+  title: string;
+  category: string | null;
+  imageUrl?: string;
+  label: string;
+  tilt?: number;
+  delay?: number;
+  highlighted?: boolean;
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20, rotate: tilt - (tilt > 0 ? 12 : -12) }}
+      animate={{ opacity: 1, y: 0, rotate: tilt }}
+      transition={{ ...SPRING, delay }}
+      style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}
+    >
+      {/* card */}
+      <div
+        style={{
+          position: "relative",
+          width: 80,
+          height: 112,
+          borderRadius: 14,
+          overflow: "hidden",
+          border: highlighted
+            ? `2px solid rgba(255,138,61,0.7)`
+            : "1.5px solid rgba(255,138,61,0.28)",
+          background: "linear-gradient(160deg,#fff 0%,#fff1dd 48%,#fbe0bd 100%)",
+          boxShadow: highlighted
+            ? "0 14px 32px rgba(180,100,30,0.28), inset 0 1px 0 #fff"
+            : "0 8px 22px rgba(180,100,30,0.18), inset 0 1px 0 #fff",
+        }}
+      >
+        <div style={{ position: "relative", height: "63%", width: "100%" }}>
+          {imageUrl ? <CardImg src={imageUrl} alt={title} /> : null}
+        </div>
+        <div style={{ padding: "4px 6px 5px", textAlign: "center" }}>
+          <p
+            style={{
+              fontSize: 9,
+              fontWeight: 800,
+              color: W_INK,
+              lineHeight: 1.2,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {title}
+          </p>
+          {category && (
+            <p style={{ fontSize: 7.5, fontWeight: 600, color: W_INK_SOFT, marginTop: 1 }}>
+              {category}
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* owner label pill */}
+      <div
+        style={{
+          background: highlighted
+            ? `linear-gradient(180deg, ${W_ORANGE}, ${W_ORANGE_DEEP})`
+            : "rgba(255,255,255,0.88)",
+          border: highlighted ? "none" : "1px solid rgba(244,196,141,0.5)",
+          borderRadius: 999,
+          padding: "3px 10px",
+          fontSize: 10,
+          fontWeight: 800,
+          color: highlighted ? "#fff" : W_INK_SOFT,
+          boxShadow: highlighted
+            ? "0 3px 10px rgba(240,100,20,0.28)"
+            : "0 1px 4px rgba(180,100,30,0.10)",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {label}
+      </div>
+    </motion.div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Surface card
+   ═══════════════════════════════════════════════════════════ */
+function ResultSurf({
+  children,
+  className = "",
+  style,
+  delay = 0,
+}: {
+  children: React.ReactNode;
+  className?: string;
+  style?: React.CSSProperties;
+  delay?: number;
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 14 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ ...SPRING_SOFT, delay }}
+      className={`rounded-2xl border border-[rgba(244,196,141,0.42)] bg-white/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.92),0_8px_24px_rgba(196,134,82,0.11)] ${className}`}
+      style={style}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Reward row — inline with the official coin
+   ═══════════════════════════════════════════════════════════ */
+function RewardRow({
+  icon,
+  label,
+  value,
+  accent,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  accent: "amber" | "sage";
+}) {
+  const amber = accent === "amber";
+  return (
+    <div
+      className="flex items-center gap-3 rounded-2xl border p-3.5"
+      style={{
+        background: amber
+          ? "linear-gradient(160deg, #fff4e0, #ffe8c8)"
+          : "linear-gradient(160deg, #eef8f2, #e0f0e8)",
+        borderColor: amber ? "rgba(200,130,60,0.38)" : "rgba(90,154,122,0.32)",
+      }}
+    >
+      {/* icon bubble */}
+      <div
+        className="grid h-11 w-11 shrink-0 place-items-center rounded-[14px]"
+        style={{
+          background: amber
+            ? `linear-gradient(180deg, ${W_GOLD}, ${W_GOLD_DEEP})`
+            : `linear-gradient(180deg, #62bc8a, #3a8a60)`,
+          boxShadow: amber
+            ? `inset 0 1px 0 rgba(255,255,255,0.5), 0 4px 12px ${W_GOLD_DEEP}44`
+            : "inset 0 1px 0 rgba(255,255,255,0.4), 0 4px 12px rgba(60,140,90,0.25)",
+        }}
+      >
+        {icon}
+      </div>
+
+      {/* text */}
+      <div className="min-w-0 flex-1">
+        <p style={{ fontSize: 11, fontWeight: 600, color: W_INK_SOFT }}>{label}</p>
+        <p style={{ fontSize: 22, fontWeight: 900, color: W_INK, lineHeight: 1.1, letterSpacing: "-0.03em" }}>
+          {value}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Stat cell
+   ═══════════════════════════════════════════════════════════ */
+function StatCell({ label, value }: { label: string; value: string }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        borderRadius: 14,
+        border: "1px solid rgba(244,196,141,0.32)",
+        background: "rgba(255,255,255,0.65)",
+        padding: "10px 8px",
+        gap: 2,
+      }}
+    >
+      <p
+        style={{
+          fontSize: 20,
+          fontWeight: 900,
+          color: W_INK,
+          lineHeight: 1,
+          letterSpacing: "-0.03em",
+          fontVariantNumeric: "tabular-nums",
+        }}
+      >
+        {value}
+      </p>
+      <p style={{ fontSize: 10, fontWeight: 600, color: W_INK_SOFT, lineHeight: 1.2, textAlign: "center" }}>
+        {label}
+      </p>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Ambient embers
+   ═══════════════════════════════════════════════════════════ */
 function FloatingEmbers({ count }: { count: number }) {
   const pieces = useMemo(
     () =>
@@ -304,25 +429,18 @@ function FloatingEmbers({ count }: { count: number }) {
         <motion.span
           key={i}
           className="absolute bottom-0 rounded-full"
-          style={{
-            left: p.left,
-            width: p.size,
-            height: p.size,
-            background: W_ORANGE_SOFT,
-          }}
-          animate={{ y: [0, -120, -240], opacity: [0, 0.7, 0] }}
-          transition={{
-            duration: p.dur,
-            repeat: Infinity,
-            delay: p.delay,
-            ease: "easeOut",
-          }}
+          style={{ left: p.left, width: p.size, height: p.size, background: W_ORANGE_SOFT }}
+          animate={{ y: [0, -120, -240], opacity: [0, 0.65, 0] }}
+          transition={{ duration: p.dur, repeat: Infinity, delay: p.delay, ease: "easeOut" }}
         />
       ))}
     </div>
   );
 }
 
+/* ═══════════════════════════════════════════════════════════
+   Main screen
+   ═══════════════════════════════════════════════════════════ */
 export function MatchResultScreen({
   roomId,
   matchId,
@@ -344,19 +462,14 @@ export function MatchResultScreen({
   const effectiveOpponentCard = revealedOpponentCard ?? opponentCard;
   const liveProfile = useLiveUserProfile(myUid);
 
-  const myTitle = myCard?.nameAr || myCard?.name || "—";
-  const oppTitle =
-    effectiveOpponentCard?.nameAr || effectiveOpponentCard?.name || opponentName || "—";
-  const myCategory = myCard?.categoryId
-    ? (getCategoryById(myCard.categoryId)?.nameAr ?? null)
-    : null;
-  const oppCategory = effectiveOpponentCard?.categoryId
-    ? (getCategoryById(effectiveOpponentCard.categoryId)?.nameAr ?? null)
-    : null;
+  const myTitle  = myCard?.nameAr  || myCard?.name  || "—";
+  const oppTitle = effectiveOpponentCard?.nameAr || effectiveOpponentCard?.name || opponentName || "—";
+  const myCategory  = myCard?.categoryId  ? (getCategoryById(myCard.categoryId)?.nameAr  ?? null) : null;
+  const oppCategory = effectiveOpponentCard?.categoryId ? (getCategoryById(effectiveOpponentCard.categoryId)?.nameAr ?? null) : null;
 
-  const [show, setShow] = useState(false);
+  const [show, setShow]               = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
-  const [rewards, setRewards] = useState<AwardMatchRewardsResult | null>(null);
+  const [rewards, setRewards]         = useState<AwardMatchRewardsResult | null>(null);
 
   useEffect(() => {
     const t = window.setTimeout(() => setShow(true), 80);
@@ -365,7 +478,7 @@ export function MatchResultScreen({
 
   useEffect(() => {
     if (!iWon) return;
-    const t = window.setTimeout(() => setShowConfetti(true), 200);
+    const t = window.setTimeout(() => setShowConfetti(true), 240);
     return () => window.clearTimeout(t);
   }, [iWon]);
 
@@ -387,9 +500,7 @@ export function MatchResultScreen({
         if (!cancelled) window.sessionStorage.removeItem(key);
       }
     })();
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [myUid, matchId]);
 
   const durationLabel = useMemo(() => {
@@ -404,20 +515,17 @@ export function MatchResultScreen({
     [messages],
   );
 
-  const hintCount = toolsUsed;
-
   const xp = liveProfile?.progress.xp ?? 0;
-  const matchWins = rewards?.matchWins ?? liveProfile?.progress.matchWins ?? 0;
   const { level, xpInLevel, xpToNext, pct: levelPct } = xpProgressInCurrentLevel(xp);
   const levelPctAnimated = show ? levelPct : Math.max(0, levelPct - 8);
 
   const headline = iWon ? (forfeitWin ? "فزت!" : "أحسنت!") : "خسارة";
-  const subline = iWon
+  const subline  = iWon
     ? forfeitWin
       ? "فزت بانسحاب الخصم"
       : guessLimitWin
         ? "فزت — استنفد الخصم محاولات التخمين"
-        : "فزت بالمباراة • خمّنت كرتك في الوقت"
+        : "فزت بالمباراة · خمّنت كرتك في الوقت"
     : guessLimitWin
       ? "استنفدت محاولات التخمين"
       : forfeitWin
@@ -425,227 +533,319 @@ export function MatchResultScreen({
         : "في المرة القادمة تنجح إن شاء الله";
 
   const coinReward = rewards?.coinsAwarded ?? (iWon ? 1 : 0);
-  const xpReward = rewards?.xpAwarded ?? (iWon ? XP_PER_WIN : XP_PER_LOSS);
+  const xpReward   = rewards?.xpAwarded   ?? (iWon ? XP_PER_WIN : XP_PER_LOSS);
   const bonusLabel = rewards?.bonusLabelAr ?? null;
-
-  const shortRoom = roomId ? roomId.slice(-4).toUpperCase() : "—";
+  const shortRoom  = roomId ? roomId.slice(-4).toUpperCase() : "—";
 
   return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
+      transition={{ duration: 0.22 }}
       dir="rtl"
       className="match-result-screen absolute inset-0 z-50 flex min-h-0 w-full flex-col overflow-hidden"
       style={{
         background: iWon
-          ? "radial-gradient(900px 600px at 50% -10%, rgba(255,220,160,0.85), transparent), linear-gradient(180deg, #fff9f0, #fce8d2)"
-          : "radial-gradient(900px 600px at 50% -10%, rgba(255,200,180,0.75), transparent), linear-gradient(180deg, #fff9f0, #fce8d2)",
+          ? "radial-gradient(ellipse 900px 500px at 50% -5%, rgba(255,220,160,0.9), transparent), linear-gradient(180deg, #fff9f0 0%, #fce8d2 100%)"
+          : "radial-gradient(ellipse 900px 500px at 50% -5%, rgba(255,200,180,0.78), transparent), linear-gradient(180deg, #fff9f0 0%, #fce8d2 100%)",
       }}
     >
-      <FloatingEmbers count={iWon ? 24 : 10} />
+      <FloatingEmbers count={iWon ? 22 : 8} />
       {iWon && showConfetti ? <ConfettiBurst active /> : null}
 
-      <header className="relative z-10 flex shrink-0 items-center justify-between px-4 pb-1 pt-[max(0.5rem,env(safe-area-inset-top))]">
+      {/* ── Header ── */}
+      <header
+        className="relative z-10 flex shrink-0 items-center justify-between px-4 pb-1"
+        style={{ paddingTop: "max(0.5rem, env(safe-area-inset-top))" }}
+      >
         <button
           type="button"
           onClick={onHome}
-          className="rounded-xl bg-white/80 p-2 shadow-sm"
+          className="rounded-xl bg-white/80 p-2"
+          style={{ boxShadow: "0 1px 6px rgba(180,100,30,0.10)" }}
           aria-label="إغلاق"
         >
           <IconClose />
         </button>
-        <span className="text-xs font-semibold tabular-nums" style={{ color: W_INK_SOFT }}>
+        <span style={{ fontSize: 11, fontWeight: 600, color: W_INK_SOFT }}>
           المباراة #{shortRoom}
         </span>
-        <span className="w-9" aria-hidden />
+        <span style={{ width: 36 }} aria-hidden />
       </header>
 
+      {/* ── Scrollable body ── */}
       <div className="relative z-10 min-h-0 flex-1 overflow-y-auto overscroll-contain px-[18px] pb-2">
-        <div className="pt-2 text-center">
-          <div
-            style={{
-              display: "inline-block",
-              transform: show ? "scale(1)" : "scale(0.6)",
-              opacity: show ? 1 : 0,
-              transition: "all 0.6s cubic-bezier(0.2, 1.4, 0.3, 1)",
-            }}
+
+        {/* ── Headline ── */}
+        <div className="pt-1 text-center">
+          <motion.div
+            initial={{ scale: 0.55, opacity: 0 }}
+            animate={show ? { scale: 1, opacity: 1 } : {}}
+            transition={{ ...SPRING, delay: 0.04 }}
           >
             <h1
-              className="text-[clamp(2.25rem,11vw,3.2rem)] font-black leading-none"
+              className="font-black leading-none"
               style={{
+                fontSize: "clamp(2.6rem, 12vw, 3.8rem)",
                 background: iWon
-                  ? `linear-gradient(180deg, ${W_ORANGE}, ${W_ORANGE_DEEP})`
-                  : "linear-gradient(180deg, #c45a4a, #8a3028)",
+                  ? `linear-gradient(180deg, ${W_ORANGE} 0%, ${W_ORANGE_DEEP} 100%)`
+                  : "linear-gradient(180deg, #c45a4a 0%, #8a3028 100%)",
                 WebkitBackgroundClip: "text",
                 WebkitTextFillColor: "transparent",
                 filter: iWon
-                  ? "drop-shadow(0 2px 8px rgba(255,160,60,0.35))"
-                  : "drop-shadow(0 2px 8px rgba(180,80,60,0.3))",
+                  ? "drop-shadow(0 3px 10px rgba(255,160,60,0.38))"
+                  : "drop-shadow(0 3px 10px rgba(180,80,60,0.32))",
               }}
             >
               {headline}
             </h1>
-            <p className="mt-2 text-sm font-semibold" style={{ color: W_INK_SOFT }}>
-              {subline}
-            </p>
-          </div>
+          </motion.div>
+          <motion.p
+            initial={{ opacity: 0, y: 6 }}
+            animate={show ? { opacity: 1, y: 0 } : {}}
+            transition={{ duration: 0.38, delay: 0.22 }}
+            style={{ marginTop: 6, fontSize: 13, fontWeight: 600, color: W_INK_SOFT }}
+          >
+            {subline}
+          </motion.p>
         </div>
 
-        <ResultSurf className="mt-4 p-4">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-[11px] font-bold" style={{ color: W_INK_SOFT }}>
-                كرتي كان
-              </p>
-              <p className="truncate text-2xl font-black" style={{ color: W_INK }}>
-                {myTitle}
-              </p>
-            </div>
+        {/* ── Cards reveal ── */}
+        <ResultSurf className="mt-5 p-5" delay={0.12}>
+          {/* Two-card fan: both centered, counter-rotation creates a V-spread */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "flex-end",
+              justifyContent: "center",
+              gap: 20,
+              marginBottom: 16,
+            }}
+          >
+            {/* My card — slight left tilt */}
             <ResultMiniCard
               title={myTitle}
               category={myCategory}
               imageUrl={myCard?.imageUrl}
-              tilt={-6}
+              label="كرتي"
+              tilt={-4}
+              delay={0.22}
+              highlighted={iWon}
             />
-          </div>
-          <motion.div
-            className="mt-3 flex items-start justify-between gap-3 border-t pt-3"
-            style={{ borderColor: "rgba(244,196,141,0.45)" }}
-          >
-            <div className="min-w-0">
-              <p className="text-[11px] font-bold" style={{ color: W_INK_SOFT }}>
-                كرت الخصم
-              </p>
-              <p className="truncate text-2xl font-black" style={{ color: W_INK }}>
-                {oppTitle}
-              </p>
-            </div>
+
+            {/* Opponent card — slight right tilt */}
             <ResultMiniCard
               title={oppTitle}
               category={oppCategory}
               imageUrl={effectiveOpponentCard?.imageUrl}
-              tilt={6}
+              label="كرت الخصم"
+              tilt={4}
+              delay={0.30}
+              highlighted={!iWon}
             />
-          </motion.div>
+          </div>
+
+          {/* Card names listed below */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: 8,
+            }}
+          >
+            <div
+              style={{
+                background: iWon ? "linear-gradient(160deg, #fff4e0, #ffe8c8)" : "rgba(255,255,255,0.65)",
+                borderRadius: 12,
+                border: iWon ? "1px solid rgba(242,181,68,0.5)" : "1px solid rgba(244,196,141,0.32)",
+                padding: "8px 10px",
+              }}
+            >
+              <p style={{ fontSize: 10, fontWeight: 700, color: W_INK_SOFT, marginBottom: 2 }}>كرتي كان</p>
+              <p
+                style={{
+                  fontSize: 14,
+                  fontWeight: 900,
+                  color: W_INK,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {myTitle}
+              </p>
+            </div>
+            <div
+              style={{
+                background: !iWon ? "linear-gradient(160deg, #fff4e0, #ffe8c8)" : "rgba(255,255,255,0.65)",
+                borderRadius: 12,
+                border: !iWon ? "1px solid rgba(242,181,68,0.5)" : "1px solid rgba(244,196,141,0.32)",
+                padding: "8px 10px",
+              }}
+            >
+              <p style={{ fontSize: 10, fontWeight: 700, color: W_INK_SOFT, marginBottom: 2 }}>كرت الخصم</p>
+              <p
+                style={{
+                  fontSize: 14,
+                  fontWeight: 900,
+                  color: W_INK,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {oppTitle}
+              </p>
+            </div>
+          </div>
         </ResultSurf>
 
-        <ResultSurf className="mt-3 p-4">
-          <h2 className="text-base font-extrabold" style={{ color: W_INK }}>
+        {/* ── Rewards ── */}
+        <ResultSurf className="mt-3 p-4" delay={0.22}>
+          <h2 style={{ fontSize: 15, fontWeight: 800, color: W_INK, marginBottom: 12 }}>
             المكافآت
           </h2>
-          <div className="mt-3 grid grid-cols-2 gap-2.5">
-            <RewardTile
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            <RewardRow
               accent="amber"
               label="عملات"
               value={coinReward > 0 ? `+${coinReward}` : "—"}
-              icon={<CoinDisplay amount={coinReward || 0} size="sm" />}
+              icon={<OfficialCoin size={26} />}
             />
-            <RewardTile
+            <RewardRow
               accent="sage"
               label="خبرة"
-              value={`+${xpReward} XP`}
+              value={`+${xpReward}`}
               icon={<IconStar />}
             />
           </div>
+
           {bonusLabel && coinReward > 0 ? (
-            <p
-              className="mt-2.5 rounded-xl border px-3 py-2 text-center text-xs font-extrabold"
+            <motion.p
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.55, duration: 0.3 }}
               style={{
-                borderColor: "rgba(200,130,60,0.45)",
+                marginTop: 10,
+                borderRadius: 12,
+                border: "1px solid rgba(200,130,60,0.42)",
+                padding: "8px 12px",
+                textAlign: "center",
+                fontSize: 12,
+                fontWeight: 800,
                 color: W_INK,
                 background: "linear-gradient(180deg, #fff4e0, #ffe8c8)",
               }}
             >
               {bonusLabel}
-            </p>
+            </motion.p>
           ) : null}
-          <div className="mt-3">
-            <motion.div className="flex items-center justify-between text-xs font-semibold" style={{ color: W_INK_SOFT }}>
+
+          {/* XP bar */}
+          <div style={{ marginTop: 14 }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                fontSize: 11,
+                fontWeight: 600,
+                color: W_INK_SOFT,
+                marginBottom: 5,
+              }}
+            >
               <span>المستوى {level}</span>
-              <span className="tabular-nums">
+              <span style={{ fontVariantNumeric: "tabular-nums" }}>
                 {xpInLevel} / {xpToNext} XP
               </span>
-            </motion.div>
+            </div>
             <div
-              className="relative mt-1.5 h-2 overflow-hidden rounded-full"
-              style={{ background: "rgba(58,37,23,0.12)" }}
+              style={{
+                position: "relative",
+                height: 8,
+                borderRadius: 999,
+                overflow: "hidden",
+                background: "rgba(58,37,23,0.10)",
+              }}
             >
               <div
-                className="h-full rounded-full transition-[width] duration-1000 ease-out"
                 style={{
+                  height: "100%",
+                  borderRadius: 999,
                   width: `${levelPctAnimated}%`,
                   background: `linear-gradient(90deg, ${W_GOLD}, ${W_GOLD_DEEP})`,
-                  boxShadow: `0 0 8px ${W_GOLD}`,
-                  transitionDelay: "0.4s",
+                  boxShadow: `0 0 8px ${W_GOLD}88`,
+                  transition: "width 1s ease-out 0.4s",
                 }}
               />
             </div>
           </div>
         </ResultSurf>
 
-        <ResultSurf className="mt-3 p-3.5">
-          <h2 className="text-base font-extrabold" style={{ color: W_INK }}>
+        {/* ── Match stats ── */}
+        <ResultSurf className="mt-3 p-4" delay={0.30}>
+          <h2 style={{ fontSize: 15, fontWeight: 800, color: W_INK, marginBottom: 12 }}>
             إحصائيات المباراة
           </h2>
-          <div className="mt-3 grid grid-cols-3 gap-2">
-            <StatCell label="الأسئلة" value={String(questionCount)} />
-            <StatCell label="التلميحات والأدوات" value={String(hintCount)} />
-            <StatCell label="المدة" value={durationLabel} />
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8 }}>
+            <StatCell label="الأسئلة"            value={String(questionCount)} />
+            <StatCell label="الأدوات والتلميحات"  value={String(toolsUsed)} />
+            <StatCell label="المدة"               value={durationLabel} />
           </div>
         </ResultSurf>
 
-        {iWon && matchWins >= 2 ? (
-          <ResultSurf
-            className="mt-3 flex items-center gap-3 p-3.5"
-            style={{
-              background: "linear-gradient(180deg, #fff4e0, #ffe0b8)",
-              borderColor: "rgba(200,130,60,0.45)",
-            }}
-          >
-            <div
-              className="grid h-11 w-11 shrink-0 place-items-center rounded-xl"
-              style={{
-                background: `linear-gradient(180deg, ${W_GOLD}, ${W_GOLD_DEEP})`,
-                boxShadow: `0 4px 14px ${W_GOLD_DEEP}55`,
-              }}
-            >
-              <IconFlame />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-base font-extrabold" style={{ color: W_INK }}>
-                سلسلة فوز ×{Math.min(matchWins, 9)}
-              </p>
-              <p className="text-xs font-semibold" style={{ color: W_INK_SOFT }}>
-                فز مرة أخرى لتحصل على مكافآت إضافية في المتجر
-              </p>
-            </div>
-          </ResultSurf>
-        ) : null}
+        {/* bottom breathing room */}
+        <div style={{ height: 8 }} />
       </div>
 
-      <footer className="relative z-10 flex shrink-0 gap-2.5 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-2">
+      {/* ── Footer ── */}
+      <footer
+        className="relative z-10 flex shrink-0 gap-2.5 px-4 pt-2"
+        style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
+      >
         <button
           type="button"
           onClick={onHome}
-          className="flex-1 rounded-2xl border border-[rgba(244,196,141,0.5)] bg-white/90 py-3.5 text-sm font-extrabold"
-          style={{ color: W_INK }}
+          style={{
+            flex: 1,
+            borderRadius: 18,
+            border: "1.5px solid rgba(244,196,141,0.48)",
+            background: "rgba(255,255,255,0.92)",
+            padding: "14px 0",
+            fontSize: 14,
+            fontWeight: 800,
+            color: W_INK,
+            boxShadow: "inset 0 1px 0 rgba(255,255,255,0.9), 0 3px 12px rgba(180,100,30,0.08)",
+          }}
         >
           القائمة
         </button>
-        <button
+        <motion.button
           type="button"
           onClick={onReplay}
           disabled={replayBusy}
-          className="flex flex-1 items-center justify-center gap-2 rounded-2xl py-3.5 text-sm font-extrabold text-white disabled:opacity-55"
+          whileTap={{ scale: 0.96 }}
           style={{
-            background: `linear-gradient(180deg, ${W_ORANGE}, ${W_ORANGE_DEEP})`,
-            boxShadow: `0 8px 20px ${W_ORANGE_DEEP}55, inset 0 1px 0 rgba(255,255,255,0.4)`,
+            flex: 1,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 8,
+            borderRadius: 18,
+            border: "none",
+            padding: "14px 0",
+            fontSize: 14,
+            fontWeight: 800,
+            color: "#fff",
+            background: `linear-gradient(180deg, ${W_ORANGE} 0%, ${W_ORANGE_DEEP} 100%)`,
+            boxShadow: `inset 0 1.5px 0 rgba(255,255,255,0.45), 0 10px 24px ${W_ORANGE_DEEP}55`,
+            opacity: replayBusy ? 0.55 : 1,
           }}
         >
           <IconRefresh />
           إعادة
-        </button>
+        </motion.button>
       </footer>
     </motion.div>
   );

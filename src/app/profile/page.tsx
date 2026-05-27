@@ -49,7 +49,6 @@ function ProfileScreenInner() {
       { label: "فوز", value: progress?.matchWins ?? 0, icon: "trophy" },
       { label: "مباريات", value: totalMatches, icon: "swords" },
       { label: "نسبة الفوز", value: winRate, icon: "flame" },
-      { label: "أفضل سلسلة", value: Math.min(progress?.matchWins ?? 0, 9), icon: "star" },
     ],
     [progress?.matchWins, totalMatches, winRate],
   );
