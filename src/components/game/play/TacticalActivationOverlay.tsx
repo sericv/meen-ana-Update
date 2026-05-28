@@ -17,7 +17,7 @@
  * One-shot bursts use Framer Motion tweens (never spring with >2 keyframes).
  */
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useRef, useMemo } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { TacticalToolIcon } from "@/components/game/play/TacticalToolIcons";
 import { GP } from "@/components/game/play/tokens";
@@ -91,11 +91,16 @@ type Props = {
 export function TacticalActivationOverlay({ activation, onComplete }: Props) {
   const reduced = useReducedMotion();
 
+  // Ref so the timeout fires the latest callback without re-triggering
+  // the effect on every parent re-render (e.g. the 200ms clock in RoomExperience).
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
+
   useEffect(() => {
     if (!activation) return;
-    const t = setTimeout(onComplete, OVERLAY_DURATION_MS);
+    const t = setTimeout(() => onCompleteRef.current(), OVERLAY_DURATION_MS);
     return () => clearTimeout(t);
-  }, [activation?.key, onComplete]);
+  }, [activation?.key]); // intentionally excludes onComplete
 
   return (
     <AnimatePresence>
