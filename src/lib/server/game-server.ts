@@ -8,6 +8,7 @@ import {
   ROOM_POST_MATCH_CLEANUP_MS,
 } from "@/lib/game/constants";
 import { ALL_CARDS, pickTwoCards } from "@/lib/game/cards";
+import type { GameCard } from "@/types";
 import { generateGuessAliases } from "@/lib/game/guess-alias-generator";
 import { FINAL_GUESS_LIMIT } from "@/lib/game/match-progression";
 import { guessMatchesCard } from "@/lib/game/validation";
@@ -217,7 +218,10 @@ export async function startMatchForRoom(args: {
       `[startMatch] custom cards bound — p0=${playerUids[0]} will guess "${c0.nameAr}" (uploaded by p1=${playerUids[1]}); p1 will guess "${c1.nameAr}" (uploaded by p0)`,
     );
   } else {
-    const pair = pickTwoCards(categoryId);
+    // Build card pool: Firestore version overrides static (allows dashboard edits
+    // to propagate), truly new Firestore cards are added on top.
+    const firestoreCards = await fetchAdminCardsFromFirestore(db, categoryId);
+    const pair = mergeAndPickTwo(ALL_CARDS, firestoreCards, categoryId);
     if (!pair) throw new Error("NOT_ENOUGH_CARDS");
     const [g0, g1] = pair;
     c0 = {
@@ -1237,4 +1241,81 @@ export async function handleHint(args: {
       revealedLetters: revealedLettersNum,
     };
   });
+}
+
+
+// ─── Admin-card helpers (Firestore cards collection) ────────────────────────
+
+/**
+ * Fetch all enabled cards for a category from the `cards` Firestore collection.
+ * Non-fatal: returns [] on any error so the game falls back to static cards.
+ */
+async function fetchAdminCardsFromFirestore(
+  db: Firestore,
+  categoryId: string | undefined,
+): Promise<GameCard[]> {
+  try {
+    let q = db.collection("cards").where("enabled", "==", true);
+    if (categoryId) q = q.where("categoryId", "==", categoryId) as typeof q;
+    const snap = await q.get();
+    return snap.docs.map((d) => {
+      const data = d.data();
+      return {
+        id:         d.id,
+        name:       String(data.name    ?? data.nameAr ?? ""),
+        nameAr:     String(data.nameAr  ?? ""),
+        imageUrl:   String(data.imageUrl ?? ""),
+        categoryId: String(data.categoryId ?? ""),
+        tags:       Array.isArray(data.tags) ? data.tags.map(String) : [],
+      } satisfies GameCard;
+    });
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Merge static and Firestore cards, then pick two distinct random ones.
+ *
+ * Merge rules:
+ *   - If a card ID exists in both static and Firestore, the Firestore version
+ *     wins (dashboard edits propagate without redeployment).
+ *   - Cards only in Firestore (new dashboard additions) are included.
+ *   - Cards only in static pool are included as-is.
+ *
+ * Falls back to the full static pool if the merged category pool has < 2 cards.
+ */
+function mergeAndPickTwo(
+  staticCards: readonly GameCard[],
+  firestoreCards: readonly GameCard[],
+  categoryId: string | undefined,
+): [GameCard, GameCard] | null {
+  const fsMap = new Map(firestoreCards.map((c) => [c.id, c]));
+
+  // Static cards filtered to category, with Firestore version taking priority
+  const staticPool = categoryId
+    ? staticCards.filter((c) => c.categoryId === categoryId)
+    : [...staticCards];
+  const mergedBase = staticPool.map((c) => fsMap.get(c.id) ?? c);
+
+  // Firestore-only cards not present in static at all
+  const staticIdSet = new Set(staticCards.map((c) => c.id));
+  const firestoreOnly = firestoreCards.filter((c) => !staticIdSet.has(c.id));
+
+  const pool = [...mergedBase, ...firestoreOnly];
+
+  // If category pool is too small, fall back to full merged pool
+  const src = pool.length >= 2 ? pool : [
+    ...staticCards.map((c) => fsMap.get(c.id) ?? c),
+    ...firestoreCards.filter((c) => !staticIdSet.has(c.id)),
+  ];
+
+  if (src.length < 2) return null;
+
+  const list = [...src];
+  const i = Math.floor(Math.random() * list.length);
+  const a = list.splice(i, 1)[0]!;
+  const j = Math.floor(Math.random() * list.length);
+  const b = list[j]!;
+  return [a, b];
 }

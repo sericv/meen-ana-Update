@@ -20,7 +20,7 @@ export const TIME_PRESSURE_MAX_QUESTIONS_BEFORE_FINAL = 6;
 export const TACTICAL_SHOP_ITEMS: readonly TacticalShopItem[] = [
   {
     id: "extra_time",
-    price: 120,
+    price: 6,
     nameAr: "وقت إضافي",
     subtitleAr: "+١٥ ثانية لطرح سؤالك الآن",
     descriptionAr:
@@ -29,7 +29,7 @@ export const TACTICAL_SHOP_ITEMS: readonly TacticalShopItem[] = [
   },
   {
     id: "time_pressure",
-    price: 160,
+    price: 8,
     nameAr: "ضغط الوقت",
     subtitleAr: "سؤال الخصم القادم = ١٠ ثوانٍ فقط",
     descriptionAr:
@@ -38,7 +38,7 @@ export const TACTICAL_SHOP_ITEMS: readonly TacticalShopItem[] = [
   },
   {
     id: "extra_question",
-    price: 140,
+    price: 6,
     nameAr: "سؤال إضافي",
     subtitleAr: "اطرح سؤالين قبل أن يجيب الخصم",
     descriptionAr:
@@ -47,7 +47,7 @@ export const TACTICAL_SHOP_ITEMS: readonly TacticalShopItem[] = [
   },
   {
     id: "shield",
-    price: 180,
+    price: 10,
     nameAr: "الدرع",
     subtitleAr: "صدّ هجوم تكتيكي واحد",
     descriptionAr:
