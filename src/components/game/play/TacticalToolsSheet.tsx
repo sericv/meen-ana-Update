@@ -19,76 +19,77 @@ import {
 import { SPRING_UI, EASE_OUT } from "@/lib/motion";
 import type { MatchState } from "@/types";
 
-/* ─── Per-tool rich palette ─────────────────────────────────── */
-const TOOL_ACCENT: Record<
-  TacticalToolId,
-  {
-    bg: string;
-    bgReady: string;
-    glow: string;
-    glowStrong: string;
-    border: string;
-    badge: string;
-    hue1: string;
-    hue2: string;
-    iconBg: string;
-    iconBgReady: string;
-    label: string;
-  }
-> = {
+/* ─── Per-tool palette — unified warm base, rarity via accents ── */
+/* All cards share the same cream surface. Tool identity lives in:
+   · 3px accent bar (always present, dims when unavailable)
+   · radial orb behind the icon
+   · border tint
+   · ambient shadow
+   No full-bleed color blocks.                                      */
+const TOOL: Record<TacticalToolId, {
+  dot:       string;   // colored dot in ready badge
+  bar:       string;   // top accent bar gradient
+  orb:       string;   // radial glow behind icon
+  iconColor: string;   // icon tint (default/inactive state)
+  iconReady: string;   // icon tint when ready
+  border:    string;   // card border
+  borderReady: string; // card border when ready
+  shadow:    string;   // ambient shadow
+  shadowReady: string; // shadow when ready
+}> = {
   extra_time: {
-    bg:         "linear-gradient(160deg, rgba(255,255,255,0.94), rgba(248,252,250,0.97))",
-    bgReady:    "linear-gradient(160deg, rgba(240,250,245,0.96), rgba(228,245,238,0.98))",
-    glow:       "rgba(80,160,120,0.14)",
-    glowStrong: "rgba(80,160,120,0.28)",
-    border:     "rgba(120,190,155,0.38)",
-    badge:      "linear-gradient(135deg, oklch(0.60 0.10 158), oklch(0.46 0.10 165))",
-    hue1:       "oklch(0.60 0.10 158)",
-    hue2:       "oklch(0.46 0.10 165)",
-    iconBg:     "linear-gradient(160deg, #eef5f1, #dceee5)",
-    iconBgReady:"linear-gradient(135deg, oklch(0.60 0.10 158), oklch(0.46 0.10 165))",
-    label:      "وقت إضافي",
+    dot:         "oklch(0.62 0.12 158)",
+    bar:         "linear-gradient(90deg, oklch(0.62 0.12 158), oklch(0.50 0.12 168))",
+    orb:         "radial-gradient(circle at 50% 58%, oklch(0.80 0.10 158 / .46) 0%, transparent 64%)",
+    iconColor:   "oklch(0.55 0.08 158)",
+    iconReady:   "oklch(0.46 0.12 160)",
+    border:      "oklch(0.84 0.05 70 / .38)",
+    borderReady: "oklch(0.72 0.08 158 / .50)",
+    shadow:      "0 2px 8px rgba(0,0,0,0.04)",
+    shadowReady: "0 3px 16px oklch(0.60 0.10 158 / .14), 0 1px 3px rgba(0,0,0,0.04)",
   },
   time_pressure: {
-    bg:         "linear-gradient(160deg, rgba(255,255,255,0.94), rgba(252,249,248,0.97))",
-    bgReady:    "linear-gradient(160deg, rgba(252,244,242,0.96), rgba(248,234,232,0.98))",
-    glow:       "rgba(180,80,70,0.12)",
-    glowStrong: "rgba(180,80,70,0.24)",
-    border:     "rgba(200,110,100,0.32)",
-    badge:      "linear-gradient(135deg, oklch(0.52 0.14 22), oklch(0.40 0.14 18))",
-    hue1:       "oklch(0.52 0.14 22)",
-    hue2:       "oklch(0.40 0.14 18)",
-    iconBg:     "linear-gradient(160deg, #f5ecea, #ecdcda)",
-    iconBgReady:"linear-gradient(135deg, oklch(0.52 0.14 22), oklch(0.40 0.14 18))",
-    label:      "ضغط الوقت",
+    dot:         "oklch(0.60 0.18 22)",
+    bar:         "linear-gradient(90deg, oklch(0.62 0.18 22), oklch(0.50 0.18 18))",
+    orb:         "radial-gradient(circle at 50% 58%, oklch(0.82 0.14 22 / .40) 0%, transparent 64%)",
+    iconColor:   "oklch(0.55 0.10 24)",
+    iconReady:   "oklch(0.48 0.16 22)",
+    border:      "oklch(0.84 0.05 70 / .38)",
+    borderReady: "oklch(0.72 0.10 22 / .46)",
+    shadow:      "0 2px 8px rgba(0,0,0,0.04)",
+    shadowReady: "0 3px 16px oklch(0.58 0.14 22 / .13), 0 1px 3px rgba(0,0,0,0.04)",
   },
   extra_question: {
-    bg:         "linear-gradient(160deg, rgba(255,255,255,0.94), rgba(253,251,246,0.97))",
-    bgReady:    "linear-gradient(160deg, rgba(253,248,238,0.96), rgba(250,241,222,0.98))",
-    glow:       "rgba(190,140,40,0.14)",
-    glowStrong: "rgba(190,140,40,0.28)",
-    border:     "rgba(210,160,60,0.32)",
-    badge:      "linear-gradient(135deg, oklch(0.62 0.12 68), oklch(0.48 0.14 55))",
-    hue1:       "oklch(0.62 0.12 68)",
-    hue2:       "oklch(0.48 0.14 55)",
-    iconBg:     "linear-gradient(160deg, #f5eedc, #ece0c4)",
-    iconBgReady:"linear-gradient(135deg, oklch(0.62 0.12 68), oklch(0.48 0.14 55))",
-    label:      "سؤال إضافي",
+    dot:         "oklch(0.68 0.16 68)",
+    bar:         "linear-gradient(90deg, oklch(0.72 0.16 72), oklch(0.60 0.18 58))",
+    orb:         "radial-gradient(circle at 50% 58%, oklch(0.88 0.14 72 / .46) 0%, transparent 64%)",
+    iconColor:   "oklch(0.55 0.10 65)",
+    iconReady:   "oklch(0.50 0.14 66)",
+    border:      "oklch(0.84 0.05 70 / .38)",
+    borderReady: "oklch(0.76 0.10 68 / .50)",
+    shadow:      "0 2px 8px rgba(0,0,0,0.04)",
+    shadowReady: "0 3px 16px oklch(0.64 0.12 66 / .14), 0 1px 3px rgba(0,0,0,0.04)",
   },
   shield: {
-    bg:         "linear-gradient(160deg, rgba(255,255,255,0.94), rgba(248,249,253,0.97))",
-    bgReady:    "linear-gradient(160deg, rgba(242,245,252,0.96), rgba(232,238,250,0.98))",
-    glow:       "rgba(80,110,180,0.12)",
-    glowStrong: "rgba(80,110,180,0.24)",
-    border:     "rgba(110,140,205,0.32)",
-    badge:      "linear-gradient(135deg, oklch(0.52 0.10 238), oklch(0.40 0.10 232))",
-    hue1:       "oklch(0.52 0.10 238)",
-    hue2:       "oklch(0.40 0.10 232)",
-    iconBg:     "linear-gradient(160deg, #eaecf5, #d8dcee)",
-    iconBgReady:"linear-gradient(135deg, oklch(0.52 0.10 238), oklch(0.40 0.10 232))",
-    label:      "الدرع",
+    dot:         "oklch(0.56 0.14 238)",
+    bar:         "linear-gradient(90deg, oklch(0.60 0.14 238), oklch(0.50 0.14 230))",
+    orb:         "radial-gradient(circle at 50% 58%, oklch(0.78 0.12 238 / .42) 0%, transparent 64%)",
+    iconColor:   "oklch(0.55 0.08 238)",
+    iconReady:   "oklch(0.46 0.14 236)",
+    border:      "oklch(0.84 0.05 70 / .38)",
+    borderReady: "oklch(0.70 0.10 236 / .46)",
+    shadow:      "0 2px 8px rgba(0,0,0,0.04)",
+    shadowReady: "0 3px 16px oklch(0.56 0.12 236 / .13), 0 1px 3px rgba(0,0,0,0.04)",
   },
 };
+
+/* ─── CSS keyframes ─────────────────────────────────────────── */
+const TAC_CSS = `
+  @keyframes tacOrb {
+    0%, 100% { opacity: 0.55; transform: scale(1);    }
+    50%       { opacity: 0.90; transform: scale(1.08); }
+  }
+`;
 
 /* ─── Types ─────────────────────────────────────────────────── */
 type Props = {
@@ -130,14 +131,11 @@ export function TacticalToolsSheet({
 
   const totalOwned = TACTICAL_TOOL_IDS.reduce((s, id) => s + (inventory[id] ?? 0), 0);
 
-  // Local activation state — triggers cinematic overlay
   const [activation, setActivation] = useState<TacticalActivation | null>(null);
   const activationKeyRef = useRef(0);
 
   const handleUse = useCallback((toolId: TacticalToolId) => {
-    // Fire our Firebase write immediately
     onUse(toolId);
-    // Launch local cinematic (purely cosmetic)
     activationKeyRef.current += 1;
     setActivation({
       toolId,
@@ -146,7 +144,6 @@ export function TacticalToolsSheet({
       myName,
       opponentName,
     });
-    // Close sheet after a short delay so overlay takes center stage
     setTimeout(onClose, 300);
   }, [onUse, onClose, myName, opponentName]);
 
@@ -159,6 +156,7 @@ export function TacticalToolsSheet({
       <AnimatePresence>
         {open && (
           <GameplaySheet title="الأدوات التكتيكية" accent="#3d6a9e" onClose={onClose}>
+
             {/* Inventory summary */}
             <motion.p
               initial={{ opacity: 0, y: 4 }}
@@ -177,14 +175,14 @@ export function TacticalToolsSheet({
               {extraQActive && (
                 <motion.div
                   key="extra-q-banner"
-                  initial={{ opacity: 0, height: 0, y: -4 }}
-                  animate={{ opacity: 1, height: "auto", y: 0 }}
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
                   exit={{ opacity: 0, height: 0 }}
                   transition={{ duration: 0.26, ease: EASE_OUT }}
                   className="mb-3 overflow-hidden rounded-xl px-3 py-2 text-center text-[11px] font-extrabold"
                   style={{
-                    background: "linear-gradient(135deg, rgba(255,159,10,0.14), rgba(255,200,80,0.10))",
-                    border: "1px solid rgba(255,159,10,0.35)",
+                    background: "linear-gradient(135deg, rgba(255,159,10,0.12), rgba(255,200,80,0.08))",
+                    border: "1px solid rgba(255,159,10,0.32)",
                     color: GP.orangeDeep,
                   }}
                 >
@@ -198,14 +196,14 @@ export function TacticalToolsSheet({
               {error && (
                 <motion.div
                   key="err-banner"
-                  initial={{ opacity: 0, height: 0, y: -4 }}
-                  animate={{ opacity: 1, height: "auto", y: 0 }}
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
                   exit={{ opacity: 0, height: 0 }}
                   transition={{ duration: 0.24, ease: EASE_OUT }}
                   className="mb-3 overflow-hidden rounded-xl px-3 py-2 text-center text-[11px] font-bold"
                   style={{
                     background: "rgba(255,240,238,0.97)",
-                    border: "1px solid rgba(229,82,77,0.28)",
+                    border: "1px solid rgba(229,82,77,0.26)",
                     color: GP.roseDeep,
                   }}
                 >
@@ -215,7 +213,7 @@ export function TacticalToolsSheet({
             </AnimatePresence>
 
             {/* Tool cards */}
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-2.5">
               {TACTICAL_SHOP_ITEMS.map((item, i) => {
                 const count = inventory[item.id] ?? 0;
                 const { ok } = canUseTacticalTool({
@@ -248,7 +246,6 @@ export function TacticalToolsSheet({
         )}
       </AnimatePresence>
 
-      {/* Cinematic activation overlay — sits above sheet, clears itself */}
       <TacticalActivationOverlay
         activation={activation}
         onComplete={handleOverlayComplete}
@@ -280,7 +277,8 @@ const TacticalCard = memo(function TacticalCard({
   onClick: () => void;
 }) {
   const reduced = useReducedMotion();
-  const ac = TOOL_ACCENT[toolId];
+  const t = TOOL[toolId];
+  const empty = count < 1;
 
   const handleClick = useCallback(() => {
     if (!disabled) onClick();
@@ -291,228 +289,268 @@ const TacticalCard = memo(function TacticalCard({
       type="button"
       disabled={disabled}
       onClick={handleClick}
-      initial={{ opacity: 0, y: 14, scale: 0.97 }}
+      /* Stagger entrance */
+      initial={{ opacity: 0, y: 12, scale: 0.97 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{
-        delay: index * 0.07,
-        duration: 0.32,
-        ease: [0.22, 1, 0.36, 1],
-      }}
-      whileTap={disabled ? {} : { scale: 0.962 }}
+      transition={{ delay: index * 0.055, duration: 0.38, ease: [0.18, 1, 0.36, 1] }}
+      whileTap={disabled ? {} : { scale: 0.963 }}
       className="relative w-full overflow-hidden text-right disabled:cursor-not-allowed"
       style={{
-        background: ready ? ac.bgReady : ac.bg,
-        borderRadius: 20,
-        border: `1.5px solid ${ready ? ac.border : "rgba(244,196,141,0.32)"}`,
-        outline: ready ? `1px solid rgba(255,255,255,0.45)` : "none",
-        padding: "14px 14px",
-        boxShadow: ready
-          ? [
-              `0 2px 4px rgba(0,0,0,0.04)`,
-              `0 6px 18px ${ac.glow}`,
-              `0 16px 36px ${ac.glow}`,
-              `inset 0 1.5px 0 rgba(255,255,255,0.65)`,
-              `inset 0 -1px 0 rgba(0,0,0,0.04)`,
-            ].join(", ")
-          : [
-              "0 2px 6px rgba(180,120,60,0.06)",
-              "inset 0 1.5px 0 rgba(255,255,255,0.58)",
-            ].join(", "),
-        opacity: disabled && count === 0 ? 0.48 : 1,
+        /* Unified warm cream base — same for ALL tools */
+        background: "linear-gradient(168deg, rgba(255,255,255,0.99) 0%, oklch(0.963 0.014 76) 100%)",
+        borderRadius: 18,
+        border: `1.5px solid ${ready ? t.borderReady : t.border}`,
+        padding: "13px 13px 13px 13px",
+        boxShadow: [
+          `inset 0 1.5px 0 rgba(255,255,255,0.88)`,
+          ready ? t.shadowReady : t.shadow,
+        ].join(", "),
+        opacity: empty ? 0.46 : 1,
         willChange: "transform",
         contain: "layout style",
-        transition: "box-shadow 0.25s cubic-bezier(0.23,1,0.32,1), opacity 0.22s",
+        transition: "box-shadow 0.26s cubic-bezier(0.23,1,0.32,1), border-color 0.26s cubic-bezier(0.23,1,0.32,1), opacity 0.22s",
       }}
     >
-      {/* Top accent bar for ready state */}
-      <AnimatePresence>
-        {ready && (
-          <motion.div
-            key="accent-bar"
-            initial={{ scaleX: 0 }}
-            animate={{ scaleX: 1 }}
-            exit={{ scaleX: 0 }}
-            transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-            aria-hidden
-            style={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              right: 0,
-              height: 3,
-              background: ac.badge,
-              borderRadius: "20px 20px 0 0",
-              transformOrigin: "left",
-            }}
-          />
-        )}
-      </AnimatePresence>
+      {/* ── Top accent bar — always present, dims when unavailable ── */}
+      <motion.div
+        aria-hidden
+        animate={{ opacity: ready ? 1 : empty ? 0 : 0.35 }}
+        initial={false}
+        transition={{ duration: 0.30, ease: [0.23, 1, 0.32, 1] }}
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 3,
+          background: t.bar,
+          borderRadius: "18px 18px 0 0",
+          pointerEvents: "none",
+        }}
+      />
 
-      {/* Inner gloss */}
+      {/* ── Top gloss ── */}
       <span
         aria-hidden
         style={{
           position: "absolute",
           inset: 0,
-          borderRadius: 20,
-          background: "linear-gradient(180deg, rgba(255,255,255,0.20) 0%, transparent 48%)",
+          borderRadius: 18,
+          background: "linear-gradient(180deg, rgba(255,255,255,0.18) 0%, transparent 44%)",
           pointerEvents: "none",
         }}
       />
 
-      {/* "جاهزة" badge */}
+      {/* ── Press flash ── */}
+      <motion.span
+        aria-hidden
+        initial={{ opacity: 0 }}
+        whileTap={disabled ? {} : { opacity: 1 }}
+        transition={{ duration: 0.08 }}
+        style={{
+          position: "absolute",
+          inset: 0,
+          borderRadius: 18,
+          background: `radial-gradient(ellipse at 50% 50%, ${t.orb.replace("radial-gradient(circle at 50% 58%, ", "").split(")")[0].trim()} 0%, transparent 65%)`,
+          pointerEvents: "none",
+        }}
+      />
+
+      {/* ── Ready badge — dot + text, spring pop ── */}
       <AnimatePresence>
         {ready && (
           <motion.span
-            key="ready-badge"
-            initial={{ opacity: 0, scale: 0.6, y: 4 }}
+            key="ready"
+            initial={{ opacity: 0, scale: 0.62, y: 5 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.6, y: 4 }}
+            exit={{ opacity: 0, scale: 0.62, y: 5 }}
             transition={SPRING_UI}
             style={{
               position: "absolute",
-              top: -10,
-              right: 14,
+              top: -9,
+              right: 13,
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
               borderRadius: 999,
-              padding: "3px 10px",
+              padding: "2px 8px 2px 6px",
               fontSize: 9,
               fontWeight: 800,
-              letterSpacing: "0.05em",
-              background: ac.badge,
-              color: "#fff",
-              boxShadow: `0 2px 10px ${ac.glowStrong}, inset 0 1px 0 rgba(255,255,255,0.35)`,
+              letterSpacing: "0.04em",
+              background: "oklch(0.96 0.02 76 / .92)",
+              border: "1px solid oklch(0.84 0.04 70 / .50)",
+              color: "oklch(0.36 0.06 52)",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.90)",
+              backdropFilter: "blur(4px)",
+              WebkitBackdropFilter: "blur(4px)",
             }}
           >
+            {/* Colored dot — tool identity signal */}
+            <span
+              aria-hidden
+              style={{
+                width: 5,
+                height: 5,
+                borderRadius: "50%",
+                background: t.dot,
+                flexShrink: 0,
+                boxShadow: `0 0 5px ${t.dot}`,
+              }}
+            />
             جاهزة
           </motion.span>
         )}
       </AnimatePresence>
 
       <div className="flex items-center gap-3">
-        {/* Icon bubble */}
-        <div style={{ position: "relative" }}>
-          {/* Pulse ring for ready state — CSS only */}
+        {/* ── Icon bubble ── */}
+        <div style={{ position: "relative", flexShrink: 0 }}>
+          {/* Ambient orb pulse — CSS, compositor */}
           {ready && !reduced && (
             <span
               aria-hidden
               style={{
                 position: "absolute",
-                inset: -6,
-                borderRadius: 18,
-                background: `radial-gradient(closest-side, ${ac.glow}, transparent 70%)`,
-                animation: "tacGlowPulse 2s ease-in-out infinite",
+                inset: -7,
+                borderRadius: 20,
+                background: t.orb,
+                animation: "tacOrb 2.4s ease-in-out infinite",
                 pointerEvents: "none",
               }}
             />
           )}
+
+          {/* Icon container — warm cream base always */}
           <div
             style={{
               width: 50,
               height: 50,
-              borderRadius: 16,
-              background: ready ? ac.iconBgReady : ac.iconBg,
+              borderRadius: 15,
+              /* Unified warm base — orb provides the color accent */
+              background: "linear-gradient(160deg, oklch(0.975 0.020 78), oklch(0.942 0.026 74))",
               display: "grid",
               placeItems: "center",
-              flexShrink: 0,
               position: "relative",
+              overflow: "hidden",
               boxShadow: ready
                 ? [
-                    `inset 0 1.5px 0 rgba(255,255,255,0.5)`,
-                    `inset 0 -1px 0 rgba(0,0,0,0.12)`,
-                    `0 4px 12px ${ac.glow}`,
+                    `inset 0 1.5px 0 rgba(255,255,255,0.75)`,
+                    `inset 0 -1px 0 rgba(0,0,0,0.06)`,
+                    `0 3px 10px ${t.orb.includes("oklch") ? t.orb.match(/oklch\([^)]+\)/)?.[0] ?? "transparent" : "transparent"} / .22)`.replace("/ .22)", "/ .22)"),
                   ].join(", ")
-                : "inset 0 1.5px 0 rgba(255,255,255,0.45), inset 0 -1px 0 rgba(0,0,0,0.06)",
-              color: ready ? "#fff" : GP.inkSoft,
-              transition: "background 0.3s, box-shadow 0.3s",
+                : "inset 0 1.5px 0 rgba(255,255,255,0.70), inset 0 -1px 0 rgba(0,0,0,0.05)",
+              transition: "box-shadow 0.26s cubic-bezier(0.23,1,0.32,1)",
+              color: ready ? t.iconReady : t.iconColor,
             }}
           >
-            <TacticalToolIcon id={toolId} size={24} />
-
-            {/* Specular streak on icon */}
+            {/* Inner orb behind icon */}
             <span
               aria-hidden
               style={{
                 position: "absolute",
-                top: 2,
-                left: "12%",
-                right: "12%",
-                height: "38%",
-                borderRadius: "16px 16px 50% 50%",
-                background: "linear-gradient(180deg, rgba(255,255,255,0.35) 0%, transparent 100%)",
+                inset: 0,
+                background: t.orb,
+                opacity: ready ? 0.7 : 0.35,
+                transition: "opacity 0.26s",
                 pointerEvents: "none",
               }}
             />
+            {/* Specular top streak */}
+            <span
+              aria-hidden
+              style={{
+                position: "absolute",
+                top: 1,
+                left: "14%",
+                right: "14%",
+                height: "36%",
+                borderRadius: "15px 15px 50% 50%",
+                background: "linear-gradient(180deg, rgba(255,255,255,0.42) 0%, transparent 100%)",
+                pointerEvents: "none",
+              }}
+            />
+            <div style={{ position: "relative", zIndex: 1 }}>
+              <TacticalToolIcon id={toolId} size={24} />
+            </div>
           </div>
         </div>
 
-        {/* Text */}
+        {/* ── Text block ── */}
         <div className="min-w-0 flex-1">
           <p
-            className="font-extrabold leading-tight"
             style={{
-              color: busy ? GP.inkSoft : ready ? GP.ink : GP.inkSoft,
-              fontSize: 14.5,
+              fontFamily: "var(--display)",
+              fontWeight: 800,
+              fontSize: 14,
               letterSpacing: "-0.01em",
+              lineHeight: 1.2,
+              color: busy ? GP.inkSoft : ready ? GP.ink : "oklch(0.40 0.05 52)",
               transition: "color 0.22s",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
             }}
           >
             {busy ? "جاري التفعيل…" : title}
           </p>
           <p
-            className="mt-0.5 text-xs leading-snug"
-            style={{ color: GP.inkSoft, opacity: ready ? 0.9 : 0.7 }}
+            style={{
+              fontSize: 10.5,
+              marginTop: 2.5,
+              lineHeight: 1.35,
+              color: "oklch(0.54 0.05 56)",
+              opacity: ready ? 0.92 : 0.70,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
           >
             {subtitle}
           </p>
         </div>
 
-        {/* Stock pill */}
+        {/* ── Stock pill ── */}
         <div
           style={{
             flexShrink: 0,
             borderRadius: 999,
-            padding: "5px 11px",
+            padding: "4px 11px",
             fontSize: 11,
             fontWeight: 800,
             background: count > 0
-              ? ready
-                ? "rgba(255,255,255,0.50)"
-                : "rgba(244,196,141,0.18)"
-              : "rgba(220,180,140,0.14)",
-            color: count > 0 ? (ready ? GP.ink : GP.inkSoft) : GP.inkSoft,
-            border: count > 0
-              ? `1px solid ${ready ? "rgba(255,255,255,0.55)" : "rgba(244,196,141,0.28)"}`
-              : "1px solid rgba(220,180,140,0.18)",
+              ? "oklch(0.94 0.02 70 / .80)"
+              : "oklch(0.90 0.02 70 / .55)",
+            color: count > 0
+              ? ready ? "oklch(0.34 0.06 52)" : "oklch(0.50 0.05 56)"
+              : "oklch(0.62 0.04 58)",
+            border: `1px solid ${count > 0
+              ? ready ? "oklch(0.80 0.06 68 / .40)" : "oklch(0.84 0.04 68 / .35)"
+              : "oklch(0.84 0.02 68 / .28)"
+            }`,
+            transition: "background 0.22s, color 0.22s",
           }}
         >
           {count > 0 ? `×${count}` : "—"}
         </div>
       </div>
 
-      {/* Busy shimmer sweep */}
+      {/* ── Busy shimmer sweep ── */}
       {busy && (
         <motion.div
           aria-hidden
           animate={{ x: ["-130%", "130%"] }}
-          transition={{ duration: 0.85, repeat: Infinity, ease: "easeInOut" }}
+          transition={{ duration: 0.88, repeat: Infinity, ease: "easeInOut" }}
           style={{
             position: "absolute",
             inset: 0,
-            borderRadius: 20,
-            background:
-              "linear-gradient(105deg, transparent 18%, rgba(255,255,255,0.50) 50%, transparent 82%)",
+            borderRadius: 18,
+            background: "linear-gradient(105deg, transparent 18%, rgba(255,255,255,0.52) 50%, transparent 82%)",
             pointerEvents: "none",
           }}
         />
       )}
 
-      {/* CSS keyframe for icon glow pulse */}
-      <style>{`
-        @keyframes tacGlowPulse {
-          0%, 100% { opacity: 0.5; transform: scale(1); }
-          50%      { opacity: 0.88; transform: scale(1.06); }
-        }
-      `}</style>
+      <style>{TAC_CSS}</style>
     </motion.button>
   );
 });

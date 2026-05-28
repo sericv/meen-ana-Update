@@ -1,23 +1,23 @@
 "use client";
 
 /**
- * ShopItemCard — premium collectible-style item card.
+ * ShopItemCard — premium collectible card.
  *
- * Design:
- *  - Large icon zone (top): rarity-tinted gradient bg, big SVG icon, rarity chip
- *  - Info strip (bottom): name, subtitle, owned count, price, CTA
- *  - NO looping animations, NO preview scenes, NO GIF systems
+ * Visual language:
+ *  - All cards share the same warm cream base — rarity is never "painted" on.
+ *  - Rarity shows through: thin 3px top accent bar, subtle border tint,
+ *    a small ambient orb glow behind the icon, and a tiny dot on the chip.
+ *  - Icon zone: tall warm zone, rarity-tinted radial halo, floating icon.
+ *  - Info strip: clean hierarchy — name, subtitle, price + CTA.
  *
- * Animations (lightweight):
- *  - whileTap: instant scale press (GPU transform only)
- *  - Icon zone: subtle CSS float keyframe (translateY only, compositor layer)
- *  - Legendary/Epic: CSS glow pulse on icon zone shadow (compositor only)
+ * Motion:
+ *  - whileTap scale(0.97), spring — tactile press
+ *  - CSS float keyframe on icon — compositor only, no JS
+ *  - No looping Framer Motion animations on the card shell
  *
  * Performance:
- *  - React.memo: prevents rerenders when unrelated siblings update
- *  - contain: layout style paint — limits repaint scope to this card
- *  - willChange: transform on icon zone only (not the whole card)
- *  - No backdropFilter, no filter: blur
+ *  - React.memo, contain: layout style paint
+ *  - willChange: transform on icon only
  */
 
 import { motion, useReducedMotion } from "framer-motion";
@@ -26,78 +26,87 @@ import { ShellCoin } from "@/components/shell/ShellCoin";
 
 type Rarity = "common" | "rare" | "epic" | "legendary";
 
+/* ── Rarity tokens ─────────────────────────────────────────────── */
 const RARITY: Record<Rarity, {
   label: string;
-  chipBg: string;
-  chipColor: string;
-  iconBg: string;
+  /** Tiny colored dot shown inside the rarity chip */
+  dot: string;
+  /** 3px accent bar across the top of the card */
+  accentBar: string;
+  /** Radial orb behind the icon */
+  iconOrb: string;
+  /** Icon color */
   iconColor: string;
+  /** Card border tint */
   border: string;
-  borderPress: string;
-  shadowIdle: string;
-  shadowPress: string;
-  floatAnim: string;   // CSS animation name
+  /** Outer ambient shadow (rarity-tinted) */
+  shadow: string;
+  /** Float animation name */
+  float: string;
 }> = {
   common: {
     label: "عادي",
-    chipBg: "oklch(0.86 0.04 68)",
-    chipColor: "oklch(0.40 0.05 58)",
-    iconBg: "linear-gradient(160deg, oklch(0.93 0.05 76) 0%, oklch(0.85 0.08 70) 100%)",
-    iconColor: "oklch(0.38 0.08 58)",
-    border: "oklch(0.86 0.04 70 / .55)",
-    borderPress: "oklch(0.78 0.07 68 / .7)",
-    shadowIdle: "0 3px 14px oklch(0.70 0.06 65 / .14)",
-    shadowPress: "0 1px 6px oklch(0.70 0.06 65 / .18)",
-    floatAnim: "shopIconFloat",
+    dot: "oklch(0.72 0.10 68)",
+    accentBar: "linear-gradient(90deg, oklch(0.78 0.10 72), oklch(0.68 0.12 60))",
+    iconOrb: "radial-gradient(circle at 50% 60%, oklch(0.88 0.10 72 / .55) 0%, transparent 65%)",
+    iconColor: "oklch(0.44 0.10 60)",
+    border: "oklch(0.82 0.07 70 / .50)",
+    shadow: "0 3px 14px oklch(0.68 0.08 65 / .10)",
+    float: "shopFloat",
   },
   rare: {
     label: "نادر",
-    chipBg: "oklch(0.80 0.14 235)",
-    chipColor: "oklch(0.26 0.12 228)",
-    iconBg: "linear-gradient(160deg, oklch(0.88 0.10 240) 0%, oklch(0.76 0.16 232) 100%)",
-    iconColor: "oklch(0.98 0.02 240)",
-    border: "oklch(0.78 0.10 238 / .55)",
-    borderPress: "oklch(0.66 0.16 238 / .75)",
-    shadowIdle: "0 3px 16px oklch(0.70 0.14 238 / .18)",
-    shadowPress: "0 1px 8px oklch(0.65 0.16 238 / .22)",
-    floatAnim: "shopIconFloat",
+    dot: "oklch(0.58 0.14 238)",
+    accentBar: "linear-gradient(90deg, oklch(0.62 0.14 238), oklch(0.52 0.16 228))",
+    iconOrb: "radial-gradient(circle at 50% 60%, oklch(0.80 0.12 238 / .45) 0%, transparent 65%)",
+    iconColor: "oklch(0.46 0.14 236)",
+    border: "oklch(0.72 0.10 236 / .38)",
+    shadow: "0 3px 16px oklch(0.58 0.14 236 / .13)",
+    float: "shopFloat",
   },
   epic: {
     label: "ملحمي",
-    chipBg: "linear-gradient(120deg, oklch(0.76 0.18 300), oklch(0.68 0.20 278))",
-    chipColor: "oklch(0.97 0.02 300)",
-    iconBg: "linear-gradient(160deg, oklch(0.82 0.16 300) 0%, oklch(0.68 0.22 278) 100%)",
-    iconColor: "oklch(0.97 0.02 300)",
-    border: "oklch(0.76 0.14 292 / .55)",
-    borderPress: "oklch(0.64 0.20 290 / .80)",
-    shadowIdle: "0 3px 18px oklch(0.66 0.18 288 / .22)",
-    shadowPress: "0 1px 8px oklch(0.62 0.20 288 / .28)",
-    floatAnim: "shopIconFloatEpic",
+    dot: "oklch(0.56 0.18 288)",
+    accentBar: "linear-gradient(90deg, oklch(0.60 0.18 290), oklch(0.52 0.20 272))",
+    iconOrb: "radial-gradient(circle at 50% 60%, oklch(0.76 0.14 285 / .42) 0%, transparent 65%)",
+    iconColor: "oklch(0.50 0.16 284)",
+    border: "oklch(0.68 0.12 284 / .36)",
+    shadow: "0 3px 18px oklch(0.56 0.16 282 / .14)",
+    float: "shopFloatSlow",
   },
   legendary: {
     label: "أسطوري",
-    chipBg: "linear-gradient(120deg, oklch(0.84 0.20 78), oklch(0.70 0.22 64))",
-    chipColor: "oklch(0.22 0.06 45)",
-    iconBg: "linear-gradient(160deg, oklch(0.88 0.18 80) 0%, oklch(0.72 0.22 64) 100%)",
-    iconColor: "oklch(0.22 0.06 44)",
-    border: "oklch(0.78 0.16 74 / .6)",
-    borderPress: "oklch(0.65 0.22 70 / .82)",
-    shadowIdle: "0 4px 20px oklch(0.72 0.20 74 / .28)",
-    shadowPress: "0 2px 10px oklch(0.68 0.20 72 / .32)",
-    floatAnim: "shopIconFloatLegendary",
+    dot: "oklch(0.72 0.20 68)",
+    accentBar: "linear-gradient(90deg, oklch(0.82 0.20 74), oklch(0.68 0.22 60))",
+    iconOrb: "radial-gradient(circle at 50% 60%, oklch(0.88 0.16 72 / .55) 0%, transparent 65%)",
+    iconColor: "oklch(0.50 0.18 66)",
+    border: "oklch(0.76 0.14 70 / .48)",
+    shadow: "0 4px 20px oklch(0.70 0.18 70 / .18)",
+    float: "shopFloatSlow",
   },
 };
 
+/* ── CSS keyframes (injected once via <style>) ──────────────────── */
+const CSS = `
+  @keyframes shopFloat {
+    0%, 100% { transform: translateY(0px);   }
+    50%       { transform: translateY(-4px);  }
+  }
+  @keyframes shopFloatSlow {
+    0%, 100% { transform: translateY(0px);   }
+    50%       { transform: translateY(-5px);  }
+  }
+`;
+
+/* ── Types ─────────────────────────────────────────────────────── */
 export interface ShopItemCardProps {
   id: string;
   name: string;
   subtitle?: string;
-  /** unused — kept for API compatibility with shop/page.tsx */
   description?: string;
   price: number;
   rarity?: Rarity;
   ownedCount?: number;
-  /** Large icon/artwork node rendered in the icon zone */
   icon?: React.ReactNode;
   busy?: boolean;
   canBuy?: boolean;
@@ -107,10 +116,11 @@ export interface ShopItemCardProps {
   onBuy?: () => void;
   onEquip?: () => void;
   showOwnedCount?: boolean;
-  /** @deprecated — ignored, kept for backward compat */
+  /** @deprecated — ignored */
   preview?: React.ReactNode;
 }
 
+/* ── Component ──────────────────────────────────────────────────── */
 export const ShopItemCard = memo(function ShopItemCard({
   name,
   subtitle,
@@ -143,56 +153,89 @@ export const ShopItemCard = memo(function ShopItemCard({
   return (
     <motion.article
       whileTap={reduced ? {} : { scale: 0.97 }}
-      transition={{ type: "spring", stiffness: 420, damping: 28 }}
+      transition={{ type: "spring", stiffness: 440, damping: 30 }}
       style={{
-        background: "linear-gradient(165deg, rgba(255,255,255,0.99) 0%, oklch(0.965 0.014 76) 100%)",
+        /* Warm cream base — same for every rarity */
+        background: "linear-gradient(168deg, rgba(255,255,255,0.99) 0%, oklch(0.964 0.014 76) 100%)",
         borderRadius: 18,
         border: `1.5px solid ${rs.border}`,
         overflow: "hidden",
         cursor: "pointer",
         userSelect: "none",
         WebkitTapHighlightColor: "transparent",
-        boxShadow: `inset 0 1.5px 0 rgba(255,255,255,0.88), ${rs.shadowIdle}, 0 1px 3px rgba(0,0,0,0.04)`,
+        boxShadow: [
+          "inset 0 1.5px 0 rgba(255,255,255,0.90)",
+          rs.shadow,
+          "0 1px 2px rgba(0,0,0,0.03)",
+        ].join(", "),
         contain: "layout style paint",
-        transition: "box-shadow 0.22s cubic-bezier(0.23,1,0.32,1), border-color 0.22s cubic-bezier(0.23,1,0.32,1)",
         display: "flex",
         flexDirection: "column",
         willChange: "transform",
+        transition: "box-shadow 0.24s cubic-bezier(0.23,1,0.32,1), border-color 0.24s cubic-bezier(0.23,1,0.32,1)",
       }}
     >
+      {/* ── Rarity accent bar (top 3px) ── */}
+      <div
+        aria-hidden
+        style={{
+          height: 3,
+          background: rs.accentBar,
+          flexShrink: 0,
+          opacity: 0.82,
+        }}
+      />
+
       {/* ── Icon Zone ── */}
       <div
         style={{
           position: "relative",
-          height: 90,
-          background: rs.iconBg,
+          height: 100,
+          /* Unified warm cream background — rarity only in the orb, not the zone */
+          background: "linear-gradient(175deg, oklch(0.975 0.018 78) 0%, oklch(0.940 0.024 74) 100%)",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           overflow: "hidden",
         }}
       >
-        {/* Top specular highlight streak */}
+        {/* Top specular — soft white streak */}
         <div
           aria-hidden
           style={{
             position: "absolute",
-            inset: "0 20% auto",
-            height: 4,
-            background: "rgba(255,255,255,0.38)",
+            top: 0,
+            left: "15%",
+            right: "15%",
+            height: 3,
+            background: "rgba(255,255,255,0.52)",
             borderRadius: "0 0 999px 999px",
-            filter: "blur(1.5px)",
+            filter: "blur(1px)",
             pointerEvents: "none",
           }}
         />
-        {/* Bottom vignette */}
+
+        {/* Rarity orb — ambient halo behind the icon */}
         <div
           aria-hidden
           style={{
             position: "absolute",
             inset: 0,
-            background:
-              "radial-gradient(ellipse at 50% 120%, rgba(0,0,0,0.12) 0%, transparent 65%)",
+            background: rs.iconOrb,
+            pointerEvents: "none",
+          }}
+        />
+
+        {/* Bottom inner shadow for depth */}
+        <div
+          aria-hidden
+          style={{
+            position: "absolute",
+            bottom: 0,
+            left: 0,
+            right: 0,
+            height: 28,
+            background: "linear-gradient(0deg, oklch(0.88 0.02 70 / .22) 0%, transparent 100%)",
             pointerEvents: "none",
           }}
         />
@@ -201,49 +244,31 @@ export const ShopItemCard = memo(function ShopItemCard({
         <div
           style={{
             color: rs.iconColor,
-            animation: reduced ? "none" : `${rs.floatAnim} 3.2s ease-in-out infinite`,
+            animation: reduced ? "none" : `${rs.float} 3.4s ease-in-out infinite`,
             willChange: "transform",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            filter: rarity === "legendary" || rarity === "epic"
-              ? "drop-shadow(0 2px 8px rgba(0,0,0,0.18))"
-              : "drop-shadow(0 1px 4px rgba(0,0,0,0.12))",
+            filter: rarity === "legendary"
+              ? "drop-shadow(0 2px 8px oklch(0.70 0.20 68 / .35))"
+              : rarity === "epic"
+                ? "drop-shadow(0 2px 7px oklch(0.56 0.18 284 / .30))"
+                : rarity === "rare"
+                  ? "drop-shadow(0 1px 6px oklch(0.58 0.14 236 / .28))"
+                  : "drop-shadow(0 1px 4px rgba(0,0,0,0.10))",
           }}
         >
-          {/* Render icon at larger size inside the zone */}
           <IconZoneWrapper>{icon}</IconZoneWrapper>
         </div>
 
-        {/* Rarity chip — top right */}
-        <div
-          style={{
-            position: "absolute",
-            top: 7,
-            right: 7,
-            background: rs.chipBg,
-            color: rs.chipColor,
-            fontSize: 8,
-            fontWeight: 800,
-            fontFamily: "var(--display)",
-            padding: "2px 7px",
-            borderRadius: 20,
-            letterSpacing: "0.05em",
-            lineHeight: 1.7,
-            boxShadow: "0 1px 4px rgba(0,0,0,0.12)",
-          }}
-        >
-          {rs.label}
-        </div>
-
-        {/* Owned count — top left */}
+        {/* Owned count badge — top left */}
         {showOwnedCount && typeof ownedCount === "number" && ownedCount > 0 && (
           <div
             style={{
               position: "absolute",
               top: 7,
-              left: 7,
-              background: "oklch(0.20 0.04 45 / .72)",
+              left: 8,
+              background: "oklch(0.22 0.04 45 / .68)",
               color: "oklch(0.96 0.04 78)",
               fontSize: 9,
               fontWeight: 800,
@@ -252,32 +277,51 @@ export const ShopItemCard = memo(function ShopItemCard({
               borderRadius: 20,
               letterSpacing: "0.03em",
               lineHeight: 1.7,
+              backdropFilter: "blur(4px)",
+              WebkitBackdropFilter: "blur(4px)",
             }}
           >
             ×{ownedCount}
           </div>
         )}
+
+        {/* Rarity indicator — dot only, no text */}
+        <div
+          style={{
+            position: "absolute",
+            top: 8,
+            right: 9,
+            width: 8,
+            height: 8,
+            borderRadius: "50%",
+            background: rs.dot,
+            boxShadow: `0 0 6px ${rs.dot}, 0 0 12px ${rs.dot}55`,
+            border: "1.5px solid rgba(255,255,255,0.55)",
+          }}
+          aria-hidden
+        />
       </div>
 
       {/* ── Info Strip ── */}
       <div
         style={{
-          padding: "10px 11px 11px",
+          padding: "11px 12px 12px",
           display: "flex",
           flexDirection: "column",
-          gap: 8,
+          gap: 9,
           flex: 1,
         }}
       >
         {/* Name + subtitle */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
           <div
             style={{
               fontFamily: "var(--display)",
               fontWeight: 800,
-              fontSize: 13,
+              fontSize: 13.5,
               color: "oklch(0.24 0.05 44)",
               lineHeight: 1.2,
+              letterSpacing: "-0.01em",
               overflow: "hidden",
               textOverflow: "ellipsis",
               whiteSpace: "nowrap",
@@ -289,9 +333,10 @@ export const ShopItemCard = memo(function ShopItemCard({
             <div
               style={{
                 fontSize: 10.5,
-                color: "oklch(0.50 0.05 58)",
+                color: "oklch(0.52 0.05 56)",
                 fontFamily: "var(--display)",
-                lineHeight: 1.3,
+                fontWeight: 500,
+                lineHeight: 1.35,
                 overflow: "hidden",
                 textOverflow: "ellipsis",
                 whiteSpace: "nowrap",
@@ -302,8 +347,18 @@ export const ShopItemCard = memo(function ShopItemCard({
           )}
         </div>
 
+        {/* Divider */}
+        <div
+          aria-hidden
+          style={{
+            height: 1,
+            background: "oklch(0.88 0.04 70 / .45)",
+            margin: "0 -1px",
+          }}
+        />
+
         {/* Price + CTA */}
-        <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: "auto" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           {!owned && (
             <div style={{ flex: 1, minWidth: 0 }}>
               <ShellCoin value={price} compact />
@@ -334,11 +389,11 @@ export const ShopItemCard = memo(function ShopItemCard({
                   background: "oklch(0.91 0.08 78 / .65)",
                   padding: "3px 9px",
                   borderRadius: 20,
-                  border: "1px solid oklch(0.80 0.08 74 / .4)",
+                  border: "1px solid oklch(0.80 0.08 74 / .40)",
                   whiteSpace: "nowrap",
                 }}
               >
-                تمتلكه ✓
+                تمتلكه
               </span>
             )
           ) : (
@@ -352,11 +407,12 @@ export const ShopItemCard = memo(function ShopItemCard({
               style={{
                 minWidth: 54,
                 fontSize: 12,
-                padding: "5px 12px",
+                padding: "5px 13px",
                 borderRadius: 10,
-                opacity: insufficientCoins ? 0.48 : 1,
+                opacity: insufficientCoins ? 0.42 : 1,
                 fontWeight: 800,
                 flexShrink: 0,
+                transition: "opacity 0.18s",
               }}
             >
               {busy ? "…" : "شراء"}
@@ -364,15 +420,13 @@ export const ShopItemCard = memo(function ShopItemCard({
           )}
         </div>
       </div>
+
+      <style>{CSS}</style>
     </motion.article>
   );
 });
 
-/**
- * Scales the child icon up to fill the 88px zone nicely.
- * The child is expected to be an SVG at its native size.
- * We use a fixed wrapper that scales the SVG without reflow.
- */
+/* ── Icon zone wrapper ──────────────────────────────────────────── */
 function IconZoneWrapper({ children }: { children: React.ReactNode }) {
   return (
     <div
@@ -382,8 +436,7 @@ function IconZoneWrapper({ children }: { children: React.ReactNode }) {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        // Scale up SVG children — transform doesn't cause layout recalc
-        transform: "scale(1.85)",
+        transform: "scale(1.9)",
         transformOrigin: "center",
       }}
     >
