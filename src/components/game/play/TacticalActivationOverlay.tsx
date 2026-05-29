@@ -420,7 +420,7 @@ function ToolParticles({
   toolId: TacticalToolId;
   palette: typeof PALETTE[TacticalToolId];
 }) {
-  const count = toolId === "time_pressure" ? 16 : toolId === "shield" ? 12 : 14;
+  const count = toolId === "time_pressure" ? 10 : toolId === "shield" ? 8 : 10;
 
   const particles = useMemo(() => {
     return Array.from({ length: count }, (_, i) => {

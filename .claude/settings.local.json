@@ -8,7 +8,8 @@
       "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\imfal\\\\Desktop\\\\مين انا\\\\meen-ana\" -Recurse -Directory)",
       "Bash(Select-Object -ExpandProperty FullName)",
       "Bash(git checkout *)",
-      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\imfal\\\\Desktop\\\\U\\\\meen-ana-Update\" -Recurse -Filter \"*firebase*\" -ErrorAction SilentlyContinue)"
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\imfal\\\\Desktop\\\\U\\\\meen-ana-Update\" -Recurse -Filter \"*firebase*\" -ErrorAction SilentlyContinue)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\imfal\\\\Desktop\\\\U\\\\meen-ana-Update\\\\src\" -Recurse -Name)"
     ]
   }
 }

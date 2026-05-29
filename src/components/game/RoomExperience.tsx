@@ -200,6 +200,21 @@ export function RoomExperience({ roomId }: Props) {
     });
   }, []);
 
+  // Stable refs prevent new function identity on every 200ms clock re-render,
+  // which would break any memo barrier on GameplaySocialSurface.
+  const handleComposerFocus = useCallback((el: HTMLInputElement) => {
+    setComposerFocused(true);
+    snapChatToBottom("auto");
+    el.style.boxShadow =
+      "inset 0 0 0 2px rgba(255,149,0,0.50), inset 0 2px 6px rgba(196,134,82,0.08)";
+  }, [snapChatToBottom]);
+
+  const handleComposerBlur = useCallback((el: HTMLInputElement) => {
+    setComposerFocused(false);
+    el.style.boxShadow =
+      "inset 0 0 0 1.5px rgba(244,196,141,0.55), inset 0 2px 6px rgba(196,134,82,0.06)";
+  }, []);
+
   /** While the composer is focused, keep the message list pinned to the bottom
    *  when the VisualViewport shrinks (soft keyboard) so nothing “jumps away”. */
   useEffect(() => {
@@ -355,10 +370,12 @@ export function RoomExperience({ roomId }: Props) {
   const activeTacticalEvent = useMemo(() => {
     const ev = match?.lastTacticalEvent;
     if (!ev?.id) return null;
+    // Use Date.now() directly — this memo only needs to rerun when the event
+    // itself changes, not every 200ms clock tick.
     const expMs = ev.expiresAt?.toMillis?.() ?? 0;
-    if (expMs > 0 && clock > expMs) return null;
+    if (expMs > 0 && Date.now() > expMs) return null;
     return ev;
-  }, [match?.lastTacticalEvent, clock]);
+  }, [match?.lastTacticalEvent]);
 
   const myTurn =
     Boolean(match?.status === "active" && match.actorUid && uid && match.actorUid === uid);
@@ -1631,17 +1648,8 @@ export function RoomExperience({ roomId }: Props) {
             onSendDraft={sendDraft}
             busy={busy}
             onGuessClick={openGuessFlow}
-            onComposerFocus={(el) => {
-              setComposerFocused(true);
-              snapChatToBottom("auto");
-              el.style.boxShadow =
-                "inset 0 0 0 2px rgba(255,149,0,0.50), inset 0 2px 6px rgba(196,134,82,0.08)";
-            }}
-            onComposerBlur={(el) => {
-              setComposerFocused(false);
-              el.style.boxShadow =
-                "inset 0 0 0 1.5px rgba(244,196,141,0.55), inset 0 2px 6px rgba(196,134,82,0.06)";
-            }}
+            onComposerFocus={handleComposerFocus}
+            onComposerBlur={handleComposerBlur}
             match={match}
             tacticalInventory={tacticalInv}
             tacticalBusy={tacticalBusy}

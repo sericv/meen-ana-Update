@@ -1,6 +1,6 @@
 "use client";
 
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { memo, useCallback, useRef, useState } from "react";
 import { GameplaySheet } from "@/components/game/play/GameplaySheets";
 import { TacticalToolIcon } from "@/components/game/play/TacticalToolIcons";
@@ -16,80 +16,71 @@ import {
   type TacticalInventory,
   type TacticalToolId,
 } from "@/lib/profile/tactical-tools";
-import { SPRING_UI, EASE_OUT } from "@/lib/motion";
+import { EASE_OUT } from "@/lib/motion";
 import type { MatchState } from "@/types";
 
-/* ─── Per-tool palette — unified warm base, rarity via accents ── */
-/* All cards share the same cream surface. Tool identity lives in:
-   · 3px accent bar (always present, dims when unavailable)
-   · radial orb behind the icon
-   · border tint
-   · ambient shadow
-   No full-bleed color blocks.                                      */
+/* ─── Per-tool palette ───────────────────────────────────────── */
 const TOOL: Record<TacticalToolId, {
-  dot:       string;   // colored dot in ready badge
-  bar:       string;   // top accent bar gradient
-  orb:       string;   // radial glow behind icon
-  iconColor: string;   // icon tint (default/inactive state)
-  iconReady: string;   // icon tint when ready
-  border:    string;   // card border
-  borderReady: string; // card border when ready
-  shadow:    string;   // ambient shadow
-  shadowReady: string; // shadow when ready
+  dot:         string;
+  bar:         string;
+  orb:         string;
+  iconColor:   string;
+  iconReady:   string;
+  dotGlow:     string;
+  border:      string;
+  borderReady: string;
+  shadow:      string;
+  shadowReady: string;
 }> = {
   extra_time: {
-    dot:         "oklch(0.62 0.12 158)",
+    dot:         "oklch(0.58 0.14 158)",
     bar:         "linear-gradient(90deg, oklch(0.62 0.12 158), oklch(0.50 0.12 168))",
-    orb:         "radial-gradient(circle at 50% 58%, oklch(0.80 0.10 158 / .46) 0%, transparent 64%)",
+    orb:         "radial-gradient(circle at 50% 58%, oklch(0.80 0.10 158 / .50) 0%, transparent 68%)",
     iconColor:   "oklch(0.55 0.08 158)",
-    iconReady:   "oklch(0.46 0.12 160)",
-    border:      "oklch(0.84 0.05 70 / .38)",
-    borderReady: "oklch(0.72 0.08 158 / .50)",
-    shadow:      "0 2px 8px rgba(0,0,0,0.04)",
-    shadowReady: "0 3px 16px oklch(0.60 0.10 158 / .14), 0 1px 3px rgba(0,0,0,0.04)",
+    iconReady:   "oklch(0.44 0.13 160)",
+    dotGlow:     "oklch(0.58 0.14 158 / .50)",
+    border:      "oklch(0.86 0.04 70 / .36)",
+    borderReady: "oklch(0.68 0.10 158 / .55)",
+    shadow:      "0 1px 4px rgba(0,0,0,0.04)",
+    shadowReady: "0 3px 14px oklch(0.58 0.10 158 / .16), 0 1px 3px rgba(0,0,0,0.04)",
   },
   time_pressure: {
-    dot:         "oklch(0.60 0.18 22)",
+    dot:         "oklch(0.56 0.20 22)",
     bar:         "linear-gradient(90deg, oklch(0.62 0.18 22), oklch(0.50 0.18 18))",
-    orb:         "radial-gradient(circle at 50% 58%, oklch(0.82 0.14 22 / .40) 0%, transparent 64%)",
-    iconColor:   "oklch(0.55 0.10 24)",
-    iconReady:   "oklch(0.48 0.16 22)",
-    border:      "oklch(0.84 0.05 70 / .38)",
-    borderReady: "oklch(0.72 0.10 22 / .46)",
-    shadow:      "0 2px 8px rgba(0,0,0,0.04)",
-    shadowReady: "0 3px 16px oklch(0.58 0.14 22 / .13), 0 1px 3px rgba(0,0,0,0.04)",
+    orb:         "radial-gradient(circle at 50% 58%, oklch(0.82 0.14 22 / .44) 0%, transparent 68%)",
+    iconColor:   "oklch(0.54 0.10 24)",
+    iconReady:   "oklch(0.46 0.18 22)",
+    dotGlow:     "oklch(0.56 0.20 22 / .50)",
+    border:      "oklch(0.86 0.04 70 / .36)",
+    borderReady: "oklch(0.68 0.12 22 / .50)",
+    shadow:      "0 1px 4px rgba(0,0,0,0.04)",
+    shadowReady: "0 3px 14px oklch(0.56 0.14 22 / .15), 0 1px 3px rgba(0,0,0,0.04)",
   },
   extra_question: {
-    dot:         "oklch(0.68 0.16 68)",
+    dot:         "oklch(0.62 0.18 68)",
     bar:         "linear-gradient(90deg, oklch(0.72 0.16 72), oklch(0.60 0.18 58))",
-    orb:         "radial-gradient(circle at 50% 58%, oklch(0.88 0.14 72 / .46) 0%, transparent 64%)",
-    iconColor:   "oklch(0.55 0.10 65)",
-    iconReady:   "oklch(0.50 0.14 66)",
-    border:      "oklch(0.84 0.05 70 / .38)",
-    borderReady: "oklch(0.76 0.10 68 / .50)",
-    shadow:      "0 2px 8px rgba(0,0,0,0.04)",
-    shadowReady: "0 3px 16px oklch(0.64 0.12 66 / .14), 0 1px 3px rgba(0,0,0,0.04)",
+    orb:         "radial-gradient(circle at 50% 58%, oklch(0.88 0.14 72 / .48) 0%, transparent 68%)",
+    iconColor:   "oklch(0.54 0.10 65)",
+    iconReady:   "oklch(0.48 0.15 66)",
+    dotGlow:     "oklch(0.62 0.18 68 / .50)",
+    border:      "oklch(0.86 0.04 70 / .36)",
+    borderReady: "oklch(0.72 0.12 68 / .55)",
+    shadow:      "0 1px 4px rgba(0,0,0,0.04)",
+    shadowReady: "0 3px 14px oklch(0.62 0.12 66 / .16), 0 1px 3px rgba(0,0,0,0.04)",
   },
   shield: {
-    dot:         "oklch(0.56 0.14 238)",
+    dot:         "oklch(0.52 0.16 238)",
     bar:         "linear-gradient(90deg, oklch(0.60 0.14 238), oklch(0.50 0.14 230))",
-    orb:         "radial-gradient(circle at 50% 58%, oklch(0.78 0.12 238 / .42) 0%, transparent 64%)",
-    iconColor:   "oklch(0.55 0.08 238)",
-    iconReady:   "oklch(0.46 0.14 236)",
-    border:      "oklch(0.84 0.05 70 / .38)",
-    borderReady: "oklch(0.70 0.10 236 / .46)",
-    shadow:      "0 2px 8px rgba(0,0,0,0.04)",
-    shadowReady: "0 3px 16px oklch(0.56 0.12 236 / .13), 0 1px 3px rgba(0,0,0,0.04)",
+    orb:         "radial-gradient(circle at 50% 58%, oklch(0.78 0.12 238 / .44) 0%, transparent 68%)",
+    iconColor:   "oklch(0.54 0.08 238)",
+    iconReady:   "oklch(0.44 0.16 236)",
+    dotGlow:     "oklch(0.52 0.16 238 / .50)",
+    border:      "oklch(0.86 0.04 70 / .36)",
+    borderReady: "oklch(0.66 0.12 236 / .50)",
+    shadow:      "0 1px 4px rgba(0,0,0,0.04)",
+    shadowReady: "0 3px 14px oklch(0.52 0.12 236 / .14), 0 1px 3px rgba(0,0,0,0.04)",
   },
 };
-
-/* ─── CSS keyframes ─────────────────────────────────────────── */
-const TAC_CSS = `
-  @keyframes tacOrb {
-    0%, 100% { opacity: 0.55; transform: scale(1);    }
-    50%       { opacity: 0.90; transform: scale(1.08); }
-  }
-`;
 
 /* ─── Types ─────────────────────────────────────────────────── */
 type Props = {
@@ -213,7 +204,7 @@ export function TacticalToolsSheet({
             </AnimatePresence>
 
             {/* Tool cards */}
-            <div className="flex flex-col gap-2.5">
+            <div className="flex flex-col gap-2">
               {TACTICAL_SHOP_ITEMS.map((item, i) => {
                 const count = inventory[item.id] ?? 0;
                 const { ok } = canUseTacticalTool({
@@ -276,7 +267,6 @@ const TacticalCard = memo(function TacticalCard({
   index: number;
   onClick: () => void;
 }) {
-  const reduced = useReducedMotion();
   const t = TOOL[toolId];
   const empty = count < 1;
 
@@ -289,43 +279,35 @@ const TacticalCard = memo(function TacticalCard({
       type="button"
       disabled={disabled}
       onClick={handleClick}
-      /* Stagger entrance */
-      initial={{ opacity: 0, y: 12, scale: 0.97 }}
+      initial={{ opacity: 0, y: 10, scale: 0.97 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ delay: index * 0.055, duration: 0.38, ease: [0.18, 1, 0.36, 1] }}
-      whileTap={disabled ? {} : { scale: 0.963 }}
+      transition={{ delay: index * 0.05, duration: 0.34, ease: [0.18, 1, 0.36, 1] }}
+      whileTap={disabled ? {} : { scale: 0.965 }}
       className="relative w-full overflow-hidden text-right disabled:cursor-not-allowed"
       style={{
-        /* Unified warm cream base — same for ALL tools */
         background: "linear-gradient(168deg, rgba(255,255,255,0.99) 0%, oklch(0.963 0.014 76) 100%)",
-        borderRadius: 18,
+        borderRadius: 16,
         border: `1.5px solid ${ready ? t.borderReady : t.border}`,
-        padding: "13px 13px 13px 13px",
-        boxShadow: [
-          `inset 0 1.5px 0 rgba(255,255,255,0.88)`,
-          ready ? t.shadowReady : t.shadow,
-        ].join(", "),
-        opacity: empty ? 0.46 : 1,
+        padding: "11px 12px",
+        boxShadow: `inset 0 1.5px 0 rgba(255,255,255,0.88), ${ready ? t.shadowReady : t.shadow}`,
+        opacity: empty ? 0.44 : 1,
         willChange: "transform",
         contain: "layout style",
-        transition: "box-shadow 0.26s cubic-bezier(0.23,1,0.32,1), border-color 0.26s cubic-bezier(0.23,1,0.32,1), opacity 0.22s",
+        transition: "box-shadow 0.24s cubic-bezier(0.23,1,0.32,1), border-color 0.24s cubic-bezier(0.23,1,0.32,1), opacity 0.20s",
       }}
     >
-      {/* ── Top accent bar — always present, dims when unavailable ── */}
-      <motion.div
+      {/* ── Accent bar — CSS transition, no Framer Motion ── */}
+      <div
         aria-hidden
-        animate={{ opacity: ready ? 1 : empty ? 0 : 0.35 }}
-        initial={false}
-        transition={{ duration: 0.30, ease: [0.23, 1, 0.32, 1] }}
         style={{
           position: "absolute",
-          top: 0,
-          left: 0,
-          right: 0,
-          height: 3,
+          top: 0, left: 0, right: 0,
+          height: 2.5,
           background: t.bar,
-          borderRadius: "18px 18px 0 0",
+          borderRadius: "16px 16px 0 0",
+          opacity: ready ? 1 : empty ? 0 : 0.30,
           pointerEvents: "none",
+          transition: "opacity 0.24s cubic-bezier(0.23,1,0.32,1)",
         }}
       />
 
@@ -335,9 +317,28 @@ const TacticalCard = memo(function TacticalCard({
         style={{
           position: "absolute",
           inset: 0,
-          borderRadius: 18,
-          background: "linear-gradient(180deg, rgba(255,255,255,0.18) 0%, transparent 44%)",
+          borderRadius: 16,
+          background: "linear-gradient(180deg, rgba(255,255,255,0.16) 0%, transparent 42%)",
           pointerEvents: "none",
+        }}
+      />
+
+      {/* ── Ready indicator dot — replaces text badge, CSS only ── */}
+      <span
+        aria-hidden
+        style={{
+          position: "absolute",
+          top: 9,
+          right: 11,
+          width: 6,
+          height: 6,
+          borderRadius: "50%",
+          background: t.dot,
+          opacity: ready ? 1 : 0,
+          transform: ready ? "scale(1)" : "scale(0.4)",
+          boxShadow: ready ? `0 0 6px ${t.dotGlow}` : "none",
+          pointerEvents: "none",
+          transition: "opacity 0.22s, transform 0.22s cubic-bezier(0.23,1,0.32,1), box-shadow 0.22s",
         }}
       />
 
@@ -350,112 +351,60 @@ const TacticalCard = memo(function TacticalCard({
         style={{
           position: "absolute",
           inset: 0,
-          borderRadius: 18,
-          background: `radial-gradient(ellipse at 50% 50%, ${t.orb.replace("radial-gradient(circle at 50% 58%, ", "").split(")")[0].trim()} 0%, transparent 65%)`,
+          borderRadius: 16,
+          background: t.orb,
           pointerEvents: "none",
         }}
       />
 
-      {/* ── Ready badge — dot + text, spring pop ── */}
-      <AnimatePresence>
-        {ready && (
-          <motion.span
-            key="ready"
-            initial={{ opacity: 0, scale: 0.62, y: 5 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.62, y: 5 }}
-            transition={SPRING_UI}
-            style={{
-              position: "absolute",
-              top: -9,
-              right: 13,
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 4,
-              borderRadius: 999,
-              padding: "2px 8px 2px 6px",
-              fontSize: 9,
-              fontWeight: 800,
-              letterSpacing: "0.04em",
-              background: "oklch(0.96 0.02 76 / .92)",
-              border: "1px solid oklch(0.84 0.04 70 / .50)",
-              color: "oklch(0.36 0.06 52)",
-              boxShadow: "0 2px 8px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.90)",
-              backdropFilter: "blur(4px)",
-              WebkitBackdropFilter: "blur(4px)",
-            }}
-          >
-            {/* Colored dot — tool identity signal */}
-            <span
-              aria-hidden
-              style={{
-                width: 5,
-                height: 5,
-                borderRadius: "50%",
-                background: t.dot,
-                flexShrink: 0,
-                boxShadow: `0 0 5px ${t.dot}`,
-              }}
-            />
-            جاهزة
-          </motion.span>
-        )}
-      </AnimatePresence>
-
       <div className="flex items-center gap-3">
         {/* ── Icon bubble ── */}
         <div style={{ position: "relative", flexShrink: 0 }}>
-          {/* Ambient orb pulse — CSS, compositor */}
-          {ready && !reduced && (
-            <span
-              aria-hidden
-              style={{
-                position: "absolute",
-                inset: -7,
-                borderRadius: 20,
-                background: t.orb,
-                animation: "tacOrb 2.4s ease-in-out infinite",
-                pointerEvents: "none",
-              }}
-            />
-          )}
+          {/* Static orb — CSS opacity transition, no continuous animation */}
+          <span
+            aria-hidden
+            style={{
+              position: "absolute",
+              inset: -5,
+              borderRadius: 18,
+              background: t.orb,
+              opacity: ready ? 0.65 : 0,
+              pointerEvents: "none",
+              transition: "opacity 0.26s",
+            }}
+          />
 
-          {/* Icon container — warm cream base always */}
+          {/* Icon container */}
           <div
             style={{
-              width: 50,
-              height: 50,
-              borderRadius: 15,
-              /* Unified warm base — orb provides the color accent */
+              width: 46,
+              height: 46,
+              borderRadius: 13,
               background: "linear-gradient(160deg, oklch(0.975 0.020 78), oklch(0.942 0.026 74))",
               display: "grid",
               placeItems: "center",
               position: "relative",
               overflow: "hidden",
               boxShadow: ready
-                ? [
-                    `inset 0 1.5px 0 rgba(255,255,255,0.75)`,
-                    `inset 0 -1px 0 rgba(0,0,0,0.06)`,
-                    `0 3px 10px ${t.orb.includes("oklch") ? t.orb.match(/oklch\([^)]+\)/)?.[0] ?? "transparent" : "transparent"} / .22)`.replace("/ .22)", "/ .22)"),
-                  ].join(", ")
+                ? `inset 0 1.5px 0 rgba(255,255,255,0.75), inset 0 -1px 0 rgba(0,0,0,0.06), 0 2px 8px ${t.dotGlow}`
                 : "inset 0 1.5px 0 rgba(255,255,255,0.70), inset 0 -1px 0 rgba(0,0,0,0.05)",
-              transition: "box-shadow 0.26s cubic-bezier(0.23,1,0.32,1)",
               color: ready ? t.iconReady : t.iconColor,
+              transition: "box-shadow 0.24s, color 0.22s",
             }}
           >
-            {/* Inner orb behind icon */}
+            {/* Orb inside bubble */}
             <span
               aria-hidden
               style={{
                 position: "absolute",
                 inset: 0,
                 background: t.orb,
-                opacity: ready ? 0.7 : 0.35,
-                transition: "opacity 0.26s",
+                opacity: ready ? 0.65 : 0.28,
+                transition: "opacity 0.24s",
                 pointerEvents: "none",
               }}
             />
-            {/* Specular top streak */}
+            {/* Specular streak */}
             <span
               aria-hidden
               style={{
@@ -463,14 +412,14 @@ const TacticalCard = memo(function TacticalCard({
                 top: 1,
                 left: "14%",
                 right: "14%",
-                height: "36%",
-                borderRadius: "15px 15px 50% 50%",
-                background: "linear-gradient(180deg, rgba(255,255,255,0.42) 0%, transparent 100%)",
+                height: "34%",
+                borderRadius: "13px 13px 50% 50%",
+                background: "linear-gradient(180deg, rgba(255,255,255,0.40) 0%, transparent 100%)",
                 pointerEvents: "none",
               }}
             />
             <div style={{ position: "relative", zIndex: 1 }}>
-              <TacticalToolIcon id={toolId} size={24} />
+              <TacticalToolIcon id={toolId} size={22} />
             </div>
           </div>
         </div>
@@ -481,76 +430,78 @@ const TacticalCard = memo(function TacticalCard({
             style={{
               fontFamily: "var(--display)",
               fontWeight: 800,
-              fontSize: 14,
+              fontSize: 13.5,
               letterSpacing: "-0.01em",
               lineHeight: 1.2,
-              color: busy ? GP.inkSoft : ready ? GP.ink : "oklch(0.40 0.05 52)",
-              transition: "color 0.22s",
+              color: busy ? GP.inkSoft : ready ? GP.ink : "oklch(0.42 0.05 52)",
               overflow: "hidden",
               textOverflow: "ellipsis",
               whiteSpace: "nowrap",
+              transition: "color 0.20s",
             }}
           >
             {busy ? "جاري التفعيل…" : title}
           </p>
           <p
             style={{
-              fontSize: 10.5,
-              marginTop: 2.5,
-              lineHeight: 1.35,
+              fontSize: 11,
+              marginTop: 3,
+              lineHeight: 1.3,
               color: "oklch(0.54 0.05 56)",
-              opacity: ready ? 0.92 : 0.70,
+              opacity: ready ? 0.90 : 0.62,
               overflow: "hidden",
               textOverflow: "ellipsis",
               whiteSpace: "nowrap",
+              transition: "opacity 0.20s",
             }}
           >
             {subtitle}
           </p>
         </div>
 
-        {/* ── Stock pill ── */}
+        {/* ── Stock count ── */}
         <div
           style={{
             flexShrink: 0,
-            borderRadius: 999,
-            padding: "4px 11px",
+            minWidth: 28,
+            textAlign: "center",
+            borderRadius: 8,
+            padding: "4px 8px",
             fontSize: 11,
             fontWeight: 800,
+            fontVariantNumeric: "tabular-nums",
             background: count > 0
-              ? "oklch(0.94 0.02 70 / .80)"
-              : "oklch(0.90 0.02 70 / .55)",
+              ? ready ? "oklch(0.94 0.03 70 / .88)" : "oklch(0.92 0.02 70 / .65)"
+              : "oklch(0.90 0.02 70 / .45)",
             color: count > 0
-              ? ready ? "oklch(0.34 0.06 52)" : "oklch(0.50 0.05 56)"
-              : "oklch(0.62 0.04 58)",
+              ? ready ? "oklch(0.32 0.07 52)" : "oklch(0.50 0.05 56)"
+              : "oklch(0.64 0.03 58)",
             border: `1px solid ${count > 0
-              ? ready ? "oklch(0.80 0.06 68 / .40)" : "oklch(0.84 0.04 68 / .35)"
-              : "oklch(0.84 0.02 68 / .28)"
+              ? ready ? "oklch(0.78 0.06 68 / .38)" : "oklch(0.84 0.04 68 / .30)"
+              : "oklch(0.84 0.02 68 / .22)"
             }`,
-            transition: "background 0.22s, color 0.22s",
+            transition: "background 0.22s, color 0.22s, border-color 0.22s",
           }}
         >
           {count > 0 ? `×${count}` : "—"}
         </div>
       </div>
 
-      {/* ── Busy shimmer sweep ── */}
+      {/* ── Busy shimmer ── */}
       {busy && (
         <motion.div
           aria-hidden
           animate={{ x: ["-130%", "130%"] }}
-          transition={{ duration: 0.88, repeat: Infinity, ease: "easeInOut" }}
+          transition={{ duration: 0.90, repeat: Infinity, ease: "easeInOut" }}
           style={{
             position: "absolute",
             inset: 0,
-            borderRadius: 18,
-            background: "linear-gradient(105deg, transparent 18%, rgba(255,255,255,0.52) 50%, transparent 82%)",
+            borderRadius: 16,
+            background: "linear-gradient(105deg, transparent 20%, rgba(255,255,255,0.48) 50%, transparent 80%)",
             pointerEvents: "none",
           }}
         />
       )}
-
-      <style>{TAC_CSS}</style>
     </motion.button>
   );
 });

@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ProfileAvatar } from "@/components/profile/ProfileAvatar";
 import { GameplayTurnArc } from "@/components/game/play/GameplayTurnArc";
@@ -25,32 +26,22 @@ function PlayerCorner({ name, uid, cosmetic, photoURL, active, reverse }: Player
       transition={{ duration: 0.35, ease: EASE_OUT }}
     >
       <div className="relative shrink-0">
-        {/* Active glow — layered rings for depth */}
+        {/* Active glow — CSS animations, compositor-only (no JS repeat: Infinity) */}
         <AnimatePresence>
           {active && (
             <>
-              {/* Outer ambient bloom */}
-              <motion.div
+              {/* Outer ambient bloom — CSS animation off main thread */}
+              <span
                 key="bloom-outer"
                 aria-hidden
-                className="pointer-events-none absolute rounded-full"
+                className="avatar-glow-outer pointer-events-none absolute rounded-full"
                 style={{
                   inset: -10,
                   background: `radial-gradient(circle, ${GP.gold}44 0%, transparent 68%)`,
                   filter: "blur(7px)",
                 }}
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{
-                  opacity: [0.55, 0.9, 0.55],
-                  scale: [1, 1.05, 1],
-                }}
-                exit={{ opacity: 0, scale: 0.8 }}
-                transition={{
-                  opacity: { duration: 2.2, repeat: Infinity, ease: "easeInOut" },
-                  scale:   { duration: 2.2, repeat: Infinity, ease: "easeInOut" },
-                }}
               />
-              {/* Inner tight ring */}
+              {/* Inner tight ring — static, entry/exit only via AnimatePresence */}
               <motion.div
                 key="ring-inner"
                 aria-hidden
@@ -111,7 +102,7 @@ type Props = {
   phase: string;
 };
 
-export function GameplayTopBar({
+export const GameplayTopBar = memo(function GameplayTopBar({
   myName,
   opponentName,
   myUid,
@@ -175,4 +166,4 @@ export function GameplayTopBar({
       />
     </div>
   );
-}
+});

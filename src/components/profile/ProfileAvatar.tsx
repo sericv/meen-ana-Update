@@ -1,6 +1,5 @@
 "use client";
 
-import { motion } from "framer-motion";
 import Image from "next/image";
 import { AvatarFrame } from "@/components/profile/AvatarFrame";
 import { DefaultAvatarIllustration } from "@/components/profile/DefaultAvatarIllustration";
@@ -18,14 +17,13 @@ export type ProfileAvatarSize = keyof typeof SIZE_MAP;
 
 type Props = {
   cosmetic: PlayerCosmetic | null | undefined;
-  /** Fallback when Firestore has no photo (e.g. Firebase Auth photo). */
   fallbackPhotoURL?: string | null;
   displayName?: string;
   size?: ProfileAvatarSize;
   active?: boolean;
   /** Pulsing green dot (e.g. searching / your turn). */
   showPulseDot?: boolean;
-  /** Subtle idle bob for lobby / home presence. */
+  /** Subtle idle bob — CSS animation, compositor-only. */
   idle?: boolean;
   className?: string;
 };
@@ -65,25 +63,18 @@ export function ProfileAvatar({
     </div>
   );
 
-  const wrapped = (
-    <motion.div
-      className={`relative inline-flex shrink-0 ${className}`}
-      animate={idle ? { y: [0, -2, 0] } : undefined}
-      transition={idle ? { duration: 3.2, repeat: Infinity, ease: "easeInOut" } : undefined}
-    >
+  return (
+    /* CSS class-based idle bob — off main thread, zero JS overhead */
+    <div className={`relative inline-flex shrink-0 ${idle ? "avatar-idle-bob" : ""} ${className}`}>
       <AvatarFrame frameId={frameId} sizePx={px} active={active}>
         {inner}
       </AvatarFrame>
-      {showPulseDot ? (
-        <motion.span
+      {showPulseDot && (
+        <span
           aria-hidden
-          animate={{ scale: [1, 1.25, 1], opacity: [1, 0.75, 1] }}
-          transition={{ duration: 1.4, repeat: Infinity }}
-          className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-emerald-400 ring-2 ring-white"
+          className="avatar-pulse-dot absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-emerald-400 ring-2 ring-white"
         />
-      ) : null}
-    </motion.div>
+      )}
+    </div>
   );
-
-  return wrapped;
 }

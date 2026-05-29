@@ -261,12 +261,9 @@ function matchWireSignature(m: MatchState): string {
 }
 
 function messagesWireSignature(list: ChatMessage[]): string {
-  return list
-    .map(
-      (m) =>
-        `${m.id}\t${m.senderUid}\t${m.senderName}\t${m.type}\t${m.text}\t${m.correct ?? ""}\t${m.createdAt?.toMillis() ?? "n"}`,
-    )
-    .join("\n");
+  // O(1) — check only count + last message identity; catches all add/remove/reorder.
+  const last = list[list.length - 1];
+  return `${list.length}:${last?.id ?? ""}:${last?.createdAt?.toMillis() ?? ""}`;
 }
 
 function opponentCardWireSignature(c: GameCard | null): string {

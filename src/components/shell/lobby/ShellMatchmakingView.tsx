@@ -81,7 +81,7 @@ export function ShellMatchmakingView({
 
   return (
     <div className="shell-screen screen-enter" style={{ background: "transparent" }}>
-      <ShellEmbers count={26} />
+      <ShellEmbers count={14} />
       <div className="topbar">
         <button
           type="button"
