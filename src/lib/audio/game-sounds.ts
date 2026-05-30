@@ -169,6 +169,156 @@ export function playRoomInviteAccept(): void {
   window.setTimeout(() => beep(1319, 0.12, 0.034), 75);
 }
 
+/**
+ * Extra Time cinematic soundscape — uplifting layered cues timed to the overlay.
+ * Returns a cleanup fn that stops any still-running nodes (call on unmount).
+ */
+export function playExtraTimeCinematic(): () => void {
+  const handles: Array<{ stop: () => void }> = [];
+
+  function scheduled(
+    type: OscillatorType,
+    freq: number,
+    startSec: number,
+    durSec: number,
+    gain: number,
+    freqEnd?: number,
+  ) {
+    try {
+      const c = getCtx();
+      const o = c.createOscillator();
+      const g = c.createGain();
+      o.type = type;
+      o.frequency.value = freq;
+      if (freqEnd !== undefined) {
+        o.frequency.linearRampToValueAtTime(freqEnd, c.currentTime + startSec + durSec);
+      }
+      g.gain.value = 0;
+      g.gain.setValueAtTime(gain, c.currentTime + startSec);
+      g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + startSec + durSec);
+      o.connect(g);
+      g.connect(c.destination);
+      o.start(c.currentTime + startSec);
+      o.stop(c.currentTime + startSec + durSec + 0.05);
+      handles.push({ stop: () => { try { o.stop(); } catch { /* already stopped */ } } });
+    } catch { /* ignore */ }
+  }
+
+  // t=0.0s — soft whoosh entry: rising sweep
+  scheduled("sawtooth", 160, 0.00, 0.20, 0.035, 420);
+  scheduled("sine",     120, 0.05, 0.22, 0.040);
+
+  // t=0.18s — hourglass appears: warm chime
+  scheduled("sine",     523, 0.18, 0.16, 0.048);
+  scheduled("triangle", 784, 0.20, 0.14, 0.038);
+  scheduled("sine",     659, 0.26, 0.18, 0.032);
+
+  // t=0.3s — ripple rings expand: soft energy pulses (3 rings)
+  for (let i = 0; i < 3; i++) {
+    scheduled("sine", 220, 0.25 + i * 0.25, 0.30, 0.030, 100);
+  }
+
+  // t=0.68s — "+15" title lands: upbeat sting
+  scheduled("sine",     784, 0.68, 0.10, 0.052);
+  scheduled("sine",     988, 0.72, 0.14, 0.045);
+  scheduled("triangle", 523, 0.68, 0.18, 0.035);
+
+  // t=0.82s — effect line fades in: warm sustain
+  scheduled("sine",     440, 0.82, 0.35, 0.028);
+  scheduled("triangle", 220, 0.85, 0.40, 0.022);
+
+  // t=1.0s — actor chip appears: short lift
+  scheduled("sine",     880, 1.00, 0.12, 0.040);
+  scheduled("sine",    1047, 1.06, 0.14, 0.034);
+
+  // t=1.5s — fade out: soft release
+  scheduled("sine",     330, 1.50, 0.32, 0.020, 180);
+  scheduled("triangle", 165, 1.55, 0.28, 0.016);
+
+  return () => { handles.forEach((h) => h.stop()); };
+}
+
+/**
+ * Time Pressure cinematic soundscape — layered Web Audio cues timed to the overlay.
+ * Returns a cleanup fn that stops any still-running nodes (call on unmount).
+ */
+export function playTimePressureCinematic(): () => void {
+  const handles: Array<{ stop: () => void }> = [];
+
+  function scheduled(
+    type: OscillatorType,
+    freq: number,
+    startSec: number,
+    durSec: number,
+    gain: number,
+    freqEnd?: number,
+  ) {
+    try {
+      const c = getCtx();
+      const o = c.createOscillator();
+      const g = c.createGain();
+      o.type = type;
+      o.frequency.value = freq;
+      if (freqEnd !== undefined) {
+        o.frequency.linearRampToValueAtTime(freqEnd, c.currentTime + startSec + durSec);
+      }
+      g.gain.value = 0;
+      g.gain.setValueAtTime(gain, c.currentTime + startSec);
+      g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + startSec + durSec);
+      o.connect(g);
+      g.connect(c.destination);
+      o.start(c.currentTime + startSec);
+      o.stop(c.currentTime + startSec + durSec + 0.05);
+      handles.push({ stop: () => { try { o.stop(); } catch { /* already stopped */ } } });
+    } catch { /* ignore */ }
+  }
+
+  // t=0s — Whoosh cinematic: descending sweep + low impact
+  scheduled("sawtooth", 480,  0.00, 0.18, 0.045, 120);
+  scheduled("triangle", 80,   0.05, 0.22, 0.060);
+  scheduled("sine",     55,   0.08, 0.28, 0.055);
+
+  // t=0.2s — Metallic clock appear: bright metallic ping
+  scheduled("sine",     1480, 0.22, 0.12, 0.042);
+  scheduled("triangle", 740,  0.22, 0.18, 0.035);
+  // Deep tick
+  scheduled("sine",     110,  0.28, 0.14, 0.058);
+  scheduled("triangle", 55,   0.28, 0.20, 0.048);
+
+  // t=0.55s — Hand spin starts: fast ticking escalation (6 ticks over ~0.5s)
+  for (let i = 0; i < 6; i++) {
+    scheduled("sine", 520 + i * 30, 0.55 + i * 0.08, 0.04, 0.035);
+  }
+  // Clock winding effect — rising tone
+  scheduled("sawtooth", 200, 0.55, 0.55, 0.032, 460);
+
+  // t=0.55s — Glass crack: sharp impact layers
+  scheduled("triangle", 1200, 0.56, 0.08, 0.038);
+  scheduled("sawtooth", 600,  0.56, 0.10, 0.032);
+  scheduled("sine",     320,  0.58, 0.14, 0.040);
+
+  // t=0.18s–0.42s — ShockRings expanding: energy pulse (3 rings)
+  for (let i = 0; i < 3; i++) {
+    scheduled("sine", 180, 0.18 + i * 0.12, 0.28, 0.038, 60);
+  }
+
+  // t=1.0s — "10s" stamp hit: heavy boom + reverb tail
+  scheduled("sine",     80,   1.00, 0.35, 0.075);
+  scheduled("triangle", 55,   1.00, 0.40, 0.065);
+  scheduled("sine",     40,   1.02, 0.45, 0.055);
+  // Deep cinematic boom
+  scheduled("sawtooth", 120,  1.00, 0.20, 0.048, 40);
+  // Short reverb tail — decaying harmonics
+  scheduled("sine",     220,  1.08, 0.50, 0.032);
+  scheduled("sine",     440,  1.08, 0.40, 0.024);
+
+  // t=1.5s — Fade out atmosphere
+  scheduled("sine",     180,  1.50, 0.30, 0.022, 80);
+  scheduled("triangle", 90,   1.55, 0.28, 0.018);
+
+  return () => { handles.forEach((h) => h.stop()); };
+}
+
 /** Opponent activated a tactical tool — short alert sting */
 export function playTacticalAlert(blocked = false): void {
   if (blocked) {

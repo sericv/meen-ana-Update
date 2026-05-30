@@ -57,6 +57,7 @@ import {
 } from "@/components/game/MatchupVsTransitionOverlay";
 import { MatchResultScreen } from "@/components/game/MatchResultScreen";
 import { GameplaySocialSurface } from "@/components/game/GameplaySocialSurface";
+import { IconCheck, IconCross, IconTarget } from "@/components/game/play/icons";
 import { VoiceModePlayingPanel } from "@/components/game/VoiceModePlayingPanel";
 import { GameplaySheet } from "@/components/game/play/GameplaySheets";
 import { GuessRemainingIndicator } from "@/components/game/play/GuessRemainingIndicator";
@@ -843,6 +844,7 @@ export function RoomExperience({ roomId }: Props) {
     const isSystem = m.senderUid === "system";
     const isGuessMsg = m.type === "guess";
 
+    // ── System messages ──────────────────────────────────────────
     if (isSystem) {
       const isHint = m.text.trim().startsWith("تلميح");
       return (
@@ -851,66 +853,52 @@ export function RoomExperience({ roomId }: Props) {
           layout
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
-          className="shrink-0"
-          style={{
-            alignSelf: "center",
+          className="bubble system shrink-0"
+          style={isHint ? {
+            borderColor: "oklch(0.75 0.13 60 / .55)",
+            background: "oklch(0.94 0.08 75 / .85)",
+            color: "oklch(0.35 0.10 50)",
+            gap: 6,
             display: "inline-flex",
             alignItems: "center",
-            gap: 6,
-            maxWidth: "85%",
-            borderRadius: 999,
-            border: isHint
-              ? "1px solid oklch(0.75 0.13 60 / .55)"
-              : "1px solid oklch(0.78 0.04 65 / .45)",
-            background: isHint ? "oklch(0.94 0.08 75 / .85)" : "oklch(0.96 0.025 78 / .9)",
-            color: isHint ? "oklch(0.35 0.10 50)" : "oklch(0.44 0.06 45)",
-            padding: "7px 13px",
-            fontSize: 11,
-            fontWeight: 700,
-            textAlign: "center",
-          }}
+          } : undefined}
         >
-          {isHint ? <span aria-hidden>💡</span> : null}
-          {m.text}
+          {isHint ? <span aria-hidden style={{ fontSize: 12, lineHeight: 1 }}>💡</span> : null}
+          <span>{m.text}</span>
         </motion.div>
       );
     }
 
+    // ── Verdict detection (نعم / لا answers) ─────────────────────
     const text = m.text.trim();
-    const isQuestion = m.type === "question";
+    const isVerdict = (text === "نعم" || text === "لا");
+    const verdict = text === "نعم" ? "yes" : text === "لا" ? "no" : null;
 
-    // Chat alignment (container is dir="rtl"):
-    //  • Player (me)      → LEFT  → alignSelf: "flex-end"   in RTL
-    //  • Opponent         → RIGHT → alignSelf: "flex-start" in RTL
-    const bubbleStyle: CSSProperties = {
-      alignSelf: isMe ? "flex-end" : "flex-start",
-      display: "inline-flex",
-      alignItems: "center",
-      gap: 8,
-      maxWidth: "78%",
-      borderRadius: isGuessMsg ? 14 : 18,
-      padding: "10px 14px",
-      background: isMe
-        ? "linear-gradient(180deg, oklch(0.86 0.11 70), oklch(0.79 0.13 58))"
-        : "linear-gradient(180deg, oklch(0.99 0.01 85), oklch(0.96 0.025 78))",
-      border: isMe
-        ? "1px solid oklch(0.70 0.13 58 / .55)"
-        : "1px solid oklch(0.78 0.04 65 / .55)",
-      color: "oklch(0.24 0.04 35)",
-      boxShadow: isMe
-        ? "0 6px 14px -8px oklch(0.55 0.15 55 / .45), inset 0 1px 0 rgba(255,255,255,.45)"
-        : "0 4px 12px -8px oklch(0.45 0.08 45 / .28), inset 0 1px 0 rgba(255,255,255,.85)",
-      outline: isGuessMsg ? "1.5px solid oklch(0.68 0.16 30 / .55)" : undefined,
-      fontSize: 14,
-      fontWeight: 700,
-      lineHeight: 1.55,
-      whiteSpace: "pre-wrap",
-      wordBreak: "break-word",
-      // Tail direction: me = bottom-right corner, opponent = bottom-left corner
-      borderBottomRightRadius: isMe ? 4 : undefined,
-      borderBottomLeftRadius: !isMe ? 4 : undefined,
-    };
+    // ── Guess messages ────────────────────────────────────────────
+    if (isGuessMsg) {
+      return (
+        <motion.div
+          key={m.id}
+          layout
+          initial={{ opacity: 0, scale: 0.94, y: 6 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+          className={`bubble ${isMe ? "me" : "them"} shrink-0`}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 8,
+            borderRadius: 14,
+            outline: "1.5px solid oklch(0.68 0.16 30 / .55)",
+          }}
+        >
+          <span aria-hidden style={{ color: "oklch(0.55 0.16 30)", display: "flex" }}><IconTarget size={14} /></span>
+          <span dir="rtl">{`تخميني: ${m.text}`}</span>
+        </motion.div>
+      );
+    }
 
+    // ── Regular messages (questions, answers, chat) ───────────────
     return (
       <motion.div
         key={m.id}
@@ -918,12 +906,38 @@ export function RoomExperience({ roomId }: Props) {
         initial={{ opacity: 0, scale: 0.94, y: 6 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
-        className="shrink-0"
-        style={bubbleStyle}
+        className={`bubble ${isMe ? "me" : "them"} shrink-0`}
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 8,
+        }}
       >
-        {isGuessMsg ? <span aria-hidden>🎯</span> : null}
-        <span dir="rtl">{isGuessMsg ? `تخميني: ${m.text}` : m.text}</span>
-        {isQuestion ? <span className="text-[10px] opacity-60">سؤال</span> : null}
+        <span dir="rtl">{m.text}</span>
+        {/* Verdict badge for نعم / لا answers */}
+        {isVerdict && verdict && (
+          <span
+            aria-hidden
+            style={{
+              display: "inline-grid",
+              placeItems: "center",
+              flexShrink: 0,
+              width: 18,
+              height: 18,
+              borderRadius: "50%",
+              background: verdict === "yes"
+                ? "oklch(0.78 0.12 150 / .35)"
+                : "oklch(0.78 0.14 25 / .35)",
+              color: verdict === "yes"
+                ? "oklch(0.32 0.13 150)"
+                : "oklch(0.40 0.15 25)",
+            }}
+          >
+            {verdict === "yes"
+              ? <IconCheck size={11} />
+              : <IconCross size={11} />}
+          </span>
+        )}
       </motion.div>
     );
   }, [uid]);
@@ -1416,52 +1430,18 @@ export function RoomExperience({ roomId }: Props) {
         rightMatchWins={liveProfile?.progress.matchWins}
       />
 
-      {/* ── Fixed ambient background ── */}
+      {/* ── Fixed ambient background — pure CSS, compositor thread only ── */}
       <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
-        <motion.div
-          animate={{ y: [0, -24, 0], x: [0, 16, 0] }}
-          transition={{ duration: 16, repeat: Infinity, ease: "easeInOut" }}
-          className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-[#FFCB8A]/40 blur-3xl"
-        />
-        <motion.div
-          animate={{ y: [0, 20, 0], x: [0, -12, 0] }}
-          transition={{ duration: 19, repeat: Infinity, ease: "easeInOut", delay: 4 }}
-          className="absolute -left-28 top-2/5 h-80 w-80 rounded-full bg-[#FFB574]/28 blur-3xl"
-        />
-        <motion.div
-          animate={{ y: [0, -14, 0] }}
-          transition={{ duration: 13, repeat: Infinity, ease: "easeInOut", delay: 7 }}
-          className="absolute bottom-24 right-1/3 h-56 w-56 rounded-full bg-[#FFD9A6]/36 blur-3xl"
-        />
-        {/* Subtle decorative particles */}
-        {([
-          { char: "؟", top: "7%",  left: "2%",    delay: 0,   size: 38, tint: "rgba(164,80,255,0.09)" },
-          { char: "؟", top: "38%", right: "3%",   delay: 2,   size: 30, tint: "rgba(255,138,30,0.11)" },
-          { char: "؟", top: "72%", left: "5%",    delay: 3.5, size: 34, tint: "rgba(60,150,255,0.09)" },
-          { char: "✦", top: "16%", right: "10%",  delay: 1,   size: 13, tint: "rgba(255,180,90,0.55)"  },
-          { char: "✦", top: "55%", left: "12%",   delay: 3,   size: 10, tint: "rgba(150,80,255,0.45)"  },
-          { char: "✦", top: "84%", right: "16%",  delay: 4.8, size: 15, tint: "rgba(60,150,255,0.42)"  },
-        ] as const).map((s, i) => (
-          <motion.span
-            key={i}
-            aria-hidden
-            style={{
-              position: "absolute",
-              top: s.top,
-              left: "left" in s ? s.left : undefined,
-              right: "right" in s ? s.right : undefined,
-              fontSize: s.size,
-              color: s.tint,
-              fontWeight: 900,
-              userSelect: "none",
-              lineHeight: 1,
-            }}
-            animate={{ y: [0, -9, 0], rotate: [0, 6, 0] }}
-            transition={{ duration: 6 + s.delay, repeat: Infinity, ease: "easeInOut", delay: s.delay }}
-          >
-            {s.char}
-          </motion.span>
-        ))}
+        <div className="blob-drift-1 absolute -right-24 -top-24 h-72 w-72 rounded-full bg-[#FFCB8A]/40 blur-3xl" />
+        <div className="blob-drift-2 absolute -left-28 top-2/5 h-80 w-80 rounded-full bg-[#FFB574]/28 blur-3xl" />
+        <div className="blob-drift-3 absolute bottom-24 right-1/3 h-56 w-56 rounded-full bg-[#FFD9A6]/36 blur-3xl" />
+        {/* Subtle decorative particles — CSS animation, no JS loop */}
+        <span aria-hidden className="particle-bob-0" style={{ position: "absolute", top: "7%",  left: "2%",    fontSize: 38, color: "rgba(164,80,255,0.09)", fontWeight: 900, userSelect: "none", lineHeight: 1 }}>؟</span>
+        <span aria-hidden className="particle-bob-1" style={{ position: "absolute", top: "38%", right: "3%",   fontSize: 30, color: "rgba(255,138,30,0.11)", fontWeight: 900, userSelect: "none", lineHeight: 1 }}>؟</span>
+        <span aria-hidden className="particle-bob-2" style={{ position: "absolute", top: "72%", left: "5%",    fontSize: 34, color: "rgba(60,150,255,0.09)",  fontWeight: 900, userSelect: "none", lineHeight: 1 }}>؟</span>
+        <span aria-hidden className="particle-bob-3" style={{ position: "absolute", top: "16%", right: "10%",  fontSize: 13, color: "rgba(255,180,90,0.55)",  fontWeight: 900, userSelect: "none", lineHeight: 1 }}>✦</span>
+        <span aria-hidden className="particle-bob-4" style={{ position: "absolute", top: "55%", left: "12%",   fontSize: 10, color: "rgba(150,80,255,0.45)",  fontWeight: 900, userSelect: "none", lineHeight: 1 }}>✦</span>
+        <span aria-hidden className="particle-bob-5" style={{ position: "absolute", top: "84%", right: "16%",  fontSize: 15, color: "rgba(60,150,255,0.42)",  fontWeight: 900, userSelect: "none", lineHeight: 1 }}>✦</span>
         {voiceFocusPlaying ? (
           <>
             <motion.div
@@ -1630,7 +1610,7 @@ export function RoomExperience({ roomId }: Props) {
             socialMatchLive={Boolean(match?.status === "active" && !ended)}
             myTurn={myTurn}
             phase={phase}
-            secLeft={secLeft}
+            turnDeadline={match?.turnDeadline ?? null}
             maxPhaseSec={maxPhaseSec}
             displayName={displayName}
             opponentName={opponentName}

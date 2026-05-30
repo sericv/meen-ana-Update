@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { IconHintBulb } from "@/components/game/play/icons";
 import { GP } from "@/components/game/play/tokens";
@@ -18,7 +19,7 @@ type Props = {
 };
 
 /** زر تلميحات موحّد — لمبة دائماً، النتائج داخل الورقة فقط */
-export function GameplayMyHiddenCard({
+export const GameplayMyHiddenCard = memo(function GameplayMyHiddenCard({
   hintsLeft,
   bonusLetterHints = 0,
   bonusCountHints = 0,
@@ -47,8 +48,7 @@ export function GameplayMyHiddenCard({
         borderRadius: 14,
         border: "1.5px solid rgba(255,190,100,0.6)",
         outline: "1px solid rgba(255,255,255,0.18)",
-        background:
-          "repeating-linear-gradient(45deg, #8a4520 0 5px, #7a3c18 5px 10px)",
+        background: "repeating-linear-gradient(45deg, #8a4520 0 5px, #7a3c18 5px 10px)",
         boxShadow: [
           "0 1px 1px rgba(0,0,0,0.1)",
           "0 4px 8px -2px rgba(80,40,10,0.3)",
@@ -59,7 +59,7 @@ export function GameplayMyHiddenCard({
       }}
       aria-label="كرتك والتلميحات"
     >
-      {/* Ambient inner glow on press hint */}
+      {/* Ambient inner glow on press */}
       <motion.span
         aria-hidden
         className="pointer-events-none absolute inset-0 rounded-[13px]"
@@ -93,11 +93,9 @@ export function GameplayMyHiddenCard({
       </AnimatePresence>
 
       <div className="flex flex-1 flex-col items-center justify-center px-1 pb-0.5 pt-3">
-        {/* Bulb glow halo */}
-        <motion.div
-          className="grid place-items-center rounded-full"
-          animate={{ opacity: [0.5, 0.9, 0.5] }}
-          transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
+        {/* Bulb glow halo — CSS animation (compositor thread, no JS loop) */}
+        <div
+          className="bulb-halo-pulse grid place-items-center rounded-full"
           style={{
             width: bulbSize + 14,
             height: bulbSize + 14,
@@ -105,7 +103,7 @@ export function GameplayMyHiddenCard({
           }}
         >
           <IconHintBulb size={bulbSize} variant="illustrated" />
-        </motion.div>
+        </div>
       </div>
 
       <span
@@ -120,4 +118,4 @@ export function GameplayMyHiddenCard({
       </span>
     </motion.button>
   );
-}
+});

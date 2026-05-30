@@ -30,7 +30,7 @@ type Props = {
   size?: "stage" | "voice";
 };
 
-export function GameplayHeroCard({ opponentCard, categoryLabel, size = "stage" }: Props) {
+export const GameplayHeroCard = memo(function GameplayHeroCard({ opponentCard, categoryLabel, size = "stage" }: Props) {
   const voice = size === "voice";
   const w = voice ? "min(200px, 52vw)" : "min(200px, 48vw)";
   const h = voice ? "min(278px, 58vw)" : "min(270px, 52vw)";
@@ -41,30 +41,26 @@ export function GameplayHeroCard({ opponentCard, categoryLabel, size = "stage" }
       className="relative mx-auto grid place-items-center"
       style={{ width: w, height: h }}
     >
-      {/* Outer distant bloom — large, soft */}
-      <motion.div
+      {/* Outer distant bloom — CSS animation, compositor thread */}
+      <div
         aria-hidden
-        className="pointer-events-none absolute rounded-[32px]"
+        className="hero-bloom-outer pointer-events-none absolute rounded-[32px]"
         style={{
           inset: -24,
           background: `radial-gradient(ellipse, ${GP.orange}38 0%, transparent 68%)`,
           filter: "blur(18px)",
         }}
-        animate={{ opacity: [0.4, 0.75, 0.4], scale: [1, 1.04, 1] }}
-        transition={{ duration: 3.8, repeat: Infinity, ease: "easeInOut" }}
       />
 
-      {/* Inner tight glow — tighter, brighter */}
-      <motion.div
+      {/* Inner tight glow — CSS animation, compositor thread */}
+      <div
         aria-hidden
-        className="pointer-events-none absolute rounded-[24px]"
+        className="hero-bloom-inner pointer-events-none absolute rounded-[24px]"
         style={{
           inset: -8,
           background: `radial-gradient(ellipse, ${GP.gold}28 0%, transparent 72%)`,
           filter: "blur(7px)",
         }}
-        animate={{ opacity: [0.5, 0.85, 0.5] }}
-        transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut", delay: 0.4 }}
       />
 
       {/* Card surface */}
@@ -100,11 +96,7 @@ export function GameplayHeroCard({ opponentCard, categoryLabel, size = "stage" }
           {hasImage ? (
             <CardImg src={opponentCard!.imageUrl!} alt={opponentCard?.nameAr ?? "بطاقة"} />
           ) : (
-            <motion.div
-              className="flex h-full items-center justify-center"
-              animate={{ y: [0, -5, 0] }}
-              transition={{ duration: 2.8, repeat: Infinity, ease: "easeInOut" }}
-            >
+            <div className="gentle-bob flex h-full items-center justify-center">
               {/* Shadow ؟ behind */}
               <span
                 aria-hidden
@@ -131,7 +123,7 @@ export function GameplayHeroCard({ opponentCard, categoryLabel, size = "stage" }
               >
                 ؟
               </span>
-            </motion.div>
+            </div>
           )}
 
           {/* Bottom image vignette */}
@@ -164,4 +156,4 @@ export function GameplayHeroCard({ opponentCard, categoryLabel, size = "stage" }
       </motion.div>
     </motion.div>
   );
-}
+});

@@ -12,7 +12,7 @@
  * • Opponent messages align RIGHT in the chat viewport
  */
 
-import { useRef, useState } from "react";
+import { memo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { IconSend } from "@/components/game/play/icons";
 import { GP } from "@/components/game/play/tokens";
@@ -38,7 +38,7 @@ type Props = {
 };
 
 /** شريط سفلي: إرسال (يسار) | إدخال | خمّن (يمين) */
-export function GameplayChatActionBar({
+export const GameplayChatActionBar = memo(function GameplayChatActionBar({
   myTurn,
   phase,
   draft,
@@ -246,4 +246,4 @@ export function GameplayChatActionBar({
       </div>
     </div>
   );
-}
+});

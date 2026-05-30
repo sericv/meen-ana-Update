@@ -21,6 +21,7 @@ import { useEffect, useRef, useMemo } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { TacticalToolIcon } from "@/components/game/play/TacticalToolIcons";
 import { GP } from "@/components/game/play/tokens";
+import { playExtraTimeCinematic, playTimePressureCinematic } from "@/lib/audio/game-sounds";
 import type { TacticalToolId } from "@/lib/profile/tactical-tools";
 
 const OVERLAY_DURATION_MS = 1900;
@@ -144,6 +145,14 @@ function OverlayInner({
     ? p.actorMe(actorName)
     : p.actorThem(actorName);
 
+  // Fire per-tool soundscape on mount; cleanup on unmount
+  useEffect(() => {
+    if (reduced) return;
+    if (toolId === "time_pressure") return playTimePressureCinematic();
+    if (toolId === "extra_time") return playExtraTimeCinematic();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -186,7 +195,10 @@ function OverlayInner({
       {!reduced && <ToolParticles toolId={toolId} palette={p} />}
 
       {/* ── Layer 4: Concentric pulse rings ── */}
-      {!reduced && (
+      {!reduced && toolId === "extra_time" && (
+        <RippleRings color={p.hue1} />
+      )}
+      {!reduced && toolId !== "extra_time" && (
         <PulseRings
           color={p.hue1}
           shock={toolId === "time_pressure"}
@@ -206,13 +218,17 @@ function OverlayInner({
           gap: 16,
         }}
       >
-        {/* Motif — SplitGlyph for extra_question, generic bezel for all others */}
+        {/* Motif — per-tool custom, generic bezel fallback */}
         <motion.div
           initial={{ opacity: 0, scale: 0.28, rotate: -8, filter: "blur(10px)" }}
           animate={{ opacity: 1, scale: 1, rotate: 0, filter: "blur(0px)" }}
           transition={{ duration: 0.55, ease: [0.18, 1.4, 0.38, 1], delay: 0.16 }}
         >
-          {toolId === "extra_question"
+          {toolId === "time_pressure"
+            ? <CrackedClock palette={p} />
+            : toolId === "extra_time"
+            ? <PlusFifteen palette={p} />
+            : toolId === "extra_question"
             ? <SplitGlyph palette={p} />
             : <ToolMotif toolId={toolId} palette={p} />}
         </motion.div>
@@ -470,6 +486,288 @@ function SplitGlyph({ palette: p }: { palette: typeof PALETTE[TacticalToolId] })
       >
         ×2
       </div>
+    </div>
+  );
+}
+
+/* ── PlusFifteen — extra_time motif ─────────────────────────── */
+function PlusFifteen({ palette: p }: { palette: typeof PALETTE[TacticalToolId] }) {
+  return (
+    <div
+      style={{
+        position: "relative",
+        width: 260,
+        height: 200,
+        display: "grid",
+        placeItems: "center",
+      }}
+    >
+      {/* Ambient glow */}
+      <div
+        aria-hidden
+        style={{
+          position: "absolute",
+          inset: -20,
+          borderRadius: "50%",
+          background: `radial-gradient(closest-side, ${p.glow}, transparent 70%)`,
+          filter: "blur(10px)",
+        }}
+      />
+      {/* Hourglass — small accent */}
+      <svg
+        viewBox="0 0 80 100"
+        width="80"
+        height="100"
+        style={{
+          position: "absolute",
+          left: 16,
+          top: 32,
+          opacity: 0.85,
+          animation: "etHourFlip 1.2s cubic-bezier(.2,.8,.3,1) .3s forwards",
+          transformOrigin: "40px 50px",
+        }}
+      >
+        <defs>
+          <linearGradient id="hg-et" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0" stopColor={p.hue1} />
+            <stop offset="1" stopColor={p.hue2} />
+          </linearGradient>
+        </defs>
+        <path
+          d="M16 8 H64 V20 L44 50 L64 80 V92 H16 V80 L36 50 L16 20 Z"
+          fill="oklch(0.98 0.02 80 / .15)"
+          stroke="url(#hg-et)"
+          strokeWidth="2.5"
+        />
+        <path d="M20 12 H60 L42 48 Z" fill={p.hue1} opacity=".6" />
+        <path d="M22 88 H58 L40 56 Z" fill={p.hue1} opacity=".25" />
+      </svg>
+      {/* +15 big text */}
+      <div
+        style={{
+          fontFamily: "var(--display)",
+          fontWeight: 800,
+          fontSize: 130,
+          lineHeight: 1,
+          color: "oklch(0.99 0.02 80)",
+          textShadow: `0 6px 30px ${p.glow}, 0 0 50px ${p.glow}`,
+          letterSpacing: "-.05em",
+          position: "relative",
+          transform: "translateX(20px)",
+        }}
+      >
+        +15
+        <span
+          style={{
+            fontFamily: "var(--mono, monospace)",
+            fontWeight: 700,
+            fontSize: 20,
+            color: "oklch(0.95 0.04 80 / .8)",
+            position: "absolute",
+            right: -10,
+            bottom: 18,
+            letterSpacing: "-.02em",
+          }}
+        >
+          s
+        </span>
+      </div>
+
+      <style>{`
+        @keyframes etHourFlip {
+          0%   { transform: rotate(0deg) scale(1); }
+          40%  { transform: rotate(180deg) scale(1.08); }
+          100% { transform: rotate(180deg) scale(1); }
+        }
+      `}</style>
+    </div>
+  );
+}
+
+/* ── RippleRings — extra_time pulse rings ───────────────────── */
+function RippleRings({ color }: { color: string }) {
+  return (
+    <div
+      style={{
+        position: "absolute",
+        inset: 0,
+        display: "grid",
+        placeItems: "center",
+        pointerEvents: "none",
+      }}
+    >
+      {[0, 0.25, 0.5].map((d, i) => (
+        <div
+          key={i}
+          aria-hidden
+          style={{
+            position: "absolute",
+            width: 80,
+            height: 80,
+            borderRadius: "50%",
+            border: `2px solid ${color}`,
+            opacity: 0,
+            animation: `etRingPop 1.6s cubic-bezier(.2,.7,.3,1) ${0.25 + d}s forwards`,
+          }}
+        />
+      ))}
+      <style>{`
+        @keyframes etRingPop {
+          0%   { opacity: .8; transform: scale(.3); border-width: 3px; }
+          100% { opacity: 0;  transform: scale(5);  border-width: .5px; }
+        }
+      `}</style>
+    </div>
+  );
+}
+
+/* ── CrackedClock — time_pressure motif ──────────────────────── */
+function CrackedClock({ palette: p }: { palette: typeof PALETTE[TacticalToolId] }) {
+  return (
+    <div
+      style={{
+        position: "relative",
+        width: 220,
+        height: 220,
+        animation: "clockShake .12s cubic-bezier(.5,1,.5,1) .55s 8",
+      }}
+    >
+      {/* Outer glow ring */}
+      <div
+        aria-hidden
+        style={{
+          position: "absolute",
+          inset: -20,
+          borderRadius: "50%",
+          background: `radial-gradient(closest-side, ${p.glow}, transparent 70%)`,
+          filter: "blur(6px)",
+        }}
+      />
+      {/* Clock SVG */}
+      <svg viewBox="0 0 200 200" width="220" height="220" style={{ position: "absolute", inset: 0 }}>
+        <defs>
+          <radialGradient id="face-tp" cx="50%" cy="38%" r="60%">
+            <stop offset="0" stopColor="oklch(0.96 0.05 30)" />
+            <stop offset="1" stopColor="oklch(0.72 0.10 30)" />
+          </radialGradient>
+          <linearGradient id="ring-tp" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0" stopColor={p.hue1} />
+            <stop offset="1" stopColor={p.hue2} />
+          </linearGradient>
+        </defs>
+        {/* Outer bezel */}
+        <circle cx="100" cy="100" r="92" fill="url(#ring-tp)" />
+        <circle cx="100" cy="100" r="80" fill="url(#face-tp)" />
+        {/* Tick marks */}
+        {Array.from({ length: 12 }).map((_, i) => {
+          const ang = (i * 30 - 90) * Math.PI / 180;
+          const x1 = 100 + Math.cos(ang) * 70;
+          const y1 = 100 + Math.sin(ang) * 70;
+          const x2 = 100 + Math.cos(ang) * 76;
+          const y2 = 100 + Math.sin(ang) * 76;
+          return (
+            <line
+              key={i} x1={x1} y1={y1} x2={x2} y2={y2}
+              stroke={p.ink}
+              strokeWidth={i % 3 === 0 ? 3 : 1.5}
+              strokeLinecap="round"
+            />
+          );
+        })}
+        {/* Cracks */}
+        <g
+          style={{
+            opacity: 0,
+            animation: "tpCrackIn .45s cubic-bezier(.2,1.6,.4,1) .55s forwards",
+            transformOrigin: "100px 100px",
+          }}
+        >
+          <path
+            d="M100 100 L60 35 L72 50 L52 38 L44 60 L70 70 L42 92"
+            stroke={p.ink} strokeWidth="1.8" fill="none"
+            strokeLinecap="round" strokeLinejoin="round" opacity=".75"
+          />
+          <path
+            d="M100 100 L150 60 L142 78 L168 70 L160 92 L138 88"
+            stroke={p.ink} strokeWidth="1.4" fill="none"
+            strokeLinecap="round" strokeLinejoin="round" opacity=".55"
+          />
+          <path
+            d="M100 100 L130 158 L120 142 L138 152 L122 168"
+            stroke={p.ink} strokeWidth="1.2" fill="none"
+            strokeLinecap="round" strokeLinejoin="round" opacity=".5"
+          />
+        </g>
+        {/* Minute hand — spins fast */}
+        <g
+          style={{
+            transformOrigin: "100px 100px",
+            animation: "tpHandSpin 1.1s cubic-bezier(.2,.7,.3,1) .2s forwards",
+          }}
+        >
+          <line x1="100" y1="100" x2="100" y2="46" stroke={p.ink} strokeWidth="4" strokeLinecap="round" />
+        </g>
+        {/* Hour hand — spins slower */}
+        <g
+          style={{
+            transformOrigin: "100px 100px",
+            animation: "tpHandSpin2 1.1s cubic-bezier(.2,.7,.3,1) .2s forwards",
+          }}
+        >
+          <line x1="100" y1="100" x2="100" y2="64" stroke={p.ink} strokeWidth="3" strokeLinecap="round" opacity=".7" />
+        </g>
+        <circle cx="100" cy="100" r="5" fill={p.ink} />
+      </svg>
+      {/* "10s" stamp */}
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          display: "grid",
+          placeItems: "center",
+          opacity: 0,
+          animation: "tpTenStamp .55s cubic-bezier(.2,1.5,.4,1) 1s forwards",
+        }}
+      >
+        <div
+          style={{
+            fontFamily: "var(--mono, monospace)",
+            fontWeight: 800,
+            fontSize: 72,
+            lineHeight: 1,
+            color: "oklch(0.99 0.02 80)",
+            textShadow: `0 4px 24px ${p.hue1}, 0 0 40px ${p.glow}`,
+            letterSpacing: "-.04em",
+          }}
+        >
+          10s
+        </div>
+      </div>
+
+      <style>{`
+        @keyframes clockShake {
+          0%, 100% { transform: translate(0,0) rotate(0); }
+          25%       { transform: translate(-2px, 1px) rotate(-.5deg); }
+          75%       { transform: translate(2px, -1px) rotate(.5deg); }
+        }
+        @keyframes tpHandSpin {
+          from { transform: rotate(0deg); }
+          to   { transform: rotate(900deg); }
+        }
+        @keyframes tpHandSpin2 {
+          from { transform: rotate(0deg); }
+          to   { transform: rotate(540deg); }
+        }
+        @keyframes tpCrackIn {
+          from { opacity: 0; transform: scale(0.5); }
+          to   { opacity: .8; transform: scale(1); }
+        }
+        @keyframes tpTenStamp {
+          0%   { opacity: 0; transform: scale(2.4) rotate(-6deg); filter: blur(8px); }
+          60%  { opacity: 1; transform: scale(.92) rotate(2deg); filter: blur(0); }
+          100% { opacity: 1; transform: scale(1) rotate(0); }
+        }
+      `}</style>
     </div>
   );
 }

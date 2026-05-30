@@ -2,13 +2,14 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import type { RefObject } from "react";
-import { useMemo, useState } from "react";
+import { memo, useMemo, useState, useCallback } from "react";
 import { GameplayChatActionBar } from "@/components/game/play/GameplayChatActionBar";
 import { GameplayHeroCard } from "@/components/game/play/GameplayHeroCard";
 import { GameplayMyHiddenCard } from "@/components/game/play/GameplayMyHiddenCard";
 import { MyHiddenCardSheet } from "@/components/game/play/GameplaySheets";
 import { GuessRemainingIndicator } from "@/components/game/play/GuessRemainingIndicator";
 import { GameplayTopBar } from "@/components/game/play/GameplayTopBar";
+import { IconCheck, IconCross, IconTarget } from "@/components/game/play/icons";
 import { useLiveUserProfile } from "@/hooks/useLiveUserProfile";
 import { GP } from "@/components/game/play/tokens";
 import { GameplayTacticalButton } from "@/components/game/play/GameplayTacticalButton";
@@ -20,41 +21,35 @@ import type { TacticalToolId } from "@/lib/profile/tactical-tools";
 import { getCategoryById } from "@/lib/game/categories";
 import type { PlayerCosmetic } from "@/lib/profile/cosmetics";
 import type { ChatMessage, GameCard, MatchState } from "@/types";
+import type { Timestamp } from "firebase/firestore";
 
 function isHintChatMessage(m: ChatMessage): boolean {
   const t = m.text?.trim() ?? "";
   return m.senderUid === "system" && t.startsWith("تلميح");
 }
 
-function TypingDots() {
+// memo: TypingDots has no props — it never needs to re-render from parent updates.
+// Uses CSS animation (compositor-only) instead of Framer Motion repeat:Infinity.
+const TypingDots = memo(function TypingDots() {
   return (
     <motion.div
       layout
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
-      className="inline-flex gap-1 rounded-2xl px-3.5 py-2.5"
-      style={{
-        background: "rgba(255,255,255,0.92)",
-        boxShadow: "inset 0 0 0 1px rgba(244,196,141,0.45)",
-      }}
+      className="bubble them"
+      style={{ display: "inline-flex", gap: 4, padding: "12px 14px" }}
     >
-      {[0, 1, 2].map((i) => (
-        <motion.span
+      {[0, 0.15, 0.3].map((delay, i) => (
+        <span
           key={i}
-          className="block h-1.5 w-1.5 rounded-full"
-          style={{ background: GP.orangeSoft }}
-          animate={{ y: [0, -4, 0], opacity: [0.35, 1, 0.35] }}
-          transition={{
-            duration: 1.1,
-            repeat: Infinity,
-            ease: "easeInOut",
-            delay: i * 0.15,
-          }}
+          aria-hidden
+          className="typing-dot"
+          style={{ animationDelay: `${delay}s` }}
         />
       ))}
     </motion.div>
   );
-}
+});
 
 export type GameplaySocialSurfaceProps = {
   banner: string | null;
@@ -64,7 +59,8 @@ export type GameplaySocialSurfaceProps = {
   socialMatchLive: boolean;
   myTurn: boolean;
   phase: string;
-  secLeft: number | null;
+  /** Firestore deadline — passed straight to GameplayTopBar which owns the countdown */
+  turnDeadline: Timestamp | null | undefined;
   maxPhaseSec: number;
   displayName: string;
   opponentName: string;
@@ -96,7 +92,7 @@ export type GameplaySocialSurfaceProps = {
   opponentGuessRemaining?: number;
 };
 
-export function GameplaySocialSurface({
+export const GameplaySocialSurface = memo(function GameplaySocialSurface({
   banner,
   roomId,
   matchId,
@@ -104,7 +100,7 @@ export function GameplaySocialSurface({
   socialMatchLive,
   myTurn,
   phase,
-  secLeft,
+  turnDeadline,
   maxPhaseSec,
   displayName,
   opponentName,
@@ -183,10 +179,10 @@ export function GameplaySocialSurface({
     [messages],
   );
 
-  const handleDraftChange = (v: string) => {
+  const handleDraftChange = useCallback((v: string) => {
     onDraftChange(v);
     if (v.trim()) pulseTyping();
-  };
+  }, [onDraftChange, pulseTyping]);
 
   const handleUseHint = async (kind: "letter" | "count") => {
     setHintBusy(true);
@@ -247,7 +243,7 @@ export function GameplaySocialSurface({
             opponentCosmetic={opponentUid ? cosmeticsMap[opponentUid] : undefined}
             myPhotoURL={userPhotoURL}
             myTurn={myTurn}
-            secLeft={secLeft}
+            turnDeadline={turnDeadline}
             maxPhaseSec={maxPhaseSec}
             phase={phase}
           />
@@ -332,7 +328,7 @@ export function GameplaySocialSurface({
                 chatMessages.map((m) => renderMessage(m))
               )}
               {!myTurn && opponentTyping ? (
-                <div className="flex shrink-0 justify-start">
+                <div className="shrink-0">
                   <TypingDots />
                 </div>
               ) : null}
@@ -399,4 +395,4 @@ export function GameplaySocialSurface({
       )}
     </motion.div>
   );
-}
+});

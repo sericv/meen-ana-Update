@@ -6,7 +6,9 @@ import { ProfileAvatar } from "@/components/profile/ProfileAvatar";
 import { GameplayTurnArc } from "@/components/game/play/GameplayTurnArc";
 import { GP } from "@/components/game/play/tokens";
 import { EASE_OUT } from "@/lib/motion";
+import { useSecLeft } from "@/hooks/useSecLeft";
 import type { PlayerCosmetic } from "@/lib/profile/cosmetics";
+import type { Timestamp } from "firebase/firestore";
 
 type PlayerProps = {
   name: string;
@@ -17,7 +19,8 @@ type PlayerProps = {
   reverse?: boolean;
 };
 
-function PlayerCorner({ name, uid, cosmetic, photoURL, active, reverse }: PlayerProps) {
+// memo — only re-renders when player identity or active flag changes, not on every clock tick
+const PlayerCorner = memo(function PlayerCorner({ name, uid, cosmetic, photoURL, active, reverse }: PlayerProps) {
   return (
     <motion.div
       className="flex min-w-0 items-center gap-2"
@@ -86,7 +89,7 @@ function PlayerCorner({ name, uid, cosmetic, photoURL, active, reverse }: Player
       </div>
     </motion.div>
   );
-}
+});
 
 type Props = {
   myName: string;
@@ -97,7 +100,12 @@ type Props = {
   opponentCosmetic?: PlayerCosmetic | null;
   myPhotoURL?: string | null;
   myTurn: boolean;
-  secLeft: number | null;
+  /**
+   * Firestore deadline timestamp — the TopBar owns the 200ms countdown
+   * internally via useSecLeft so the parent (GameplaySocialSurface / RoomExperience)
+   * never has to hold a fast-ticking clock state.
+   */
+  turnDeadline: Timestamp | null | undefined;
   maxPhaseSec: number;
   phase: string;
 };
@@ -111,10 +119,14 @@ export const GameplayTopBar = memo(function GameplayTopBar({
   opponentCosmetic,
   myPhotoURL,
   myTurn,
-  secLeft,
+  turnDeadline,
   maxPhaseSec,
   phase,
 }: Props) {
+  // The countdown lives here — changes to secLeft only re-render this subtree,
+  // not RoomExperience or GameplaySocialSurface.
+  const secLeft = useSecLeft(turnDeadline, myTurn || true);
+
   const turnLabel = myTurn
     ? phase === "answer"
       ? "دورك تجيب"

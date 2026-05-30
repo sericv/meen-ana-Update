@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import { motion } from "framer-motion";
 import { FINAL_GUESS_LIMIT } from "@/lib/game/match-progression";
 import { GP } from "@/components/game/play/tokens";
@@ -11,7 +12,7 @@ type Props = {
 };
 
 /** Mobile-first final-guess attempts remaining (synced via match doc). */
-export function GuessRemainingIndicator({ remaining, compact = false, className = "" }: Props) {
+export const GuessRemainingIndicator = memo(function GuessRemainingIndicator({ remaining, compact = false, className = "" }: Props) {
   const safe = Math.max(0, Math.min(FINAL_GUESS_LIMIT, Math.floor(remaining)));
   const used = FINAL_GUESS_LIMIT - safe;
 
@@ -62,4 +63,4 @@ export function GuessRemainingIndicator({ remaining, compact = false, className 
       </span>
     </div>
   );
-}
+});

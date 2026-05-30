@@ -445,6 +445,67 @@ html.kbd-open .gameplay-card-compact {
   animation: voice-conic-spin 6s linear infinite;
 }
 
+/* ─── Chat bubble system ──────────────────────────────────────────
+   Used by renderMessage (RoomExperience) + TypingDots (GameplaySocialSurface).
+   Alignment relies on parent being dir="rtl":
+     .me   → flex-end   (right in LTR, left in RTL = player side)
+     .them → flex-start (left  in LTR, right in RTL = opponent side)
+─────────────────────────────────────────────────────────────────── */
+.bubble {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 78%;
+  border-radius: 18px;
+  padding: 10px 14px;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.55;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+.bubble.me {
+  align-self: flex-end;
+  background: linear-gradient(180deg, oklch(0.86 0.11 70), oklch(0.79 0.13 58));
+  border: 1px solid oklch(0.70 0.13 58 / .55);
+  color: oklch(0.22 0.04 35);
+  box-shadow: 0 6px 14px -8px oklch(0.55 0.15 55 / .45), inset 0 1px 0 rgba(255,255,255,.45);
+  border-bottom-right-radius: 4px;
+}
+.bubble.them {
+  align-self: flex-start;
+  background: linear-gradient(180deg, oklch(0.99 0.01 85), oklch(0.96 0.025 78));
+  border: 1px solid oklch(0.78 0.04 65 / .55);
+  color: oklch(0.24 0.04 35);
+  box-shadow: 0 4px 12px -8px oklch(0.45 0.08 45 / .28), inset 0 1px 0 rgba(255,255,255,.85);
+  border-bottom-left-radius: 4px;
+}
+.bubble.system {
+  align-self: center;
+  max-width: 85%;
+  border-radius: 999px;
+  border: 1px solid oklch(0.78 0.04 65 / .45);
+  background: oklch(0.96 0.025 78 / .9);
+  color: oklch(0.44 0.06 45);
+  padding: 7px 13px;
+  font-size: 11px;
+  text-align: center;
+}
+
+/* ─── Typing dot — CSS compositor animation ───────────────────── */
+@keyframes typing {
+  0%, 100% { transform: translateY(0);   opacity: 0.4; }
+  50%       { transform: translateY(-4px); opacity: 1;   }
+}
+.typing-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: oklch(0.60 0.06 55);
+  animation: typing 1.2s ease-in-out infinite;
+}
+
 /* ─── Gameplay surface classes ───────────────────────────────────── */
 
 .gameplay-turn-pill {
@@ -571,6 +632,56 @@ html.kbd-open .gameplay-card-compact {
 }
 .avatar-glow-outer {
   animation: avatarGlowOuter 2.2s ease-in-out infinite;
+}
+
+/* ─── Room background ambient — CSS off-main-thread (replaces Framer Motion repeat:Infinity) ── */
+@keyframes blobDrift1 {
+  0%, 100% { transform: translateY(0) translateX(0); }
+  50%      { transform: translateY(-24px) translateX(16px); }
+}
+@keyframes blobDrift2 {
+  0%, 100% { transform: translateY(0) translateX(0); }
+  50%      { transform: translateY(20px) translateX(-12px); }
+}
+@keyframes blobDrift3 {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-14px); }
+}
+@keyframes particleBob {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50%      { transform: translateY(-9px) rotate(6deg); }
+}
+.blob-drift-1 { animation: blobDrift1 16s ease-in-out infinite; }
+.blob-drift-2 { animation: blobDrift2 19s ease-in-out 4s infinite; }
+.blob-drift-3 { animation: blobDrift3 13s ease-in-out 7s infinite; }
+.particle-bob-0 { animation: particleBob calc(6s + 0s)   ease-in-out 0s   infinite; }
+.particle-bob-1 { animation: particleBob calc(6s + 2s)   ease-in-out 2s   infinite; }
+.particle-bob-2 { animation: particleBob calc(6s + 3.5s) ease-in-out 3.5s infinite; }
+.particle-bob-3 { animation: particleBob calc(6s + 1s)   ease-in-out 1s   infinite; }
+.particle-bob-4 { animation: particleBob calc(6s + 3s)   ease-in-out 3s   infinite; }
+.particle-bob-5 { animation: particleBob calc(6s + 4.8s) ease-in-out 4.8s infinite; }
+
+/* ─── Hero card bloom glows ─────────────────────────────────────── */
+@keyframes heroBloomOuter {
+  0%, 100% { opacity: 0.4; transform: scale(1); }
+  50%      { opacity: 0.75; transform: scale(1.04); }
+}
+@keyframes heroBloomInner {
+  0%, 100% { opacity: 0.5; }
+  50%      { opacity: 0.85; }
+}
+.hero-bloom-outer {
+  animation: heroBloomOuter 3.8s ease-in-out infinite;
+}
+.hero-bloom-inner {
+  animation: heroBloomInner 2.4s ease-in-out 0.4s infinite;
+}
+@keyframes bulbHaloPulse {
+  0%, 100% { opacity: 0.5; }
+  50%      { opacity: 0.9; }
+}
+.bulb-halo-pulse {
+  animation: bulbHaloPulse 2.2s ease-in-out infinite;
 }
 
 /* Floating up particle — general ambient */
