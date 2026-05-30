@@ -152,6 +152,8 @@ export interface Category {
   nameAr: string;
   slug: string;
   order: number;
+  /** When false the category is hidden from all selectors. Defaults to true. */
+  enabled?: boolean;
 }
 
 export interface GameCard {

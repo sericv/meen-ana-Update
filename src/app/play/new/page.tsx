@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AuthGate } from "@/components/auth/AuthGate";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { ShellEmbers } from "@/components/shell/ShellEmbers";
@@ -34,12 +34,12 @@ function NewRoomInner() {
   const { user } = useAuth();
   useDefaultOnlinePresence(user?.uid ?? null, isFullAccountUser(user));
   const router = useRouter();
-  const localFallback: Category[] = LOCAL_CATEGORIES.map((c) => ({
-    id: c.id,
-    nameAr: c.nameAr,
-    slug: c.slug,
-    order: c.order,
-  }));
+  // Stable reference — LOCAL_CATEGORIES is a module constant so the memo never reruns.
+  // Must not be inline (new array on every render) to avoid ∞ useEffect loop.
+  const localFallback = useMemo<Category[]>(
+    () => LOCAL_CATEGORIES.map((c) => ({ id: c.id, nameAr: c.nameAr, slug: c.slug, order: c.order })),
+    [],
+  );
   const [cats, setCats] = useState<Category[]>(localFallback);
   const [catId, setCatId] = useState(DEFAULT_CATEGORY_ID);
   const [questionTimerSec, setQuestionTimerSec] = useState(QUESTION_PHASE_SECONDS);
@@ -53,14 +53,18 @@ function NewRoomInner() {
   useEffect(() => {
     void fetchCategories()
       .then((remote) => {
-        if (remote.length > 0) {
-          const allowed = new Set(LOCAL_CATEGORIES.map((c) => c.id));
-          const merged = remote.filter((c) => allowed.has(c.id));
-          if (merged.length > 0) setCats(merged);
-        }
+        if (remote.length === 0) return;
+        // Firestore is the source of truth. Append any hardcoded categories that
+        // haven't been seeded to Firestore yet so the picker never goes empty.
+        const remoteIds = new Set(remote.map((c) => c.id));
+        const localOnly = localFallback.filter((c) => !remoteIds.has(c.id));
+        const merged = [...remote, ...localOnly].sort(
+          (a, b) => (a.order ?? 99) - (b.order ?? 99),
+        );
+        setCats(merged);
       })
       .catch(() => undefined);
-  }, []);
+  }, [localFallback]);
 
   const start = async () => {
     if (!user) return;

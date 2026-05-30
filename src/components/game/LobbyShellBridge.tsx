@@ -67,7 +67,7 @@ export function LobbyShellBridge({
   customPanels?: ReactNode;
   overlays?: ReactNode;
 }) {
-  const categoryLabel = getCategoryById(room.categoryId)?.nameAr ?? "عام";
+  const categoryLabel = getCategoryById(room.categoryId)?.nameAr ?? room.categoryId ?? "عام";
   const voiceMode = room.voiceMode === true;
   const hintsEnabled = room.hintsEnabled !== false;
 

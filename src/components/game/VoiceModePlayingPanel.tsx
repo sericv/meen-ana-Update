@@ -83,7 +83,7 @@ export function VoiceModePlayingPanel({
   );
 
   const categoryLabel = opponentCard?.categoryId
-    ? (getCategoryById(opponentCard.categoryId)?.nameAr ?? null)
+    ? (getCategoryById(opponentCard.categoryId)?.nameAr ?? opponentCard.categoryId)
     : null;
 
   const onPassTurn = async () => {

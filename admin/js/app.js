@@ -6,13 +6,19 @@ import { onAuthChange, signInGoogle, signOutUser } from "./firebase.js";
 import { showSection, toast } from "./ui.js";
 import { initCards } from "./cards.js";
 import { initCategories, getCategories } from "./categories.js";
+import { initOverview, initAnalytics } from "./analytics.js";
+import { initPlayers } from "./players.js";
+import { initMatches, setCategories } from "./matches.js";
+import { initCleanup } from "./cleanup.js";
+
+const ADMIN_UID = "GjIev1orTnNtoHh9UPnBr9UF9Yd2";
 
 // ── Elements ──────────────────────────────────────────
-const authScreen   = document.getElementById("auth-screen");
-const appShell     = document.getElementById("app");
-const btnGoogle    = document.getElementById("btn-google-signin");
-const btnSignout   = document.getElementById("btn-signout");
-const authError    = document.getElementById("auth-error");
+const authScreen    = document.getElementById("auth-screen");
+const appShell      = document.getElementById("app");
+const btnGoogle     = document.getElementById("btn-google-signin");
+const btnSignout    = document.getElementById("btn-signout");
+const authError     = document.getElementById("auth-error");
 const connIndicator = document.getElementById("conn-indicator");
 const connLabel     = document.getElementById("conn-label");
 const userRow       = document.getElementById("user-row");
@@ -41,27 +47,30 @@ btnSignout.addEventListener("click", async () => {
   await signOutUser();
 });
 
-// ── Auth state listener ───────────────────────────────
+// ── Auth state ────────────────────────────────────────
 let _appBooted = false;
 
 onAuthChange(async (user) => {
   if (user) {
-    // Show app
+    if (user.uid !== ADMIN_UID) {
+      authError.textContent = "ليس لديك صلاحية الوصول إلى هذه اللوحة.";
+      authError.classList.remove("hidden");
+      await signOutUser();
+      return;
+    }
+
     authScreen.classList.add("hidden");
     appShell.classList.remove("hidden");
 
-    // Show user info
     userRow.innerHTML = user.photoURL
       ? `<img class="user-avatar" src="${user.photoURL}" alt="${user.displayName ?? ""}"><span class="user-name">${user.displayName ?? user.email ?? ""}</span>`
       : `<span class="user-name">${user.displayName ?? user.email ?? ""}</span>`;
 
-    // Boot app once
     if (!_appBooted) {
       _appBooted = true;
       await bootApp();
     }
   } else {
-    // Show auth
     authScreen.classList.remove("hidden");
     appShell.classList.add("hidden");
     _appBooted = false;
@@ -71,26 +80,52 @@ onAuthChange(async (user) => {
 // ── Boot ──────────────────────────────────────────────
 async function bootApp() {
   try {
-    // 1. Load categories first (cards need them for dropdowns)
+    // 1. Categories (needed by multiple sections)
     const cats = await initCategories();
+    const activeCats = cats.length > 0 ? cats : getCategories();
+    setCategories(activeCats);
 
-    // 2. Load cards section
-    await initCards(cats.length > 0 ? cats : getCategories());
+    // 2. Initialize all modules (lazy — sections init on first visit)
+    await initCards(activeCats);
+    initCleanup();
 
-    // 3. Wire navigation
+    // 3. Wire navigation — lazy init on first visit
+    const sectionInited = {};
     document.querySelectorAll(".nav-item").forEach(link => {
-      link.addEventListener("click", (e) => {
+      link.addEventListener("click", async (e) => {
         e.preventDefault();
-        showSection(link.dataset.section);
+        const section = link.dataset.section;
+        showSection(section);
+        if (!sectionInited[section]) {
+          sectionInited[section] = true;
+          await initSection(section, activeCats);
+        }
       });
     });
 
-    // Start on cards
-    showSection("cards");
+    // 4. Start on overview
+    showSection("overview");
+    sectionInited["overview"] = true;
+    await initSection("overview", activeCats);
+
     setConnected(true);
   } catch (e) {
     toast("خطأ في تشغيل التطبيق: " + e.message, "error");
     setConnected(false);
+  }
+}
+
+async function initSection(section, cats) {
+  try {
+    switch (section) {
+      case "overview":   await initOverview(); break;
+      case "analytics":  await initAnalytics(); break;
+      case "players":    await initPlayers(); break;
+      case "matches":    await initMatches(); break;
+      // cards + categories already inited in bootApp
+    }
+  } catch (e) {
+    toast(`خطأ في تحميل "${section}": ` + e.message, "error");
   }
 }
 

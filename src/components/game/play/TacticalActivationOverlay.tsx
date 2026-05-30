@@ -31,7 +31,10 @@ const PALETTE: Record<TacticalToolId, {
   glow: string; mist: string;
   ink: string;
   label: string;
+  labelEn: string;
   effectLine: string;
+  actorMe:   (name: string) => string;
+  actorThem: (name: string) => string;
 }> = {
   extra_time: {
     hue1: "oklch(0.78 0.14 165)",
@@ -40,7 +43,10 @@ const PALETTE: Record<TacticalToolId, {
     mist: "oklch(0.30 0.08 165 / .52)",
     ink:  "oklch(0.22 0.08 165)",
     label: "وقت إضافي",
+    labelEn: "EXTRA TIME",
     effectLine: "أُضيفت ١٥ ثانية إلى دورك الحالي",
+    actorMe:   (n) => `${n} فعّل وقتًا إضافيًا`,
+    actorThem: (n) => `${n} فعّلت وقتًا إضافيًا`,
   },
   time_pressure: {
     hue1: "oklch(0.72 0.20 22)",
@@ -49,7 +55,10 @@ const PALETTE: Record<TacticalToolId, {
     mist: "oklch(0.28 0.10 22 / .55)",
     ink:  "oklch(0.22 0.10 22)",
     label: "ضغط الوقت",
+    labelEn: "TIME PRESSURE",
     effectLine: "سؤال الخصم القادم = ١٠ ثوانٍ فقط",
+    actorMe:   (n) => `${n} فرضت الضغط`,
+    actorThem: (n) => `${n} فرضت ضغط الوقت عليك`,
   },
   extra_question: {
     hue1: "oklch(0.82 0.18 75)",
@@ -58,7 +67,10 @@ const PALETTE: Record<TacticalToolId, {
     mist: "oklch(0.32 0.10 55 / .52)",
     ink:  "oklch(0.28 0.10 50)",
     label: "سؤال إضافي",
-    effectLine: "اطرح سؤالين قبل أن يجيب الخصم",
+    labelEn: "EXTRA QUESTION",
+    effectLine: "اطرح سؤالين قبل أن ينتقل الدور",
+    actorMe:   (n) => `${n} حصل على سؤال إضافي`,
+    actorThem: (n) => `${n} حصلت على سؤال إضافي`,
   },
   shield: {
     hue1: "oklch(0.68 0.14 238)",
@@ -67,7 +79,10 @@ const PALETTE: Record<TacticalToolId, {
     mist: "oklch(0.28 0.08 235 / .52)",
     ink:  "oklch(0.22 0.08 235)",
     label: "الدرع",
+    labelEn: "SHIELD",
     effectLine: "أول هجوم تكتيكي سيُصدّ تلقائيًا",
+    actorMe:   (n) => `${n} فعّل الدرع`,
+    actorThem: (n) => `${n} فعّل الدرع ضدك`,
   },
 };
 
@@ -126,8 +141,8 @@ function OverlayInner({
   const p = PALETTE[toolId];
   const actorName = actor === "me" ? myName : opponentName;
   const actorLabel = actor === "me"
-    ? `${actorName} فعّل الأداة`
-    : `${actorName} فعّل الأداة عليك`;
+    ? p.actorMe(actorName)
+    : p.actorThem(actorName);
 
   return (
     <motion.div
@@ -191,13 +206,15 @@ function OverlayInner({
           gap: 16,
         }}
       >
-        {/* Motif icon */}
+        {/* Motif — SplitGlyph for extra_question, generic bezel for all others */}
         <motion.div
           initial={{ opacity: 0, scale: 0.28, rotate: -8, filter: "blur(10px)" }}
           animate={{ opacity: 1, scale: 1, rotate: 0, filter: "blur(0px)" }}
           transition={{ duration: 0.55, ease: [0.18, 1.4, 0.38, 1], delay: 0.16 }}
         >
-          <ToolMotif toolId={toolId} palette={p} />
+          {toolId === "extra_question"
+            ? <SplitGlyph palette={p} />
+            : <ToolMotif toolId={toolId} palette={p} />}
         </motion.div>
 
         {/* Title */}
@@ -219,6 +236,17 @@ function OverlayInner({
             }}
           >
             {p.label}
+          </div>
+          <div
+            style={{
+              fontFamily: "var(--mono, monospace)",
+              fontSize: 10,
+              color: "oklch(0.85 0.06 80 / .65)",
+              letterSpacing: ".28em",
+              marginTop: 4,
+            }}
+          >
+            {p.labelEn}
           </div>
         </motion.div>
 
@@ -294,6 +322,21 @@ function OverlayInner({
           0%, 100% { opacity: 0.55; transform: scale(1); }
           50%      { opacity: 0.90; transform: scale(1.05); }
         }
+        @keyframes qSplitA {
+          0%   { transform: translateX(60px) rotate(0deg) scale(.9); opacity: 0; }
+          50%  { transform: translateX(-2px) rotate(-4deg) scale(1.02); opacity: 1; }
+          100% { transform: translateX(-22px) rotate(-7deg) scale(1); opacity: 1; }
+        }
+        @keyframes qSplitB {
+          0%   { transform: translateX(0) rotate(0deg) scale(.9); opacity: 0; }
+          40%  { opacity: 1; }
+          100% { transform: translateX(64px) rotate(7deg) scale(1); opacity: 1; }
+        }
+        @keyframes x2Stamp {
+          0%   { transform: rotate(20deg) scale(0); }
+          70%  { transform: rotate(4deg) scale(1.15); }
+          100% { transform: rotate(8deg) scale(1); }
+        }
       `}</style>
     </motion.div>
   );
@@ -329,6 +372,104 @@ function PulseRings({ color, shock }: { color: string; shock: boolean }) {
           }}
         />
       ))}
+    </div>
+  );
+}
+
+/* ── extra_question: two ؟-cards that split apart ────────────── */
+function CardGlyph({
+  style,
+  palette: p,
+}: {
+  style: React.CSSProperties;
+  palette: typeof PALETTE[TacticalToolId];
+}) {
+  return (
+    <div
+      style={{
+        width: 130,
+        height: 180,
+        borderRadius: 14,
+        background: "linear-gradient(180deg, oklch(0.96 0.06 80), oklch(0.88 0.10 70))",
+        border: `1px solid ${p.hue2}`,
+        boxShadow: `inset 0 1px 0 rgba(255,255,255,.5), 0 18px 30px -10px ${p.glow}`,
+        display: "grid",
+        placeItems: "center",
+        ...style,
+      }}
+    >
+      <div
+        style={{
+          fontFamily: "var(--display)",
+          fontWeight: 800,
+          fontSize: 78,
+          color: p.ink,
+          lineHeight: 1,
+          textShadow: "0 2px 0 rgba(255,255,255,.4)",
+        }}
+      >
+        ؟
+      </div>
+    </div>
+  );
+}
+
+function SplitGlyph({ palette: p }: { palette: typeof PALETTE[TacticalToolId] }) {
+  return (
+    <div style={{ position: "relative", width: 240, height: 200 }}>
+      {/* Ambient halo */}
+      <div
+        aria-hidden
+        style={{
+          position: "absolute",
+          inset: -10,
+          borderRadius: 28,
+          background: `radial-gradient(closest-side, ${p.glow}, transparent 70%)`,
+          filter: "blur(8px)",
+        }}
+      />
+      {/* Card A — slides left, tilts -7deg */}
+      <CardGlyph
+        style={{
+          position: "absolute",
+          left: 30,
+          top: 8,
+          animation: "qSplitA .9s cubic-bezier(.2,.9,.3,1) .15s forwards",
+        }}
+        palette={p}
+      />
+      {/* Card B — emerges from center, slides right +7deg */}
+      <CardGlyph
+        style={{
+          position: "absolute",
+          left: 30,
+          top: 8,
+          opacity: 0,
+          animation: "qSplitB .9s cubic-bezier(.2,.9,.3,1) .25s forwards",
+        }}
+        palette={p}
+      />
+      {/* ×2 stamp — overshoot spring via CSS */}
+      <div
+        style={{
+          position: "absolute",
+          right: -6,
+          top: -10,
+          padding: "6px 12px",
+          borderRadius: 12,
+          background: `linear-gradient(180deg, ${p.hue1}, ${p.hue2})`,
+          color: "oklch(0.99 0.02 80)",
+          fontFamily: "var(--display)",
+          fontWeight: 800,
+          fontSize: 26,
+          letterSpacing: "-.05em",
+          boxShadow: `inset 0 1px 0 rgba(255,255,255,.4), 0 8px 18px -4px ${p.glow}`,
+          transform: "rotate(8deg) scale(0)",
+          animation: "x2Stamp .5s cubic-bezier(.2,1.6,.4,1) .85s forwards",
+        }}
+      >
+        ×2
+      </div>
     </div>
   );
 }
@@ -423,6 +564,24 @@ function ToolParticles({
   const count = toolId === "time_pressure" ? 10 : toolId === "shield" ? 8 : 10;
 
   const particles = useMemo(() => {
+    // extra_question uses the reference implementation: random sizes/distances
+    // for organic sparkle motes — safe because this only ever runs client-side.
+    if (toolId === "extra_question") {
+      return Array.from({ length: count }, (_, i) => {
+        const angle = (i / count) * 360 + Math.random() * 20;
+        const dist  = 120 + Math.random() * 120;
+        const size  = 4   + Math.random() * 6;
+        const delay = 0.25 + Math.random() * 0.5;
+        const dur   = 1.0  + Math.random() * 0.6;
+        const rot   = Math.random() * 360;
+        return {
+          size, delay, dur, rot,
+          tx: Math.cos((angle * Math.PI) / 180) * dist,
+          ty: Math.sin((angle * Math.PI) / 180) * dist,
+        };
+      });
+    }
+    // Other tools: deterministic generation
     return Array.from({ length: count }, (_, i) => {
       const angle = (i / count) * 360 + (i % 3) * 8;
       const dist = 100 + (i % 5) * 28;
@@ -434,7 +593,7 @@ function ToolParticles({
       const ty = Math.sin((angle * Math.PI) / 180) * dist;
       return { size, delay, dur, rot, tx, ty };
     });
-  }, [count]);
+  }, [count, toolId]);
 
   return (
     <div
@@ -455,7 +614,9 @@ function ToolParticles({
             width: pt.size,
             height: pt.size,
             borderRadius: toolId === "time_pressure" ? 2 : "50%",
-            background: p.hue1,
+            background: toolId === "extra_question"
+              ? `radial-gradient(circle, oklch(0.95 0.14 80), ${p.hue1})`
+              : p.hue1,
             boxShadow: `0 0 6px ${p.glow}`,
             opacity: 0,
             ["--tx" as string]: `${pt.tx}px`,

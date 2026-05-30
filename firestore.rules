@@ -12,6 +12,12 @@ service cloud.firestore {
       return signedIn() && request.auth.uid == 'GjIev1orTnNtoHh9UPnBr9UF9Yd2';
     }
 
+    // Admin can read any document in any collection for analytics/management.
+    // Write access remains restricted to specific collections (cards, categories).
+    match /{document=**} {
+      allow read: if isAdmin();
+    }
+
     function roomData(roomId) {
       return get(/databases/$(database)/documents/rooms/$(roomId)).data;
     }

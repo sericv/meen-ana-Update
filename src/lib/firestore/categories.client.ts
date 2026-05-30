@@ -10,13 +10,17 @@ export async function fetchCategories(): Promise<Category[]> {
   const snap = await getDocs(
     query(collection(db, col.categories), orderBy("order", "asc")),
   );
-  return snap.docs.map((d) => {
-    const x = d.data();
-    return {
-      id: d.id,
-      nameAr: String(x.nameAr ?? ""),
-      slug: String(x.slug ?? d.id),
-      order: Number(x.order ?? 0),
-    };
-  });
+  return snap.docs
+    .map((d) => {
+      const x = d.data();
+      return {
+        id: d.id,
+        nameAr: String(x.nameAr ?? ""),
+        slug: String(x.slug ?? d.id),
+        order: Number(x.order ?? 0),
+        // Missing field = treat as enabled (backward-compat with seeded categories)
+        enabled: x.enabled === false ? false : true,
+      };
+    })
+    .filter((c) => c.enabled !== false);
 }

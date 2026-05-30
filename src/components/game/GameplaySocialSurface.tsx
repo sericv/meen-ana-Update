@@ -162,7 +162,7 @@ export function GameplaySocialSurface({
   );
 
   const categoryLabel = opponentCard?.categoryId
-    ? (getCategoryById(opponentCard.categoryId)?.nameAr ?? null)
+    ? (getCategoryById(opponentCard.categoryId)?.nameAr ?? opponentCard.categoryId)
     : null;
 
   /**

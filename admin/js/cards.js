@@ -100,10 +100,15 @@ function buildCardItem(card) {
   el.className = `card-item${card.enabled === false ? " disabled" : ""}`;
   el.dataset.id = card.id;
 
+  // Only render <img> for base64 data URLs — relative /cards/... paths resolve to
+  // the admin server (not the game server) and produce 404s. Migrated cards use
+  // relative paths; dashboard-added cards use data: URIs which work everywhere.
+  const isDataUrl = card.imageUrl && card.imageUrl.startsWith("data:");
+
   el.innerHTML = `
     <div class="card-thumb">
-      ${card.imageUrl
-        ? `<img src="${card.imageUrl}" alt="${card.nameAr}" loading="lazy" onerror="this.parentElement.innerHTML='<div class=\\"card-thumb-placeholder\\">🃏</div>'">`
+      ${isDataUrl
+        ? `<img src="${card.imageUrl}" alt="${escHtml(card.nameAr)}" loading="lazy">`
         : `<div class="card-thumb-placeholder">🃏</div>`}
     </div>
     <div class="card-body">

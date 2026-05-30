@@ -502,8 +502,8 @@ export function MatchResultScreen({
 
   const myTitle  = myCard?.nameAr  || myCard?.name  || "—";
   const oppTitle = effectiveOpponentCard?.nameAr || effectiveOpponentCard?.name || opponentName || "—";
-  const myCategory  = myCard?.categoryId  ? (getCategoryById(myCard.categoryId)?.nameAr  ?? null) : null;
-  const oppCategory = effectiveOpponentCard?.categoryId ? (getCategoryById(effectiveOpponentCard.categoryId)?.nameAr ?? null) : null;
+  const myCategory  = myCard?.categoryId  ? (getCategoryById(myCard.categoryId)?.nameAr  ?? myCard.categoryId) : null;
+  const oppCategory = effectiveOpponentCard?.categoryId ? (getCategoryById(effectiveOpponentCard.categoryId)?.nameAr ?? effectiveOpponentCard.categoryId) : null;
 
   const [show, setShow]               = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
