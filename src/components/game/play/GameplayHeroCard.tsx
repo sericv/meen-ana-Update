@@ -41,27 +41,6 @@ export const GameplayHeroCard = memo(function GameplayHeroCard({ opponentCard, c
       className="relative mx-auto grid place-items-center"
       style={{ width: w, height: h }}
     >
-      {/* Outer distant bloom — CSS animation, compositor thread */}
-      <div
-        aria-hidden
-        className="hero-bloom-outer pointer-events-none absolute rounded-[32px]"
-        style={{
-          inset: -24,
-          background: `radial-gradient(ellipse, ${GP.orange}38 0%, transparent 68%)`,
-          filter: "blur(18px)",
-        }}
-      />
-
-      {/* Inner tight glow — CSS animation, compositor thread */}
-      <div
-        aria-hidden
-        className="hero-bloom-inner pointer-events-none absolute rounded-[24px]"
-        style={{
-          inset: -8,
-          background: `radial-gradient(ellipse, ${GP.gold}28 0%, transparent 72%)`,
-          filter: "blur(7px)",
-        }}
-      />
 
       {/* Card surface */}
       <motion.div
@@ -82,21 +61,12 @@ export const GameplayHeroCard = memo(function GameplayHeroCard({ opponentCard, c
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ duration: 0.38, ease: EASE_OUT }}
       >
-        {/* Top specular streak */}
-        <span
-          aria-hidden
-          className="pointer-events-none absolute -left-6 -top-6 h-40 w-16 rotate-[18deg] opacity-45"
-          style={{
-            background: "linear-gradient(110deg, transparent, rgba(255,255,255,0.75), transparent)",
-          }}
-        />
-
         {/* Image area */}
-        <div className="shimmer-sweep relative min-h-0 flex-1 overflow-hidden bg-gradient-to-b from-[#FFF8EF] to-[#FFE8BF]">
+        <div className="relative min-h-0 flex-1 overflow-hidden bg-gradient-to-b from-[#FFF8EF] to-[#FFE8BF]">
           {hasImage ? (
             <CardImg src={opponentCard!.imageUrl!} alt={opponentCard?.nameAr ?? "بطاقة"} />
           ) : (
-            <div className="gentle-bob flex h-full items-center justify-center">
+            <div className="flex h-full items-center justify-center">
               {/* Shadow ؟ behind */}
               <span
                 aria-hidden

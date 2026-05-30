@@ -586,29 +586,6 @@ html.kbd-open .gameplay-card-compact {
   animation: glowBreathe 3s ease-in-out infinite;
 }
 
-/* Shimmer sweep — premium card sheen left-to-right */
-@keyframes shimmerSweep {
-  0%   { transform: translateX(-120%) skewX(-15deg); }
-  100% { transform: translateX(220%) skewX(-15deg); }
-}
-.shimmer-sweep::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(255,255,255,0.28) 45%,
-    rgba(255,255,255,0.50) 50%,
-    rgba(255,255,255,0.28) 55%,
-    transparent 100%
-  );
-  animation: shimmerSweep 3.8s ease-in-out infinite;
-  pointer-events: none;
-  border-radius: inherit;
-  overflow: hidden;
-}
-
 /* ─── Avatar / presence animations — CSS off-main-thread ───────────── */
 @keyframes avatarIdleBob {
   0%, 100% { transform: translateY(0);    }
@@ -624,14 +601,6 @@ html.kbd-open .gameplay-card-compact {
 }
 .avatar-pulse-dot {
   animation: avatarPulseDot 1.4s ease-in-out infinite;
-}
-
-@keyframes avatarGlowOuter {
-  0%, 100% { opacity: 0.55; transform: scale(1);    }
-  50%       { opacity: 0.90; transform: scale(1.05); }
-}
-.avatar-glow-outer {
-  animation: avatarGlowOuter 2.2s ease-in-out infinite;
 }
 
 /* ─── Room background ambient — CSS off-main-thread (replaces Framer Motion repeat:Infinity) ── */
@@ -661,21 +630,6 @@ html.kbd-open .gameplay-card-compact {
 .particle-bob-4 { animation: particleBob calc(6s + 3s)   ease-in-out 3s   infinite; }
 .particle-bob-5 { animation: particleBob calc(6s + 4.8s) ease-in-out 4.8s infinite; }
 
-/* ─── Hero card bloom glows ─────────────────────────────────────── */
-@keyframes heroBloomOuter {
-  0%, 100% { opacity: 0.4; transform: scale(1); }
-  50%      { opacity: 0.75; transform: scale(1.04); }
-}
-@keyframes heroBloomInner {
-  0%, 100% { opacity: 0.5; }
-  50%      { opacity: 0.85; }
-}
-.hero-bloom-outer {
-  animation: heroBloomOuter 3.8s ease-in-out infinite;
-}
-.hero-bloom-inner {
-  animation: heroBloomInner 2.4s ease-in-out 0.4s infinite;
-}
 @keyframes bulbHaloPulse {
   0%, 100% { opacity: 0.5; }
   50%      { opacity: 0.9; }
@@ -690,16 +644,6 @@ html.kbd-open .gameplay-card-compact {
   10%  { opacity: 0.7; }
   85%  { opacity: 0.4; }
   100% { transform: translateY(-140px) scale(1); opacity: 0; }
-}
-
-/* Soft upward bob — hero card float */
-@keyframes gentleBob {
-  0%   { transform: translateY(0px) rotate(var(--tilt, 0deg)); }
-  50%  { transform: translateY(-5px) rotate(var(--tilt, 0deg)); }
-  100% { transform: translateY(0px) rotate(var(--tilt, 0deg)); }
-}
-.gentle-bob {
-  animation: gentleBob 4s ease-in-out infinite;
 }
 
 /* Score pop — brief scale-up for reward moments */

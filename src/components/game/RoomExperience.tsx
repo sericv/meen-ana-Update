@@ -51,13 +51,11 @@ import { useRoomWire } from "@/hooks/useRoomWire";
 import { useVisualKeyboardOverlapPx } from "@/hooks/useVisualViewport";
 import { useRouter } from "next/navigation";
 import { ConfettiBurst } from "@/components/game/ConfettiBurst";
-import {
-  MATCHUP_VS_INTRO_DURATION_MS,
-  MatchupVsTransitionOverlay,
-} from "@/components/game/MatchupVsTransitionOverlay";
+import { MATCHUP_VS_INTRO_DURATION_MS } from "@/components/game/MatchupVsTransitionOverlay";
+import { MatchTransition } from "@/components/game/MatchTransition";
 import { MatchResultScreen } from "@/components/game/MatchResultScreen";
 import { GameplaySocialSurface } from "@/components/game/GameplaySocialSurface";
-import { IconCheck, IconCross, IconTarget } from "@/components/game/play/icons";
+import { IconTarget } from "@/components/game/play/icons";
 import { VoiceModePlayingPanel } from "@/components/game/VoiceModePlayingPanel";
 import { GameplaySheet } from "@/components/game/play/GameplaySheets";
 import { GuessRemainingIndicator } from "@/components/game/play/GuessRemainingIndicator";
@@ -140,6 +138,7 @@ export function RoomExperience({ roomId }: Props) {
   const [turnPopup, setTurnPopup] = useState<string | null>(null);
   const [matchupVsOpen, setMatchupVsOpen] = useState(false);
   const matchupVsTimerRef = useRef<number | null>(null);
+  const matchupVsFinishRef = useRef<(() => void) | null>(null);
 
   const chatEndRef = useRef<HTMLDivElement>(null);
   const chatScrollRef = useRef<HTMLDivElement>(null);
@@ -311,7 +310,9 @@ export function RoomExperience({ roomId }: Props) {
       writeMatchupVsSession(match.id, "done");
       setMatchupVsOpen(false);
       matchupVsTimerRef.current = null;
+      matchupVsFinishRef.current = null;
     };
+    matchupVsFinishRef.current = finish;
 
     if (st?.phase === "start") {
       const elapsed = Date.now() - st.t;
@@ -869,11 +870,6 @@ export function RoomExperience({ roomId }: Props) {
       );
     }
 
-    // ── Verdict detection (نعم / لا answers) ─────────────────────
-    const text = m.text.trim();
-    const isVerdict = (text === "نعم" || text === "لا");
-    const verdict = text === "نعم" ? "yes" : text === "لا" ? "no" : null;
-
     // ── Guess messages ────────────────────────────────────────────
     if (isGuessMsg) {
       return (
@@ -907,37 +903,8 @@ export function RoomExperience({ roomId }: Props) {
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
         className={`bubble ${isMe ? "me" : "them"} shrink-0`}
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 8,
-        }}
       >
         <span dir="rtl">{m.text}</span>
-        {/* Verdict badge for نعم / لا answers */}
-        {isVerdict && verdict && (
-          <span
-            aria-hidden
-            style={{
-              display: "inline-grid",
-              placeItems: "center",
-              flexShrink: 0,
-              width: 18,
-              height: 18,
-              borderRadius: "50%",
-              background: verdict === "yes"
-                ? "oklch(0.78 0.12 150 / .35)"
-                : "oklch(0.78 0.14 25 / .35)",
-              color: verdict === "yes"
-                ? "oklch(0.32 0.13 150)"
-                : "oklch(0.40 0.15 25)",
-            }}
-          >
-            {verdict === "yes"
-              ? <IconCheck size={11} />
-              : <IconCross size={11} />}
-          </span>
-        )}
       </motion.div>
     );
   }, [uid]);
@@ -1417,18 +1384,14 @@ export function RoomExperience({ roomId }: Props) {
       }}
     >
       <ConfettiBurst active={ended && iWon && Boolean(winnerUid)} />
-      <MatchupVsTransitionOverlay
-        open={matchupVsOpen && !ended && Boolean(opponentPlayer)}
-        leftName={opponentPlayer?.displayName ?? "الخصم"}
-        leftCosmetic={opponentPlayer ? cosmeticsMap[opponentPlayer.uid] : undefined}
-        leftXp={opponentLiveForVs?.xp}
-        leftMatchWins={opponentLiveForVs?.matchWins}
-        rightName={displayName}
-        rightCosmetic={uid ? cosmeticsMap[uid] : undefined}
-        rightPhotoURL={user?.photoURL}
-        rightXp={liveProfile?.progress.xp}
-        rightMatchWins={liveProfile?.progress.matchWins}
-      />
+      {matchupVsOpen && !ended && Boolean(opponentPlayer) && (
+        <MatchTransition
+          player={{ name: displayName }}
+          opponent={{ name: opponentPlayer?.displayName ?? "الخصم" }}
+          subtitle="تبدأ المباراة"
+          onDone={() => { matchupVsFinishRef.current?.(); }}
+        />
+      )}
 
       {/* ── Fixed ambient background — pure CSS, compositor thread only ── */}
       <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">

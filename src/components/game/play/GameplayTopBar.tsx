@@ -10,6 +10,7 @@ import { useSecLeft } from "@/hooks/useSecLeft";
 import type { PlayerCosmetic } from "@/lib/profile/cosmetics";
 import type { Timestamp } from "firebase/firestore";
 
+
 type PlayerProps = {
   name: string;
   uid: string | null;
@@ -22,53 +23,23 @@ type PlayerProps = {
 // memo — only re-renders when player identity or active flag changes, not on every clock tick
 const PlayerCorner = memo(function PlayerCorner({ name, uid, cosmetic, photoURL, active, reverse }: PlayerProps) {
   return (
-    <motion.div
+    <div
       className="flex min-w-0 items-center gap-2"
-      style={{ flexDirection: reverse ? "row-reverse" : "row" }}
-      animate={{ opacity: active ? 1 : 0.52 }}
-      transition={{ duration: 0.35, ease: EASE_OUT }}
+      style={{
+        flexDirection: reverse ? "row-reverse" : "row",
+        opacity: active ? 1 : 0.5,
+        filter: active ? "none" : "grayscale(0.7)",
+        transition: "opacity 0.3s, filter 0.3s",
+      }}
     >
       <div className="relative shrink-0">
-        {/* Active glow — CSS animations, compositor-only (no JS repeat: Infinity) */}
-        <AnimatePresence>
-          {active && (
-            <>
-              {/* Outer ambient bloom — CSS animation off main thread */}
-              <span
-                key="bloom-outer"
-                aria-hidden
-                className="avatar-glow-outer pointer-events-none absolute rounded-full"
-                style={{
-                  inset: -10,
-                  background: `radial-gradient(circle, ${GP.gold}44 0%, transparent 68%)`,
-                  filter: "blur(7px)",
-                }}
-              />
-              {/* Inner tight ring — static, entry/exit only via AnimatePresence */}
-              <motion.div
-                key="ring-inner"
-                aria-hidden
-                className="pointer-events-none absolute rounded-full"
-                style={{
-                  inset: -4,
-                  boxShadow: `0 0 0 1.5px ${GP.gold}55, 0 0 8px 2px ${GP.gold}33`,
-                }}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.3 }}
-              />
-            </>
-          )}
-        </AnimatePresence>
-
         <ProfileAvatar
           cosmetic={uid ? cosmetic : null}
           fallbackPhotoURL={photoURL}
           displayName={name}
           size="sm"
-          active={active}
-          idle={!active}
+          active={false}
+          idle={false}
         />
       </div>
 
@@ -76,18 +47,14 @@ const PlayerCorner = memo(function PlayerCorner({ name, uid, cosmetic, photoURL,
         className="flex min-w-0 flex-col"
         style={{ alignItems: reverse ? "flex-end" : "flex-start", lineHeight: 1.1 }}
       >
-        <motion.span
+        <span
           className="max-w-[5.5rem] truncate text-sm font-extrabold"
-          animate={{
-            color: active ? GP.ink : GP.inkSoft,
-            textShadow: active ? `0 0 16px ${GP.gold}55` : "none",
-          }}
-          transition={{ duration: 0.35, ease: EASE_OUT }}
+          style={{ color: active ? GP.ink : GP.inkSoft }}
         >
           {name}
-        </motion.span>
+        </span>
       </div>
-    </motion.div>
+    </div>
   );
 });
 
