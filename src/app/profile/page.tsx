@@ -41,7 +41,7 @@ function ProfileScreenInner() {
   const displayName =
     user?.displayName || (user?.isAnonymous ? "زائر" : (user?.email?.split("@")[0] ?? "لاعب"));
 
-  const levelInfo = xpProgressInCurrentLevel(progress?.xp ?? 0);
+  const levelInfo = xpProgressInCurrentLevel(progress?.lifetimeXp ?? progress?.xp ?? 0);
   const totalMatches = progress?.matchTotal ?? 0;
   const winRate = progress && totalMatches > 0 ? `${progress.winRate}%` : "—";
 

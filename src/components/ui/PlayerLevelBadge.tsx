@@ -4,13 +4,15 @@ import { xpProgressInCurrentLevel } from "@/lib/profile/level";
 
 type Props = {
   xp: number;
+  /** Lifetime XP — only increases, used for level/bar. Falls back to xp. */
+  lifetimeXp?: number;
   size?: "sm" | "md";
   showBar?: boolean;
   className?: string;
 };
 
-export function PlayerLevelBadge({ xp, size = "sm", showBar = false, className = "" }: Props) {
-  const { level, xpInLevel, xpToNext, pct } = xpProgressInCurrentLevel(xp);
+export function PlayerLevelBadge({ xp, lifetimeXp, size = "sm", showBar = false, className = "" }: Props) {
+  const { level, xpInLevel, xpToNext, pct } = xpProgressInCurrentLevel(lifetimeXp ?? xp);
   const compact = size === "sm";
 
   return (

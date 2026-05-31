@@ -158,6 +158,7 @@ export async function awardMatchRewards(args: {
         {
           coins: coinBreakdown.total,
           xp: xpAwarded,
+          lifetimeXp: xpAwarded,
           matchWins,
           matchLosses,
           matchTotal,
@@ -214,6 +215,7 @@ export async function awardMatchRewards(args: {
 
     const patch: Record<string, unknown> = {
       xp: FieldValue.increment(xpAwarded),
+      lifetimeXp: FieldValue.increment(xpAwarded),
       matchWins,
       matchLosses,
       matchTotal,

@@ -68,6 +68,7 @@ import { TIME_PRESSURE_QUESTION_SEC } from "@/lib/profile/tactical-tools";
 import type { TacticalToolId } from "@/lib/profile/tactical-tools";
 import { RoomInviteFriendsPanel } from "@/components/social/RoomInviteFriendsPanel";
 import { LobbyShellBridge } from "@/components/game/LobbyShellBridge";
+import { MatchLeaveConfirm } from "@/components/game/MatchLeaveConfirm";
 
 type Props = { roomId: string };
 
@@ -135,6 +136,7 @@ export function RoomExperience({ roomId }: Props) {
   const [busy, setBusy] = useState(false);
   const [banner, setBanner] = useState<string | null>(null);
   const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false);
+  const [leaveBusy, setLeaveBusy] = useState(false);
   const [turnPopup, setTurnPopup] = useState<string | null>(null);
   const [matchupVsOpen, setMatchupVsOpen] = useState(false);
   const matchupVsTimerRef = useRef<number | null>(null);
@@ -165,6 +167,56 @@ export function RoomExperience({ roomId }: Props) {
   const [friendInviteOpen, setFriendInviteOpen] = useState(false);
   const [customSavePulse, setCustomSavePulse] = useState(0);
   const [tacticalOverlay, setTacticalOverlay] = useState<TacticalActivation | null>(null);
+
+  // Ref that stays current without being a useEffect dep — lets stable
+  // event listeners read whether the match is active right now.
+  // Note: `ended` is declared further down; we recompute the same condition inline.
+  const matchActiveRef = useRef(false);
+  const isMatchCurrentlyActive =
+    Boolean(match?.status === "active" && room?.status === "playing") &&
+    !(room?.status === "ended" || match?.status === "ended");
+  matchActiveRef.current = isMatchCurrentlyActive;
+
+  // ── Browser back-button + beforeunload interception ──────────────────────
+  useEffect(() => {
+    // Push a dummy history entry so the back button fires popstate instead
+    // of immediately leaving. We only do this while a match is active.
+    // On unmount / match end we pop the entry to restore the stack.
+    if (!matchActiveRef.current) return;
+
+    // Push sentinel so popstate fires before navigation completes.
+    window.history.pushState({ leaveGuard: true }, "");
+
+    const onPopState = (e: PopStateEvent) => {
+      if (!matchActiveRef.current) return;
+      // Re-push so repeated back presses keep triggering the guard.
+      window.history.pushState({ leaveGuard: true }, "");
+      // Show the confirm modal.
+      setLeaveConfirmOpen(true);
+      void e; // suppress unused-var
+    };
+
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (!matchActiveRef.current) return;
+      e.preventDefault();
+      // Chrome requires returnValue to be set.
+      e.returnValue = "";
+    };
+
+    window.addEventListener("popstate", onPopState);
+    window.addEventListener("beforeunload", onBeforeUnload);
+
+    return () => {
+      window.removeEventListener("popstate", onPopState);
+      window.removeEventListener("beforeunload", onBeforeUnload);
+      // Clean up the sentinel history entry so navigation works normally
+      // after the match ends (or component unmounts mid-match).
+      if (window.history.state?.leaveGuard) {
+        window.history.back();
+      }
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [match?.status, room?.status, isMatchCurrentlyActive]);
 
   const [clock, setClock] = useState(() => Date.now());
   const needLiveClock = Boolean(match?.status === "active" && room?.status === "playing");
@@ -410,6 +462,26 @@ export function RoomExperience({ roomId }: Props) {
     [activateTactical, displayName, clearTacticalError],
   );
 
+  // Triggered by SideActionRail when the local player fires a tool.
+  // Mounts the cinematic at the RoomExperience root — outside all overflow:hidden
+  // and layout containers — so it covers the full gameplay screen.
+  const onTacticalFired = useCallback(
+    (toolId: TacticalToolId) => {
+      setTacticalOverlay((prev) => {
+        // Don't overwrite an opponent cinematic that's still playing.
+        if (prev !== null) return prev;
+        return {
+          toolId,
+          actor: "me",
+          key: Date.now(),
+          myName: displayName,
+          opponentName: opponentPlayer?.displayName ?? "الخصم",
+        };
+      });
+    },
+    [displayName, opponentPlayer],
+  );
+
   useEffect(() => {
     firedTimeoutForDeadline.current = null;
   }, [match?.turnDeadline]);
@@ -492,8 +564,8 @@ export function RoomExperience({ roomId }: Props) {
     if (!ev?.id || ev.id === lastTacticalEventId.current) return;
     lastTacticalEventId.current = ev.id;
     const isMe = ev.actorUid === uid;
-    // Show cinematic overlay for the opponent (local player triggered it from
-    // TacticalToolsSheet which already shows the overlay for the actor)
+    // Show cinematic overlay for the opponent's perspective.
+    // Local player's cinematic is triggered via onTacticalFired → setTacticalOverlay.
     if (!isMe) {
       resumeAudioContext();
       playTacticalAlert(ev.blocked === true);
@@ -805,11 +877,23 @@ export function RoomExperience({ roomId }: Props) {
 
   const requestExit = useCallback(() => {
     resumeAudioContext();
-    setLeaveConfirmOpen(true);
-  }, []);
+    if (matchActiveRef.current) {
+      // Active match — must go through the confirmation modal.
+      setLeaveConfirmOpen(true);
+    } else {
+      // Lobby or ended match — leave immediately without confirmation.
+      void (async () => {
+        try {
+          if (room?.id) await postGame("/api/game/leave", { roomId: room.id });
+        } catch { /* still navigate */ }
+        router.replace("/");
+      })();
+    }
+  }, [room, router]);
 
   const confirmLeave = useCallback(async () => {
-    setLeaveConfirmOpen(false);
+    if (leaveBusy) return;
+    setLeaveBusy(true);
     try {
       if (room?.status === "playing" && match?.status === "active") {
         await postGame("/api/game/leave", { roomId: room.id });
@@ -818,9 +902,12 @@ export function RoomExperience({ roomId }: Props) {
       }
     } catch {
       // still navigate home
+    } finally {
+      setLeaveBusy(false);
+      setLeaveConfirmOpen(false);
     }
     router.replace("/");
-  }, [room, match, router]);
+  }, [leaveBusy, room, match, router]);
 
   const openGuessFlow = useCallback(() => {
     resumeAudioContext();
@@ -1264,7 +1351,7 @@ export function RoomExperience({ roomId }: Props) {
           randomLobby={randomLobby}
           uidCardComplete={uidCardComplete}
           bothPickedCustom={bothPickedCustom}
-          onBack={() => router.push("/")}
+          onBack={requestExit}
           onCopyCode={() => void copyCode()}
           onInviteFriends={() => {
             resumeAudioContext();
@@ -1289,31 +1376,12 @@ export function RoomExperience({ roomId }: Props) {
         </AnimatePresence>
 
         {/* ── Leave confirm modal ── */}
-        <AnimatePresence>
-          {leaveConfirmOpen ? (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="absolute inset-0 z-50 flex items-center justify-center bg-[#6a3f1b]/45 px-4 backdrop-blur-sm"
-              onClick={() => setLeaveConfirmOpen(false)}
-            >
-              <motion.div
-                initial={{ scale: 0.92 }}
-                animate={{ scale: 1 }}
-                onClick={(e: MouseEvent) => e.stopPropagation()}
-              >
-                <Panel className="max-w-sm text-center">
-                  <p className="text-lg font-bold text-[#8a3f16]">هل أنت متأكد من الخروج؟</p>
-                  <div className="mt-5 flex gap-3">
-                    <Button type="button" className="flex-1" onClick={() => void confirmLeave()}>نعم</Button>
-                    <Button type="button" variant="ghost" className="flex-1" onClick={() => setLeaveConfirmOpen(false)}>إلغاء</Button>
-                  </div>
-                </Panel>
-              </motion.div>
-            </motion.div>
-          ) : null}
-        </AnimatePresence>
+        <MatchLeaveConfirm
+          open={leaveConfirmOpen}
+          busy={leaveBusy}
+          onStay={() => setLeaveConfirmOpen(false)}
+          onLeave={() => void confirmLeave()}
+        />
             </>
           }
         />
@@ -1597,6 +1665,7 @@ export function RoomExperience({ roomId }: Props) {
             tacticalInventory={tacticalInv}
             tacticalBusy={tacticalBusy}
             onUseTactical={onUseTactical}
+            onTacticalFired={onTacticalFired}
             tacticalError={tacticalError}
             myGuessRemaining={myGuessRemaining}
             opponentGuessRemaining={opponentGuessRemaining}
@@ -1727,30 +1796,12 @@ export function RoomExperience({ roomId }: Props) {
       {/* ════════════════════════════════════════════════════════
           LEAVE CONFIRM
       ════════════════════════════════════════════════════════ */}
-      <AnimatePresence>
-        {leaveConfirmOpen ? (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="absolute inset-0 z-[56] flex items-center justify-center bg-[#6a3f1b]/45 px-4 backdrop-blur-sm"
-            onClick={() => setLeaveConfirmOpen(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.92 }}
-              animate={{ scale: 1 }}
-              onClick={(e: MouseEvent) => e.stopPropagation()}
-            >
-              <Panel className="max-w-sm text-center">
-                <p className="text-lg font-bold text-[#8a3f16]">هل أنت متأكد من الخروج؟</p>
-                <div className="mt-5 flex gap-3">
-                  <Button type="button" className="min-h-[48px] flex-1" onClick={() => void confirmLeave()}>نعم</Button>
-                  <Button type="button" variant="ghost" className="min-h-[48px] flex-1" onClick={() => setLeaveConfirmOpen(false)}>إلغاء</Button>
-                </div>
-              </Panel>
-            </motion.div>
-          </motion.div>
-        ) : null}
-      </AnimatePresence>
+      <MatchLeaveConfirm
+        open={leaveConfirmOpen}
+        busy={leaveBusy}
+        onStay={() => setLeaveConfirmOpen(false)}
+        onLeave={() => void confirmLeave()}
+      />
     </div>
   );
 }

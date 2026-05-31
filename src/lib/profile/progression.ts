@@ -26,8 +26,17 @@ export type PlayerProgress = {
   hintCredits: number;
   hintLetterCredits: number;
   hintCountCredits: number;
-  /** Lifetime experience — level is derived from this in `level.ts`. */
+  /**
+   * Spendable XP — decreases when the player exchanges XP for coins.
+   * Shown in the XP bubble next to the level badge.
+   */
   xp: number;
+  /**
+   * Lifetime XP — only ever increases (earned from matches).
+   * Used for level and progress-bar calculations so they never go down.
+   * Falls back to `xp` for accounts created before this field existed.
+   */
+  lifetimeXp: number;
   matchWins: number;
   matchLosses: number;
   matchTotal: number;
@@ -66,6 +75,12 @@ export function normalizePlayerProgress(raw: Record<string, unknown> | undefined
     typeof raw?.xp === "number" && Number.isFinite(raw.xp)
       ? Math.max(0, Math.floor(raw.xp))
       : 0;
+  // lifetimeXp: if the field exists use it, otherwise fall back to xp
+  // (accounts created before this field was added — their xp was never spent).
+  const lifetimeXp =
+    typeof raw?.lifetimeXp === "number" && Number.isFinite(raw.lifetimeXp)
+      ? Math.max(xp, Math.floor(raw.lifetimeXp))
+      : xp;
   const matchWins =
     typeof raw?.matchWins === "number" && Number.isFinite(raw.matchWins)
       ? Math.max(0, Math.floor(raw.matchWins))
@@ -107,6 +122,7 @@ export function normalizePlayerProgress(raw: Record<string, unknown> | undefined
     hintLetterCredits,
     hintCountCredits,
     xp,
+    lifetimeXp,
     matchWins,
     matchLosses,
     matchTotal,

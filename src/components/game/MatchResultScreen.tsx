@@ -554,7 +554,8 @@ export function MatchResultScreen({
   );
 
   const xp = liveProfile?.progress.xp ?? 0;
-  const { level, xpInLevel, xpToNext, pct: levelPct } = xpProgressInCurrentLevel(xp);
+  const xpForLevel = liveProfile?.progress.lifetimeXp ?? xp;
+  const { level, xpInLevel, xpToNext, pct: levelPct } = xpProgressInCurrentLevel(xpForLevel);
   const levelPctAnimated = show ? levelPct : Math.max(0, levelPct - 8);
 
   const headline = iWon ? (forfeitWin ? "فزت!" : "أحسنت!") : "خسارة";

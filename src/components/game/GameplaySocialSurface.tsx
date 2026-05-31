@@ -5,15 +5,12 @@ import type { RefObject } from "react";
 import { memo, useMemo, useState, useCallback } from "react";
 import { GameplayChatActionBar } from "@/components/game/play/GameplayChatActionBar";
 import { GameplayHeroCard } from "@/components/game/play/GameplayHeroCard";
-import { GameplayMyHiddenCard } from "@/components/game/play/GameplayMyHiddenCard";
-import { MyHiddenCardSheet } from "@/components/game/play/GameplaySheets";
 import { GuessRemainingIndicator } from "@/components/game/play/GuessRemainingIndicator";
 import { GameplayTopBar } from "@/components/game/play/GameplayTopBar";
-import { IconCheck, IconCross, IconTarget } from "@/components/game/play/icons";
+import { IconTarget } from "@/components/game/play/icons";
 import { useLiveUserProfile } from "@/hooks/useLiveUserProfile";
 import { GP } from "@/components/game/play/tokens";
-import { GameplayTacticalButton } from "@/components/game/play/GameplayTacticalButton";
-import { TacticalToolsSheet } from "@/components/game/play/TacticalToolsSheet";
+import { SideActionRail } from "@/components/game/play/SideActionRail";
 import { useMatchHints } from "@/hooks/useMatchHints";
 import { useOpponentTyping } from "@/hooks/useOpponentTyping";
 import type { TacticalInventory } from "@/lib/profile/tactical-tools";
@@ -87,6 +84,9 @@ export type GameplaySocialSurfaceProps = {
   tacticalInventory?: TacticalInventory;
   tacticalBusy?: TacticalToolId | null;
   onUseTactical?: (toolId: TacticalToolId) => void;
+  /** Called when the local player fires a tool — bubbles the activation up to
+   *  RoomExperience so the cinematic renders at the root level (no clip/overflow). */
+  onTacticalFired?: (toolId: TacticalToolId) => void;
   tacticalError?: string | null;
   myGuessRemaining?: number;
   opponentGuessRemaining?: number;
@@ -126,12 +126,11 @@ export const GameplaySocialSurface = memo(function GameplaySocialSurface({
   tacticalInventory,
   tacticalBusy = null,
   onUseTactical,
+  onTacticalFired,
   tacticalError = null,
   myGuessRemaining = 3,
   opponentGuessRemaining = 3,
 }: GameplaySocialSurfaceProps) {
-  const [cardSheetOpen, setCardSheetOpen] = useState(false);
-  const [tacticalSheetOpen, setTacticalSheetOpen] = useState(false);
   const [hintBusy, setHintBusy] = useState(false);
   const liveProfile = useLiveUserProfile(uid);
 
@@ -142,7 +141,6 @@ export const GameplaySocialSurface = memo(function GameplaySocialSurface({
     hintUsed,
     revealedIdx,
     letters,
-    countRevealed,
     useHint: spendHint,
   } = useMatchHints(
     roomId,
@@ -263,27 +261,26 @@ export const GameplaySocialSurface = memo(function GameplaySocialSurface({
 
           <section className="relative mx-auto w-full max-w-md shrink-0 px-3 pb-1 pt-0">
             <motion.div className="relative flex min-h-[218px] w-full items-center justify-center">
-              <div className="absolute bottom-2 left-0 z-20">
-                <GameplayMyHiddenCard
-                  hintsLeft={hintsLeft}
+              {/* SideActionRail — replaces the two corner buttons */}
+              {tacticalInventory && onUseTactical ? (
+                <SideActionRail
+                  match={match}
+                  uid={uid}
+                  myTurn={myTurn}
+                  phase={phase}
+                  inventory={tacticalInventory}
+                  tacticalBusy={tacticalBusy ?? null}
                   bonusLetterHints={liveProfile?.progress.hintLetterCredits ?? 0}
                   bonusCountHints={liveProfile?.progress.hintCountCredits ?? 0}
+                  hintsLeft={hintsLeft}
                   hintUsed={hintUsed}
-                  revealedIdx={revealedIdx}
                   letters={letters}
-                  size="compact"
-                  onPress={() => setCardSheetOpen(true)}
+                  revealedIdx={revealedIdx}
+                  hintBusy={hintBusy}
+                  onUseTactical={onUseTactical}
+                  onTacticalFired={onTacticalFired}
+                  onUseHint={(kind) => void handleUseHint(kind)}
                 />
-              </div>
-
-              {tacticalInventory && onUseTactical ? (
-                <div className="absolute bottom-2 right-0 z-20">
-                  <GameplayTacticalButton
-                    inventory={tacticalInventory}
-                    size="compact"
-                    onPress={() => setTacticalSheetOpen(true)}
-                  />
-                </div>
               ) : null}
 
               <motion.div className="flex w-full flex-col items-center justify-center px-2">
@@ -351,33 +348,6 @@ export const GameplaySocialSurface = memo(function GameplaySocialSurface({
             />
           </motion.div>
 
-          <MyHiddenCardSheet
-            open={cardSheetOpen}
-            letters={letters}
-            revealedIdx={revealedIdx}
-            countRevealed={countRevealed}
-            hintsLeft={hintsLeft}
-            bonusLetterHints={liveProfile?.progress.hintLetterCredits ?? 0}
-            bonusCountHints={liveProfile?.progress.hintCountCredits ?? 0}
-            hintUsed={hintUsed}
-            busy={hintBusy}
-            onClose={() => setCardSheetOpen(false)}
-            onUseHint={(k) => void handleUseHint(k)}
-          />
-          {tacticalInventory && onUseTactical ? (
-            <TacticalToolsSheet
-              open={tacticalSheetOpen}
-              match={match}
-              uid={uid}
-              myTurn={myTurn}
-              phase={phase}
-              inventory={tacticalInventory}
-              busy={tacticalBusy}
-              error={tacticalError}
-              onClose={() => setTacticalSheetOpen(false)}
-              onUse={onUseTactical}
-            />
-          ) : null}
         </>
       ) : (
         <motion.div className="flex flex-1 flex-col items-center justify-center gap-3 px-4 py-10 text-center">
