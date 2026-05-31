@@ -3,7 +3,7 @@
  */
 import { CHAT_COOLDOWN_MS } from "@/lib/game/constants";
 import { HttpError, jsonError, jsonOk, requireUidFromRequest } from "@/lib/server/auth";
-import { enforceChatRate, handleChat } from "@/lib/server/game-server";
+import { clearChatRate, enforceChatRate, handleChat } from "@/lib/server/game-server";
 
 export async function POST(req: Request) {
   try {
@@ -18,13 +18,16 @@ export async function POST(req: Request) {
       return jsonError(400, "بيانات ناقصة");
     }
     await enforceChatRate(body.roomId, uid, CHAT_COOLDOWN_MS);
-    await handleChat({
+    const result = await handleChat({
       roomId: body.roomId,
       matchId: body.matchId,
       uid,
       displayName: body.displayName?.trim() || "لاعب",
       text: body.text.trim().slice(0, 500),
     });
+    if (result.stayInQuestionPhase) {
+      void clearChatRate(body.roomId, uid);
+    }
     return jsonOk({});
   } catch (e) {
     if (e instanceof HttpError) return jsonError(e.status, e.message);

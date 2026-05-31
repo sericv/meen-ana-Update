@@ -318,10 +318,11 @@ export async function handleChat(args: {
   uid: string;
   displayName: string;
   text: string;
-}) {
+}): Promise<{ stayInQuestionPhase: boolean }> {
   const db = getAdminDb();
   const matchRef = db.collection(col.matches).doc(args.matchId);
   const roomRef = db.collection(col.rooms).doc(args.roomId);
+  let stayedInQuestion = false;
 
   await db.runTransaction(async (tx) => {
     const matchSnap = await tx.get(matchRef);
@@ -355,6 +356,7 @@ export async function handleChat(args: {
       });
       const afterQ = resolveAfterQuestionPosted({ m, uid: args.uid, baseQSec: qSec });
       if (afterQ.stayInQuestionPhase) {
+        stayedInQuestion = true;
         tx.set(matchRef, { ...incrementQuestionCountPatch(m), ...afterQ.patch }, { merge: true });
       } else {
         tx.set(
@@ -392,6 +394,7 @@ export async function handleChat(args: {
 
     tx.set(roomRef, { lastActivityAt: FieldValue.serverTimestamp() }, { merge: true });
   });
+  return { stayInQuestionPhase: stayedInQuestion };
 }
 
 export async function handleTurnTimeout(args: {
@@ -1116,6 +1119,17 @@ export async function enforceChatRate(roomId: string, uid: string, minIntervalMs
     throw new Error("RATE_LIMIT");
   }
   await ref.set({ lastAt: FieldValue.serverTimestamp() }, { merge: true });
+}
+
+/** Reset the chat rate counter — used after extra_question Q1 so Q2 isn't blocked. */
+export async function clearChatRate(roomId: string, uid: string): Promise<void> {
+  try {
+    const db = getAdminDb();
+    const ref = db.collection(col.rooms).doc(roomId).collection("serverRate").doc(uid);
+    await ref.set({ lastAt: Timestamp.fromMillis(0) }, { merge: true });
+  } catch {
+    // non-critical — worst case Q2 gets rate-limited and player waits 1.2s
+  }
 }
 
 type StoredHintState = {
