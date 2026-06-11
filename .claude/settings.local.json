@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node -e \"const pkg = require\\('./node_modules/firebase/package.json'\\); console.log\\(pkg.version\\)\")",
+      "Bash(npx tsc *)",
+      "Bash(npx next *)",
+      "Bash(del \"c:\\\\Users\\\\imfal\\\\Desktop\\\\مين انا\\\\meen-ana\\\\.next\\\\dev\\\\types\\\\routes.d.ts\")",
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\imfal\\\\Desktop\\\\مين انا\\\\meen-ana\" -Recurse -Directory)",
+      "Bash(Select-Object -ExpandProperty FullName)",
+      "Bash(git checkout *)",
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\imfal\\\\Desktop\\\\U\\\\meen-ana-Update\" -Recurse -Filter \"*firebase*\" -ErrorAction SilentlyContinue)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\imfal\\\\Desktop\\\\U\\\\meen-ana-Update\\\\src\" -Recurse -Name)",
+      "Bash(node --check admin/js/cards.js admin/js/categories.js admin/js/ui.js admin/js/config.js)",
+      "Bash(node --check admin/js/firebase.js)",
+      "Bash(node --check admin/js/firebase.js admin/js/cards.js)",
+      "Bash(Get-ChildItem -Recurse -Force)",
+      "Bash(Select-Object FullName)",
+      "PowerShell(head -100)",
+      "Bash(git restore *)",
+      "Bash(grep -v \"//\")"
+    ]
+  }
+}
