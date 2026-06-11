@@ -485,15 +485,16 @@ export function RoomExperience({ roomId }: Props) {
     phase === "answer" ? aSec : timePressureOnActor ? TIME_PRESSURE_QUESTION_SEC : qSec;
 
   const onUseTactical = useCallback(
-    (toolId: TacticalToolId) => {
+    async (toolId: TacticalToolId) => {
       resumeAudioContext();
       playUIButton();
       clearTacticalError();
-      void activateTactical(toolId, displayName).then((ev) => {
-        if (!ev) return;
+      const ev = await activateTactical(toolId, displayName);
+      if (ev) {
         resumeAudioContext();
         playTacticalAlert(ev.blocked === true);
-      });
+      }
+      return ev;
     },
     [activateTactical, displayName, clearTacticalError],
   );

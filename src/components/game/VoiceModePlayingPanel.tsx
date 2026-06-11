@@ -10,7 +10,7 @@ import { useLiveUserProfile } from "@/hooks/useLiveUserProfile";
 import { useMatchHints } from "@/hooks/useMatchHints";
 import type { TacticalInventory } from "@/lib/profile/tactical-tools";
 import type { TacticalToolId } from "@/lib/profile/tactical-tools";
-import type { MatchState } from "@/types";
+import type { MatchState, TacticalGameplayEvent } from "@/types";
 import { getCategoryById } from "@/lib/game/categories";
 import type { PlayerCosmetic } from "@/lib/profile/cosmetics";
 import type { GameCard } from "@/types";
@@ -36,7 +36,7 @@ export type VoiceModePlayingPanelProps = {
   match?: MatchState | null;
   tacticalInventory?: TacticalInventory;
   tacticalBusy?: TacticalToolId | null;
-  onUseTactical?: (toolId: TacticalToolId) => void;
+  onUseTactical?: (toolId: TacticalToolId) => Promise<TacticalGameplayEvent | null>;
   tacticalError?: string | null;
   myGuessRemaining?: number;
   opponentGuessRemaining?: number;

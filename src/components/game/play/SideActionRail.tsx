@@ -21,7 +21,7 @@ import {
   type TacticalToolId,
 } from "@/lib/profile/tactical-tools";
 import { TacticalToolIcon } from "@/components/game/play/TacticalToolIcons";
-import type { MatchState } from "@/types";
+import type { MatchState, TacticalGameplayEvent } from "@/types";
 
 /* ── palette for each tool (warm identity) ──────────────────── */
 const TOOL_PALETTE: Record<TacticalToolId, { hue1: string; hue2: string; glow: string }> = {
@@ -48,7 +48,7 @@ export type SideActionRailProps = {
   letters: string[];
   revealedIdx: number[];
   hintBusy: boolean;
-  onUseTactical: (toolId: TacticalToolId) => void;
+  onUseTactical: (toolId: TacticalToolId) => Promise<TacticalGameplayEvent | null>;
   /** Called after firing so RoomExperience can show the cinematic at root level */
   onTacticalFired?: (toolId: TacticalToolId) => void;
   onUseHint: (kind: "letter" | "count") => void;
@@ -87,13 +87,14 @@ export const SideActionRail = memo(function SideActionRail({
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
 
-  const fireTool = useCallback((toolId: TacticalToolId) => {
+  const fireTool = useCallback(async (toolId: TacticalToolId) => {
     const { ok } = canUseTacticalTool({ toolId, match, uid, myTurn, phase, inventory });
     if (!ok || tacticalBusy) return;
-    onUseTactical(toolId);
-    // Bubble up so RoomExperience mounts the cinematic at the root level (no clip).
-    onTacticalFired?.(toolId);
     setOpen(null);
+    const ev = await onUseTactical(toolId);
+    // Only show "me" cinematic if the server actually accepted the activation —
+    // otherwise the opponent never receives lastTacticalEvent and would see nothing.
+    if (ev) onTacticalFired?.(toolId);
   }, [match, uid, myTurn, phase, inventory, tacticalBusy, onUseTactical, onTacticalFired]);
 
   const useHint = useCallback((kind: "letter" | "count") => {

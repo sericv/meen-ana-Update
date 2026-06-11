@@ -17,7 +17,7 @@ import type { TacticalInventory } from "@/lib/profile/tactical-tools";
 import type { TacticalToolId } from "@/lib/profile/tactical-tools";
 import { getCategoryById } from "@/lib/game/categories";
 import type { PlayerCosmetic } from "@/lib/profile/cosmetics";
-import type { ChatMessage, GameCard, MatchState } from "@/types";
+import type { ChatMessage, GameCard, MatchState, TacticalGameplayEvent } from "@/types";
 import type { Timestamp } from "firebase/firestore";
 
 function isHintChatMessage(m: ChatMessage): boolean {
@@ -83,7 +83,7 @@ export type GameplaySocialSurfaceProps = {
   match?: MatchState | null;
   tacticalInventory?: TacticalInventory;
   tacticalBusy?: TacticalToolId | null;
-  onUseTactical?: (toolId: TacticalToolId) => void;
+  onUseTactical?: (toolId: TacticalToolId) => Promise<TacticalGameplayEvent | null>;
   /** Called when the local player fires a tool — bubbles the activation up to
    *  RoomExperience so the cinematic renders at the root level (no clip/overflow). */
   onTacticalFired?: (toolId: TacticalToolId) => void;

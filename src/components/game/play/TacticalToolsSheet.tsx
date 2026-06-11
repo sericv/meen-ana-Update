@@ -17,7 +17,7 @@ import {
   type TacticalToolId,
 } from "@/lib/profile/tactical-tools";
 import { EASE_OUT } from "@/lib/motion";
-import type { MatchState } from "@/types";
+import type { MatchState, TacticalGameplayEvent } from "@/types";
 
 /* ─── Per-tool palette ───────────────────────────────────────── */
 const TOOL: Record<TacticalToolId, {
@@ -95,7 +95,7 @@ type Props = {
   myName?: string;
   opponentName?: string;
   onClose: () => void;
-  onUse: (toolId: TacticalToolId) => void;
+  onUse: (toolId: TacticalToolId) => Promise<TacticalGameplayEvent | null>;
 };
 
 /* ─── Sheet ─────────────────────────────────────────────────── */
@@ -125,8 +125,11 @@ export function TacticalToolsSheet({
   const [activation, setActivation] = useState<TacticalActivation | null>(null);
   const activationKeyRef = useRef(0);
 
-  const handleUse = useCallback((toolId: TacticalToolId) => {
-    onUse(toolId);
+  const handleUse = useCallback(async (toolId: TacticalToolId) => {
+    const ev = await onUse(toolId);
+    // Only show the "me" cinematic if the server accepted the activation —
+    // otherwise the opponent never receives lastTacticalEvent and would see nothing.
+    if (!ev) return;
     activationKeyRef.current += 1;
     setActivation({
       toolId,
