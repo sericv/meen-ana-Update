@@ -1,0 +1,120 @@
+"use client";
+
+import { useCallback, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { ProfileAvatar } from "@/components/profile/ProfileAvatar";
+import { ShellIcon } from "@/components/shell/ShellIcons";
+import { playUIButton, resumeAudioContext } from "@/lib/audio/game-sounds";
+import { updateUserCosmetics } from "@/lib/firestore/users.client";
+import { type FrameId, type PlayerCosmetic } from "@/lib/profile/cosmetics";
+import { ownedShopFramesList, type PlayerProgress } from "@/lib/profile/progression";
+
+export function ProfilePurchasesPanel({
+  uid,
+  google,
+  cosmetic,
+  progress,
+  fallbackPhotoURL,
+  displayName,
+}: {
+  uid: string;
+  google: boolean;
+  cosmetic: PlayerCosmetic;
+  progress: PlayerProgress | undefined;
+  fallbackPhotoURL?: string | null;
+  displayName: string;
+}) {
+  const router = useRouter();
+  const [equipBusy, setEquipBusy] = useState<string | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+
+  const ownedFrames = useMemo(
+    () => (progress ? ownedShopFramesList(progress) : []),
+    [progress],
+  );
+  const selectableFrames = useMemo(() => ["none" as const, ...ownedFrames], [ownedFrames]);
+
+  const equip = useCallback(
+    async (fid: FrameId) => {
+      if (!google) return;
+      resumeAudioContext();
+      playUIButton();
+      setEquipBusy(fid);
+      setToast(null);
+      try {
+        await updateUserCosmetics(uid, { avatarFrameId: fid });
+        setToast("تم تجهيز الإطار.");
+      } catch {
+        setToast("تعذر التجهيز.");
+      } finally {
+        setEquipBusy(null);
+      }
+    },
+    [uid, google],
+  );
+
+  if (!progress) {
+    return <p className="py-8 text-center text-sm muted">جاري التحميل…</p>;
+  }
+
+  const showEmptyFrames = !progress.legacyFullCatalog && ownedFrames.length === 0;
+
+  return (
+    <div className="col gap-3">
+      {toast ? (
+        <p className="surf text-center text-sm fw-7" style={{ padding: 10 }}>
+          {toast}
+        </p>
+      ) : null}
+
+      <p className="h-display fw-7 text-md px-1">إطاراتك</p>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
+        {selectableFrames.map((fid) => {
+          const isEq = cosmetic.avatarFrameId === fid;
+          const busy = equipBusy === fid;
+          const isNone = fid === "none";
+          return (
+            <button
+              key={fid}
+              type="button"
+              disabled={!google || busy || isEq}
+              onClick={() => void equip(fid)}
+              className="surf"
+              style={{
+                padding: 12,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: 8,
+                border: isEq ? "1.5px solid var(--amber)" : "1px solid oklch(0.78 0.04 65 / .4)",
+                boxShadow: isEq ? "var(--glow-amber)" : "var(--sh-2)",
+                opacity: google ? 1 : 0.85,
+              }}
+            >
+              <ProfileAvatar
+                cosmetic={{ ...cosmetic, avatarFrameId: fid }}
+                fallbackPhotoURL={fallbackPhotoURL}
+                displayName={displayName}
+                size="md"
+              />
+              <span className={isEq ? "chip chip-amber" : "chip"} style={{ fontSize: 9 }}>
+                {busy ? "…" : isEq ? "مفعّل" : isNone ? "بدون إطار" : "تجهيز"}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {showEmptyFrames ? (
+        <div className="surf center col" style={{ padding: 24, textAlign: "center", gap: 8 }}>
+          <ShellIcon name="shop" size={28} color="var(--fg-3)" />
+          <p className="fw-7">لا توجد إطارات بعد</p>
+          <p className="text-sm muted">ابدأ من المتجر بإطارك الأول.</p>
+          <button type="button" className="btn btn-primary btn-sm mt-2" onClick={() => router.push("/shop")}>
+            إلى المتجر
+          </button>
+        </div>
+      ) : null}
+    </div>
+  );
+}

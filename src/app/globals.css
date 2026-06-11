@@ -1,0 +1,670 @@
+@import "tailwindcss";
+@import "../styles/shell-tokens.css";
+
+/* ─── Font rendering — anti-aliased on all platforms ──────────────── */
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "kern" 1, "calt" 1;
+}
+
+:root {
+  --background: #fff7ef;
+  --foreground: #5e3011;
+
+  /* 8pt spacing system — use via var(--gap-2), var(--gap-3) … */
+  --gap-1: 4px;
+  --gap-2: 8px;
+  --gap-3: 12px;
+  --gap-4: 16px;
+  --gap-5: 20px;
+  --gap-6: 24px;
+  --gap-8: 32px;
+  --gap-10: 40px;
+  --gap-12: 48px;
+
+  /* Safe-area shortcuts */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+
+  /* Card aspect ratios — keep cards visually identical everywhere. */
+  --card-ratio: 3 / 4;
+  --card-ratio-square: 1 / 1;
+  --card-ratio-wide: 4 / 3;
+
+  /* Static dynamic viewport token for max-heights (cards, etc.). Do **not**
+     shrink this from JS to visualViewport.height — that fought `html` height
+     and caused empty bands on iOS when the keyboard opened. */
+  --app-vh: 100dvh;
+  /* Visual viewport offset (iOS); updated by useVisualViewport. */
+  --vv-top: 0px;
+  --vv-left: 0px;
+  --vv-width: 100%;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-tajawal), system-ui, -apple-system, Segoe UI, Arial, sans-serif;
+}
+
+/* ─── App-shell: lock document to the visible viewport (native-app feel).
+       The page/body must never scroll; only `.scroll-y` / `.app-scroll-y`
+       regions scroll internally. ─── */
+html {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+body {
+  width: 100%;
+  height: 100%;
+  max-height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+.app-shell {
+  height: 100%;
+  max-height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+  /* Richer multi-radial warmth — more saturated blooms, softer gradient base */
+  background:
+    radial-gradient(ellipse 70% 40% at 12% 18%, rgba(255,220,170,0.72) 0%, transparent 55%),
+    radial-gradient(ellipse 55% 35% at 90% 12%, rgba(255,196,130,0.55) 0%, transparent 50%),
+    radial-gradient(ellipse 50% 30% at 80% 85%, rgba(255,220,165,0.48) 0%, transparent 50%),
+    radial-gradient(ellipse 40% 25% at 20% 90%, rgba(255,200,140,0.35) 0%, transparent 50%),
+    linear-gradient(175deg, #fff9f2 0%, #fff2e0 55%, #ffeacc 100%);
+  color: var(--foreground);
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  touch-action: manipulation;
+}
+
+/* Primary route host — fills body flex column, never grows past viewport. */
+.app-main {
+  position: relative;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  width: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+/* Standalone pages (login, tutorial) without shell-screen. */
+.app-page {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  width: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+::selection {
+  background: rgba(255, 162, 74, 0.35);
+}
+
+/* ─── No-zoom inputs ─────────────────────────────────────────────────
+   iOS Safari auto-zooms when a focused input's computed font-size is
+   below 16px. The `maximum-scale=1` viewport flag handles older iOS,
+   but we still enforce a 16px minimum on every interactive control as
+   a defensive belt-and-braces measure. Visually we still show smaller
+   text in chat bubbles — only the inputs themselves are forced 16px. */
+input,
+textarea,
+select,
+button {
+  font-family: inherit;
+}
+
+@media (max-width: 768px) {
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
+    line-height: 1.35 !important;
+  }
+}
+
+/* Disable iOS Safari's tap-highlight flash + double-tap zoom delay on
+   anything we treat as a touch target. */
+a,
+button,
+[role="button"],
+input,
+textarea,
+select,
+label {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* ─── Card image system — uniform aspect ratio everywhere ─────────── */
+.card-frame {
+  aspect-ratio: var(--card-ratio);
+  width: 100%;
+  overflow: hidden;
+  position: relative;
+  contain: layout paint;
+}
+.card-frame > img,
+.card-frame > picture > img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+}
+
+/* For full-art cards that should not crop (custom uploads), authors can
+   add `data-fit="contain"` on the frame. */
+.card-frame[data-fit="contain"] > img {
+  object-fit: contain;
+  background: #fff8ee;
+}
+
+/* ─── Scroll containers — gentle inertia, no chain to document ─────── */
+.scroll-y,
+.app-scroll-y {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+  overflow-anchor: none;
+  touch-action: pan-y;
+}
+
+.app-scroll-y {
+  width: 100%;
+}
+
+/* Hide native scrollbar while preserving scroll (used in chat lists). */
+.scroll-y-hidden::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+.scroll-y-hidden {
+  scrollbar-width: none;
+}
+
+/* Chat message list: no smooth scroll (reduces jank with mobile keyboard). */
+.scroll-y-chat {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: auto;
+  overflow-anchor: none;
+  scrollbar-width: none;
+  touch-action: pan-y;
+}
+.scroll-y-chat::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+/* In-room opponent card max-heights use `--app-vh` (static 100dvh in :root). */
+.gameplay-opponent-card-visual {
+  aspect-ratio: 4 / 5;
+  max-height: min(240px, calc(var(--app-vh, 100dvh) * 0.26));
+}
+
+html.kbd-open .gameplay-opponent-card-visual {
+  max-height: min(200px, calc(var(--app-vh, 100dvh) * 0.2));
+}
+
+/* Compact in-room card — social layout gives most height to chat. */
+.gameplay-card-compact {
+  aspect-ratio: 4 / 5;
+  max-height: min(150px, calc(var(--app-vh, 100dvh) * 0.19));
+}
+
+html.kbd-open .gameplay-card-compact {
+  max-height: min(120px, calc(var(--app-vh, 100dvh) * 0.14));
+}
+
+/* Fixed-size opponent thumb in chat header (no aspect-ratio flex fights). */
+.gameplay-card-thumb {
+  height: 3.5rem;
+  width: 2.75rem;
+  flex-shrink: 0;
+  border-radius: 0.65rem;
+  overflow: hidden;
+}
+
+/* ─── Keyboard-safe footer: use ONLY on pages whose root height is still
+       the *layout* viewport (e.g. min-h-100dvh) so padding lifts content above
+       an overlay keyboard. Do NOT combine with an inner column already sized
+       to `var(--app-vh)` — that double-counts and collapses flex children. */
+.kbd-safe {
+  padding-bottom: calc(max(var(--safe-bottom), 8px) + var(--kbd-h, 0px));
+  transition: padding-bottom 180ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Safe-area only — correct footer inside `--app-vh`-sized gameplay shells. */
+.kbd-safe-area-only {
+  padding-bottom: max(var(--safe-bottom), 8px);
+}
+
+/* Sticky composer that hugs the keyboard. */
+.kbd-anchor {
+  position: sticky;
+  bottom: 0;
+  background: inherit;
+}
+
+/* ─── Premium glass surface — reusable across cards ──────────────── */
+.glass-card {
+  background: linear-gradient(165deg,
+    rgba(255,255,255,0.99) 0%,
+    rgba(255,252,246,0.97) 50%,
+    rgba(255,244,228,0.95) 100%
+  );
+  box-shadow:
+    inset 0 1.5px 0 rgba(255,255,255,0.92),
+    inset 0 -1px 0 rgba(196,134,82,0.08),
+    0 4px 12px rgba(196,134,82,0.08),
+    0 12px 32px rgba(196,134,82,0.12),
+    0 28px 60px -12px rgba(196,134,82,0.10);
+  border: 1px solid rgba(244,196,141,0.42);
+}
+
+/* ─── Button gloss streak (applied by Button.tsx on primary) ──────── */
+.btn-gloss {
+  position: relative;
+  overflow: hidden;
+}
+.btn-gloss::after {
+  content: '';
+  pointer-events: none;
+  position: absolute;
+  inset-x: 12%;
+  top: 4px;
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.45);
+  filter: blur(2px);
+}
+/* Bottom inner shadow to reinforce the pressed/3D look */
+.btn-gloss::before {
+  content: '';
+  pointer-events: none;
+  position: absolute;
+  inset-x: 0;
+  bottom: 0;
+  height: 40%;
+  border-radius: 0 0 999px 999px;
+  background: linear-gradient(180deg, transparent, rgba(0,0,0,0.05));
+}
+
+/* ─── List item card — friend rows, search hits ───────────────────── */
+.list-item-card {
+  background: linear-gradient(160deg, rgba(255,255,255,0.99), rgba(255,250,242,0.97));
+  border: 1px solid rgba(244,196,141,0.40);
+  box-shadow:
+    inset 0 1.5px 0 rgba(255,255,255,0.88),
+    inset 0 -1px 0 rgba(196,134,82,0.06),
+    0 2px 6px rgba(196,134,82,0.08),
+    0 6px 18px -4px rgba(196,134,82,0.12);
+  transition:
+    box-shadow 0.22s cubic-bezier(0.23, 1, 0.32, 1),
+    transform 0.22s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+/* Guard hover glow for pointer devices only — never fires on touch */
+@media (hover: hover) and (pointer: fine) {
+  .list-item-card:hover {
+    box-shadow:
+      inset 0 1.5px 0 rgba(255,255,255,0.92),
+      inset 0 -1px 0 rgba(196,134,82,0.08),
+      0 8px 24px rgba(196,134,82,0.18),
+      0 16px 40px -8px rgba(196,134,82,0.14);
+    transform: translateY(-2px) scale(1.005);
+  }
+}
+
+/* ─── Premium gameplay panel surface ─────────────────────────────── */
+.gameplay-panel {
+  background: linear-gradient(
+    165deg,
+    rgba(255, 255, 255, 1.00) 0%,
+    rgba(255, 249, 237, 0.98) 45%,
+    rgba(255, 237, 204, 0.96) 100%
+  );
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.98),
+    inset 0 -1.5px 0 rgba(196, 130, 60, 0.14),
+    0 2px 6px rgba(160, 80, 30, 0.08),
+    0 8px 24px rgba(160, 80, 30, 0.12),
+    0 20px 48px -8px rgba(160, 80, 30, 0.10),
+    0 0 0 1px rgba(244, 196, 141, 0.38);
+  border-radius: 24px;
+}
+
+/* ─── Chat bubble — my messages (right side, orange) ─────────────── */
+.chat-bubble-mine {
+  background: linear-gradient(148deg, #FF9F0A 0%, #FF6800 55%, #E85500 100%);
+  color: #fff;
+  border-radius: 18px 18px 4px 18px;
+  box-shadow:
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.42),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.12),
+    0 2px 0 #b03d00,
+    0 5px 14px rgba(255, 107, 0, 0.32),
+    0 12px 28px -6px rgba(255, 107, 0, 0.22);
+}
+
+/* ─── Chat bubble — opponent messages (left side, cream) ─────────── */
+.chat-bubble-theirs {
+  background: linear-gradient(155deg, rgba(255,255,255,1.00), rgba(255,248,234,0.98));
+  color: #6f3714;
+  border-radius: 18px 18px 18px 4px;
+  box-shadow:
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.96),
+    inset 0 -1px 0 rgba(196, 130, 60, 0.08),
+    0 0 0 1px rgba(244, 196, 141, 0.38),
+    0 4px 12px rgba(160, 80, 30, 0.09),
+    0 10px 24px -6px rgba(160, 80, 30, 0.07);
+}
+
+/* ─── System / guess result bubbles ──────────────────────────────── */
+.chat-bubble-system {
+  background: linear-gradient(135deg, rgba(255,252,245,0.98), rgba(255,244,224,0.96));
+  border: 1px solid rgba(244, 196, 141, 0.50);
+  border-radius: 12px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.8),
+    0 2px 8px rgba(160, 80, 30, 0.07);
+}
+
+/* ─── Active player name pill — orange gradient ───────────────────── */
+.player-name-pill-active {
+  background: linear-gradient(135deg, #FF9F0A, #FF5500);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(255, 107, 0, 0.35), inset 0 1px 0 rgba(255,255,255,0.3);
+}
+
+/* ─── Inactive player name pill — soft cream ─────────────────────── */
+.player-name-pill-idle {
+  background: rgba(244, 196, 141, 0.22);
+  color: #a16231;
+  border: 1px solid rgba(244, 196, 141, 0.45);
+}
+
+/* Victory screen — stable mobile layout (no horizontal drift / zoom clipping) */
+.match-result-screen {
+  max-width: 100%;
+  overflow-x: hidden;
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.match-result-decor {
+  max-width: 100%;
+}
+
+.winner-hero {
+  overflow: visible;
+}
+
+.match-result-hero-name {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+@keyframes voice-conic-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.voice-conic-spin {
+  animation: voice-conic-spin 6s linear infinite;
+}
+
+/* ─── Chat bubble system ──────────────────────────────────────────
+   Used by renderMessage (RoomExperience) + TypingDots (GameplaySocialSurface).
+   Alignment relies on parent being dir="rtl":
+     .me   → flex-end   (right in LTR, left in RTL = player side)
+     .them → flex-start (left  in LTR, right in RTL = opponent side)
+─────────────────────────────────────────────────────────────────── */
+.bubble {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 78%;
+  border-radius: 18px;
+  padding: 10px 14px;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.55;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+.bubble.me {
+  align-self: flex-end;
+  background: linear-gradient(180deg, oklch(0.86 0.11 70), oklch(0.79 0.13 58));
+  border: 1px solid oklch(0.70 0.13 58 / .55);
+  color: oklch(0.22 0.04 35);
+  box-shadow: 0 6px 14px -8px oklch(0.55 0.15 55 / .45), inset 0 1px 0 rgba(255,255,255,.45);
+  border-bottom-right-radius: 4px;
+}
+.bubble.them {
+  align-self: flex-start;
+  background: linear-gradient(180deg, oklch(0.99 0.01 85), oklch(0.96 0.025 78));
+  border: 1px solid oklch(0.78 0.04 65 / .55);
+  color: oklch(0.24 0.04 35);
+  box-shadow: 0 4px 12px -8px oklch(0.45 0.08 45 / .28), inset 0 1px 0 rgba(255,255,255,.85);
+  border-bottom-left-radius: 4px;
+}
+.bubble.system {
+  align-self: center;
+  max-width: 85%;
+  border-radius: 999px;
+  border: 1px solid oklch(0.78 0.04 65 / .45);
+  background: oklch(0.96 0.025 78 / .9);
+  color: oklch(0.44 0.06 45);
+  padding: 7px 13px;
+  font-size: 11px;
+  text-align: center;
+}
+
+/* ─── Typing dot — CSS compositor animation ───────────────────── */
+@keyframes typing {
+  0%, 100% { transform: translateY(0);   opacity: 0.4; }
+  50%       { transform: translateY(-4px); opacity: 1;   }
+}
+.typing-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: oklch(0.60 0.06 55);
+  animation: typing 1.2s ease-in-out infinite;
+}
+
+/* ─── Gameplay surface classes ───────────────────────────────────── */
+
+.gameplay-turn-pill {
+  background: linear-gradient(180deg, #ff8a3d 0%, #f06518 60%, #e05010 100%);
+  box-shadow:
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.52),
+    inset 0 -2.5px 0 rgba(0, 0, 0, 0.14),
+    0 2px 0 rgba(160, 60, 0, 0.22),
+    0 6px 16px rgba(255, 138, 61, 0.42),
+    0 14px 32px -6px rgba(255, 110, 30, 0.28),
+    0 0 28px -4px rgba(255, 150, 60, 0.35);
+}
+
+.gameplay-secret-card {
+  background: linear-gradient(165deg, #fff 0%, #fff4e8 40%, #ffe8c4 80%, #fbd8a8 100%);
+  box-shadow:
+    inset 0 2px 0 #fff,
+    inset 0 -2px 0 rgba(196, 130, 50, 0.15),
+    0 2px 0 rgba(180, 100, 30, 0.10),
+    0 10px 24px rgba(180, 100, 30, 0.18),
+    0 24px 48px -10px rgba(180, 100, 30, 0.20);
+  border: 1.5px solid rgba(255, 138, 61, 0.22);
+}
+
+/* ─── Route transitions (template.tsx) ───────────────────────────── */
+.route-transition-host {
+  animation: routeEnter 0.38s cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+
+@keyframes routeEnter {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.988);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.route-loading-spinner {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 9999px;
+  border: 2px solid rgba(234, 140, 47, 0.25);
+  border-top-color: #ea8c2f;
+  animation: routeSpinner 0.7s linear infinite;
+}
+
+@keyframes routeSpinner {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ─── Premium ambient keyframes ──────────────────────────────────────
+   All use transform/opacity only — compositor layer, no layout cost.
+   Applied via className on motion-ready elements.
+   ────────────────────────────────────────────────────────────────── */
+
+/* Urgency pulse — timer ring flashes when low */
+@keyframes urgencyPulse {
+  0%   { opacity: 1;   filter: drop-shadow(0 0 4px currentColor); }
+  50%  { opacity: 0.65; filter: drop-shadow(0 0 14px currentColor); }
+  100% { opacity: 1;   filter: drop-shadow(0 0 4px currentColor); }
+}
+.urgency-pulse {
+  animation: urgencyPulse 0.9s ease-in-out infinite;
+}
+
+/* Ambient glow breathe — for active player avatars, hero cards */
+@keyframes glowBreathe {
+  0%   { opacity: 0.45; transform: scale(1.00); }
+  50%  { opacity: 0.80; transform: scale(1.08); }
+  100% { opacity: 0.45; transform: scale(1.00); }
+}
+.glow-breathe {
+  animation: glowBreathe 3s ease-in-out infinite;
+}
+
+/* ─── Avatar / presence animations — CSS off-main-thread ───────────── */
+@keyframes avatarIdleBob {
+  0%, 100% { transform: translateY(0);    }
+  50%       { transform: translateY(-2px); }
+}
+.avatar-idle-bob {
+  animation: avatarIdleBob 3.2s ease-in-out infinite;
+}
+
+@keyframes avatarPulseDot {
+  0%, 100% { transform: scale(1);    opacity: 1;    }
+  50%       { transform: scale(1.25); opacity: 0.75; }
+}
+.avatar-pulse-dot {
+  animation: avatarPulseDot 1.4s ease-in-out infinite;
+}
+
+/* ─── Room background ambient — CSS off-main-thread (replaces Framer Motion repeat:Infinity) ── */
+@keyframes blobDrift1 {
+  0%, 100% { transform: translateY(0) translateX(0); }
+  50%      { transform: translateY(-24px) translateX(16px); }
+}
+@keyframes blobDrift2 {
+  0%, 100% { transform: translateY(0) translateX(0); }
+  50%      { transform: translateY(20px) translateX(-12px); }
+}
+@keyframes blobDrift3 {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-14px); }
+}
+@keyframes particleBob {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50%      { transform: translateY(-9px) rotate(6deg); }
+}
+.blob-drift-1 { animation: blobDrift1 16s ease-in-out infinite; }
+.blob-drift-2 { animation: blobDrift2 19s ease-in-out 4s infinite; }
+.blob-drift-3 { animation: blobDrift3 13s ease-in-out 7s infinite; }
+.particle-bob-0 { animation: particleBob calc(6s + 0s)   ease-in-out 0s   infinite; }
+.particle-bob-1 { animation: particleBob calc(6s + 2s)   ease-in-out 2s   infinite; }
+.particle-bob-2 { animation: particleBob calc(6s + 3.5s) ease-in-out 3.5s infinite; }
+.particle-bob-3 { animation: particleBob calc(6s + 1s)   ease-in-out 1s   infinite; }
+.particle-bob-4 { animation: particleBob calc(6s + 3s)   ease-in-out 3s   infinite; }
+.particle-bob-5 { animation: particleBob calc(6s + 4.8s) ease-in-out 4.8s infinite; }
+
+@keyframes bulbHaloPulse {
+  0%, 100% { opacity: 0.5; }
+  50%      { opacity: 0.9; }
+}
+.bulb-halo-pulse {
+  animation: bulbHaloPulse 2.2s ease-in-out infinite;
+}
+
+/* Floating up particle — general ambient */
+@keyframes floatUp {
+  0%   { transform: translateY(0) scale(0.5);  opacity: 0;    }
+  10%  { opacity: 0.7; }
+  85%  { opacity: 0.4; }
+  100% { transform: translateY(-140px) scale(1); opacity: 0; }
+}
+
+/* Score pop — brief scale-up for reward moments */
+@keyframes scorePop {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.22); }
+  70%  { transform: scale(0.96); }
+  100% { transform: scale(1); }
+}
+.score-pop {
+  animation: scorePop 0.5s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+}
+
+/* ─── Reduced motion friendliness ─────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
