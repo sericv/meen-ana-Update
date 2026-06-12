@@ -27,12 +27,24 @@ const PlayerCorner = memo(function PlayerCorner({ name, uid, cosmetic, photoURL,
       className="flex min-w-0 items-center gap-2"
       style={{
         flexDirection: reverse ? "row-reverse" : "row",
-        opacity: active ? 1 : 0.5,
+        opacity: active ? 1 : 0.55,
         filter: active ? "none" : "grayscale(0.7)",
         transition: "opacity 0.3s, filter 0.3s",
       }}
     >
-      <div className="relative shrink-0">
+      <div
+        className="relative shrink-0 rounded-full"
+        style={{
+          padding: 2,
+          background: active
+            ? `conic-gradient(from 0deg, ${GP.gold}, ${GP.orange}, ${GP.gold})`
+            : "rgba(222,196,168,0.55)",
+          boxShadow: active
+            ? `0 0 0 2px rgba(255,255,255,0.9), 0 0 14px -2px ${GP.gold}AA`
+            : "0 0 0 2px rgba(255,255,255,0.75)",
+          transition: "box-shadow 0.3s",
+        }}
+      >
         <ProfileAvatar
           cosmetic={uid ? cosmetic : null}
           fallbackPhotoURL={photoURL}
@@ -49,7 +61,10 @@ const PlayerCorner = memo(function PlayerCorner({ name, uid, cosmetic, photoURL,
       >
         <span
           className="max-w-[5.5rem] truncate text-sm font-extrabold"
-          style={{ color: active ? GP.ink : GP.inkSoft }}
+          style={{
+            color: active ? GP.ink : GP.inkSoft,
+            textShadow: "0 1px 0 rgba(255,255,255,0.8)",
+          }}
         >
           {name}
         </span>
@@ -103,46 +118,59 @@ export const GameplayTopBar = memo(function GameplayTopBar({
   const turnColor = myTurn ? GP.gold : GP.rose;
 
   return (
-    <div
-      dir="ltr"
-      className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-2 px-3.5 pb-2 pt-1"
-    >
-      <PlayerCorner
-        name={myName}
-        uid={myUid}
-        cosmetic={myCosmetic}
-        photoURL={myPhotoURL}
-        active={myTurn}
-        reverse
-      />
+    <div className="relative z-[1] shrink-0 px-3 pb-2 pt-1">
+      <div
+        dir="ltr"
+        className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 rounded-3xl px-3 py-2"
+        style={{
+          border: "2.5px solid rgba(255,255,255,0.95)",
+          outline: "1.5px solid rgba(242,166,61,0.30)",
+          background: "linear-gradient(180deg, rgba(255,255,255,0.92), rgba(255,246,233,0.90))",
+          boxShadow:
+            "0 3px 0 rgba(222,168,92,0.28), 0 10px 20px -10px rgba(122,90,69,0.30), inset 0 1.5px 0 rgba(255,255,255,0.9)",
+        }}
+      >
+        <PlayerCorner
+          name={myName}
+          uid={myUid}
+          cosmetic={myCosmetic}
+          photoURL={myPhotoURL}
+          active={myTurn}
+          reverse
+        />
 
-      {/* Center: arc + turn label */}
-      <div className="flex flex-col items-center gap-1">
-        <GameplayTurnArc secLeft={secLeft} maxSec={maxPhaseSec} active={myTurn} />
-        <AnimatePresence mode="wait">
-          <motion.span
-            key={turnLabel}
-            initial={{ opacity: 0, y: 4, scale: 0.92 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -3, scale: 0.94 }}
-            transition={{ duration: 0.22, ease: EASE_OUT }}
-            className="text-xs font-extrabold"
-            style={{
-              color: turnColor,
-              textShadow: `0 0 14px ${turnColor}99`,
-            }}
-          >
-            {turnLabel}
-          </motion.span>
-        </AnimatePresence>
+        {/* Center: arc + turn label */}
+        <div className="flex flex-col items-center gap-1">
+          <GameplayTurnArc secLeft={secLeft} maxSec={maxPhaseSec} active={myTurn} />
+          <AnimatePresence mode="wait">
+            <motion.span
+              key={turnLabel}
+              initial={{ opacity: 0, y: 4, scale: 0.92 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -3, scale: 0.94 }}
+              transition={{ duration: 0.22, ease: EASE_OUT }}
+              className="rounded-full px-2.5 py-0.5 text-[11px] font-extrabold"
+              style={{
+                color: myTurn ? "#6E4310" : "#8A3028",
+                background: myTurn
+                  ? "linear-gradient(180deg, #FFE3A1, #F2B544)"
+                  : "linear-gradient(180deg, #FFE3DC, #FFC9BE)",
+                border: "2px solid rgba(255,255,255,0.92)",
+                boxShadow: `0 3px 8px -3px ${turnColor}88`,
+              }}
+            >
+              {turnLabel}
+            </motion.span>
+          </AnimatePresence>
+        </div>
+
+        <PlayerCorner
+          name={opponentName}
+          uid={opponentUid}
+          cosmetic={opponentCosmetic}
+          active={!myTurn}
+        />
       </div>
-
-      <PlayerCorner
-        name={opponentName}
-        uid={opponentUid}
-        cosmetic={opponentCosmetic}
-        active={!myTurn}
-      />
     </div>
   );
 });

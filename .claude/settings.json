@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npx eslint *)"
+      "Bash(npx eslint *)",
+      "Bash(python \"C:\\\\Users\\\\huawei\\\\.claude\\\\skills\\\\ui-ux-pro-max\\\\scripts\\\\search.py\" \"casual cartoon mobile game playful vibrant kids party\" --design-system -p \"Meen Ana\")"
     ]
   }
 }

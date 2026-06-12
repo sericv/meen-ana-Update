@@ -83,15 +83,16 @@ export const GameplayChatActionBar = memo(function GameplayChatActionBar({
             style={{
               marginBottom: 6,
               padding: "5px 14px",
-              borderRadius: 20,
-              background: "linear-gradient(135deg, oklch(0.62 0.18 148 / .15), oklch(0.52 0.16 144 / .12))",
-              border: "1px solid oklch(0.62 0.16 148 / .45)",
-              color: "oklch(0.36 0.14 148)",
-              fontFamily: "var(--display)",
+              borderRadius: 999,
+              background: "linear-gradient(180deg, #E2F6EA, #BFE9D2)",
+              border: "2px solid rgba(255,255,255,0.92)",
+              outline: "1.5px solid rgba(78,168,122,0.40)",
+              color: "#1F6B45",
               fontWeight: 800,
               fontSize: 11.5,
               textAlign: "center",
               letterSpacing: "-0.01em",
+              boxShadow: "0 4px 10px -5px rgba(78,168,122,0.45)",
             }}
           >
             سؤال إضافي — اطرح سؤالك الثاني
@@ -116,16 +117,17 @@ export const GameplayChatActionBar = memo(function GameplayChatActionBar({
           aria-label="إرسال"
           className="flex shrink-0 items-center justify-center rounded-full border-0"
           style={{
-            width: 46,
-            height: 46,
+            width: 48,
+            height: 48,
+            border: "2.5px solid rgba(255,255,255,0.92)",
             background: canSend
-              ? `linear-gradient(160deg, ${GP.gold} 0%, ${GP.goldDeep} 100%)`
+              ? `linear-gradient(180deg, #FFD978 0%, ${GP.gold} 55%, ${GP.goldDeep} 100%)`
               : "#E8D4BC",
-            color: canSend ? GP.ink : GP.inkSoft,
+            color: canSend ? "#5C3A08" : GP.inkSoft,
             opacity: canSend ? 1 : 0.5,
             boxShadow: canSend
-              ? `inset 0 1.5px 0 rgba(255,255,255,0.55), 0 1px 1px rgba(0,0,0,0.06), 0 4px 12px -2px rgba(210,148,30,0.55), 0 0 0 1.5px ${GP.gold}22`
-              : "none",
+              ? `inset 0 2px 0 rgba(255,255,255,0.55), 0 4px 0 #B8860B, 0 10px 18px -6px rgba(210,148,30,0.55)`
+              : "inset 0 1px 0 rgba(255,255,255,0.3)",
             transition: "background 0.22s cubic-bezier(0.23,1,0.32,1), box-shadow 0.22s cubic-bezier(0.23,1,0.32,1), opacity 0.22s",
             willChange: "transform",
           }}
@@ -162,15 +164,17 @@ export const GameplayChatActionBar = memo(function GameplayChatActionBar({
           dir="rtl"
           animate={{
             boxShadow: focused
-              ? `inset 0 0 0 1.5px ${GP.gold}66, 0 0 0 3px ${GP.gold}18, 0 4px 14px rgba(180,100,30,0.10)`
-              : "inset 0 0 0 1px rgba(255,255,255,0.95), 0 4px 14px rgba(180,100,30,0.07)",
+              ? `0 0 0 3px ${GP.gold}33, 0 3px 0 rgba(222,168,92,0.30), 0 8px 16px -8px rgba(122,90,69,0.25)`
+              : "0 3px 0 rgba(222,168,92,0.25), 0 8px 16px -8px rgba(122,90,69,0.20)",
           }}
           transition={{ duration: 0.25, ease: EASE_OUT }}
           style={{
-            minHeight: 46,
+            minHeight: 48,
             opacity: myTurn ? 1 : 0.6,
-            background: "rgba(255,255,255,0.93)",
-            transition: "opacity 0.25s",
+            background: "linear-gradient(180deg, #FFFFFF 0%, #FFF6E9 100%)",
+            border: "2.5px solid rgba(255,255,255,0.95)",
+            outline: focused ? `1.5px solid ${GP.gold}88` : "1.5px solid rgba(242,166,61,0.28)",
+            transition: "opacity 0.25s, outline-color 0.25s",
           }}
         >
           <input
@@ -207,17 +211,19 @@ export const GameplayChatActionBar = memo(function GameplayChatActionBar({
           transition={SPRING_UI}
           onClick={onGuess}
           disabled={!canGuess}
-          className="shrink-0 rounded-[14px] border-0 px-4 py-2.5 text-sm font-extrabold disabled:cursor-not-allowed"
+          className="shrink-0 rounded-[18px] px-4 py-2.5 text-sm font-extrabold disabled:cursor-not-allowed"
           style={{
             position: "relative",
             overflow: "hidden",
+            border: "2.5px solid rgba(255,255,255,0.92)",
             background: canGuess
-              ? `linear-gradient(160deg, ${GP.orange} 0%, ${GP.orangeDeep} 100%)`
+              ? `linear-gradient(180deg, #FFAE5C 0%, ${GP.orange} 45%, ${GP.orangeDeep} 100%)`
               : "#C8B8A8",
             color: canGuess ? "white" : "#7A6A58",
+            textShadow: canGuess ? "0 1px 0 rgba(160,70,10,0.35)" : "none",
             opacity: canGuess ? 1 : 0.52,
             boxShadow: canGuess
-              ? `inset 0 1.5px 0 rgba(255,255,255,0.45), inset 0 -1.5px 0 rgba(0,0,0,0.08), 0 1px 1px rgba(0,0,0,0.08), 0 6px 16px -4px rgba(224,102,10,0.6), 0 0 0 1.5px ${GP.orange}22`
+              ? `inset 0 2px 0 rgba(255,255,255,0.45), 0 4px 0 #C75E14, 0 12px 20px -6px rgba(224,102,10,0.55)`
               : "inset 0 1px 0 rgba(255,255,255,0.25)",
             transition: "background 0.22s cubic-bezier(0.23,1,0.32,1), box-shadow 0.22s cubic-bezier(0.23,1,0.32,1), opacity 0.22s",
             willChange: "transform",
@@ -233,8 +239,8 @@ export const GameplayChatActionBar = memo(function GameplayChatActionBar({
                 left: 0,
                 right: 0,
                 height: "45%",
-                borderRadius: "14px 14px 0 0",
-                background: "linear-gradient(180deg, rgba(255,255,255,0.22) 0%, transparent 100%)",
+                borderRadius: "18px 18px 0 0",
+                background: "linear-gradient(180deg, rgba(255,255,255,0.25) 0%, transparent 100%)",
                 pointerEvents: "none",
               }}
             />

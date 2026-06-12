@@ -19,10 +19,52 @@ import { getCategoryById } from "@/lib/game/categories";
 import type { PlayerCosmetic } from "@/lib/profile/cosmetics";
 import type { ChatMessage, GameCard, MatchState, TacticalGameplayEvent } from "@/types";
 import type { Timestamp } from "firebase/firestore";
+import { gpToonFont } from "@/components/game/play/toon-font";
 
 function isHintChatMessage(m: ChatMessage): boolean {
   const t = m.text?.trim() ?? "";
   return m.senderUid === "system" && t.startsWith("تلميح");
+}
+
+/* ── Small 4-point sparkle (decorative) ─────────────────────── */
+function GpSpark({ size = 14, style }: { size?: number; style?: React.CSSProperties }) {
+  return (
+    <svg
+      aria-hidden
+      className="gp-spark"
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      style={style}
+    >
+      <path
+        d="M12 1.5c.9 5.4 2.4 7.5 8.5 8.6-6.1 1.1-7.6 3.2-8.5 8.6-.9-5.4-2.4-7.5-8.5-8.6 6.1-1.1 7.6-3.2 8.5-8.6Z"
+        fill="#F2B544"
+        stroke="#FFFFFF"
+        strokeWidth="1.4"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+/* ── Cartoon chat icon for the empty state (SVG, not emoji) ──── */
+function GpChatIcon({ size = 30 }: { size?: number }) {
+  return (
+    <svg aria-hidden width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <path
+        d="M12 3C6.9 3 3 6.4 3 10.6c0 2.4 1.3 4.5 3.3 5.9-.1 1-.5 2.1-1.4 3.2 1.8-.2 3.3-.8 4.4-1.5.9.2 1.8.4 2.7.4 5.1 0 9-3.4 9-7.6S17.1 3 12 3Z"
+        fill="#FF9D2E"
+        stroke="#FFFFFF"
+        strokeWidth="1.6"
+        strokeLinejoin="round"
+      />
+      <circle cx="8.4" cy="10.8" r="1.15" fill="#FFF4E0" />
+      <circle cx="12" cy="10.8" r="1.15" fill="#FFF4E0" />
+      <circle cx="15.6" cy="10.8" r="1.15" fill="#FFF4E0" />
+    </svg>
+  );
 }
 
 // memo: TypingDots has no props — it never needs to re-render from parent updates.
@@ -194,10 +236,18 @@ export const GameplaySocialSurface = memo(function GameplaySocialSurface({
   return (
     <motion.div
       layout
-      className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
+      className={`gp-toon ${gpToonFont.variable} relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden`}
       dir="rtl"
     >
-      <div className="shrink-0 px-3 pt-1">
+      <GpToonStyles />
+      {/* Decorative cartoon backdrop — dots + soft blobs (visual only) */}
+      <div className="gp-backdrop" aria-hidden>
+        <span className="gp-blob" style={{ top: -60, left: -50, width: 200, height: 200, background: "radial-gradient(closest-side, rgba(255,205,130,0.45), transparent 72%)" }} />
+        <span className="gp-blob" style={{ top: 180, right: -70, width: 180, height: 180, background: "radial-gradient(closest-side, rgba(165,224,193,0.30), transparent 72%)" }} />
+        <span className="gp-blob" style={{ bottom: 60, left: -60, width: 190, height: 190, background: "radial-gradient(closest-side, rgba(255,180,150,0.26), transparent 72%)" }} />
+      </div>
+
+      <div className="relative z-[1] shrink-0 px-3 pt-1">
         <AnimatePresence>
           {banner ? (
             <motion.p
@@ -205,11 +255,13 @@ export const GameplaySocialSurface = memo(function GameplaySocialSurface({
               initial={{ opacity: 0, y: -6 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
-              className="rounded-2xl border px-4 py-2 text-center text-[11px] font-extrabold"
+              className="rounded-2xl px-4 py-2 text-center text-[11.5px] font-extrabold"
               style={{
-                borderColor: `${GP.orangeSoft}cc`,
+                border: "2px solid rgba(255,255,255,0.95)",
+                outline: "1.5px solid rgba(242,166,61,0.35)",
                 color: "#9a5f2d",
-                background: "linear-gradient(135deg,#fff7e8,#fff0d8)",
+                background: "linear-gradient(135deg,#fff7e8,#ffeed2)",
+                boxShadow: "0 6px 14px -6px rgba(160,80,30,0.25)",
               }}
             >
               {banner}
@@ -218,9 +270,10 @@ export const GameplaySocialSurface = memo(function GameplaySocialSurface({
         </AnimatePresence>
         {matchSyncWaiting ? (
           <p
-            className="mt-1.5 rounded-xl border px-3 py-1.5 text-center text-[10.5px] font-semibold"
+            className="mt-1.5 rounded-full px-3 py-1.5 text-center text-[10.5px] font-bold"
             style={{
-              borderColor: GP.creamDeep,
+              border: "2px solid rgba(255,255,255,0.95)",
+              outline: "1.5px solid rgba(242,166,61,0.28)",
               background: "rgba(255,249,239,0.95)",
               color: "#a16231",
             }}
@@ -247,20 +300,35 @@ export const GameplaySocialSurface = memo(function GameplaySocialSurface({
           />
 
           <div
-            className="mx-3 mt-1.5 flex flex-wrap items-center justify-between gap-2 rounded-xl border px-3 py-2"
+            className="relative z-[1] mx-3 mt-1.5 flex flex-wrap items-center justify-between gap-2 rounded-2xl px-3 py-2"
             style={{
-              borderColor: "rgba(244,196,141,0.45)",
-              background: "rgba(255,255,255,0.88)",
+              border: "2.5px solid rgba(255,255,255,0.95)",
+              outline: "1.5px solid rgba(242,166,61,0.30)",
+              background: "linear-gradient(180deg, rgba(255,255,255,0.94), rgba(255,246,233,0.92))",
+              boxShadow: "0 3px 0 rgba(222,168,92,0.28), 0 8px 16px -8px rgba(122,90,69,0.25), inset 0 1.5px 0 rgba(255,255,255,0.9)",
             }}
           >
             <GuessRemainingIndicator remaining={myGuessRemaining} compact />
-            <span className="text-[10px] font-bold" style={{ color: GP.inkSoft }}>
+            <span
+              className="rounded-full px-2.5 py-1 text-[10px] font-extrabold"
+              style={{
+                color: GP.inkSoft,
+                background: "rgba(255,241,221,0.9)",
+                border: "1.5px solid rgba(255,255,255,0.95)",
+                outline: "1px solid rgba(242,166,61,0.25)",
+              }}
+            >
               الخصم: {opponentGuessRemaining}/3
             </span>
           </div>
 
-          <section className="relative mx-auto w-full max-w-md shrink-0 px-3 pb-1 pt-0">
+          <section className="relative z-[1] mx-auto w-full max-w-md shrink-0 px-3 pb-1 pt-0">
             <motion.div className="relative flex min-h-[218px] w-full items-center justify-center">
+              {/* Soft halo + ground shadow behind the opponent card */}
+              <div className="gp-stage-glow" aria-hidden />
+              <div className="gp-stage-shadow" aria-hidden />
+              <GpSpark size={16} style={{ position: "absolute", top: 18, right: 54, zIndex: 1 }} />
+              <GpSpark size={11} style={{ position: "absolute", bottom: 42, left: 52, zIndex: 1, animationDelay: "1.2s" }} />
               {/* SideActionRail — replaces the two corner buttons */}
               {tacticalInventory && onUseTactical ? (
                 <SideActionRail
@@ -285,8 +353,14 @@ export const GameplaySocialSurface = memo(function GameplaySocialSurface({
 
               <motion.div className="flex w-full flex-col items-center justify-center px-2">
                 <p
-                  className="mb-1 text-center text-[10px] font-bold uppercase tracking-[0.15em]"
-                  style={{ color: GP.inkSoft }}
+                  className="mb-1.5 rounded-full px-3.5 py-1 text-center text-[10px] font-extrabold tracking-[0.1em]"
+                  style={{
+                    color: "#6E4310",
+                    background: "linear-gradient(180deg, #FFE3A1, #F2B544)",
+                    border: "2px solid rgba(255,255,255,0.92)",
+                    boxShadow: "0 3px 8px -2px rgba(200,136,31,0.45)",
+                    transform: "rotate(-1.5deg)",
+                  }}
                 >
                   بطاقة الخصم
                 </p>
@@ -299,33 +373,64 @@ export const GameplaySocialSurface = memo(function GameplaySocialSurface({
             </motion.div>
           </section>
 
-          <motion.div className="flex min-h-0 min-w-0 flex-1 flex-col px-2 pb-0 pt-1">
+          <motion.div className="relative z-[1] flex min-h-0 min-w-0 flex-1 flex-col px-2 pb-0 pt-1">
             <div
               ref={chatScrollRef}
-              className="min-h-0 flex-1 overflow-y-auto px-3 pb-1 pt-2"
+              className="gp-chat min-h-0 flex-1 overflow-y-auto px-3 pb-1 pt-2"
               style={{
                 display: "flex",
                 flexDirection: "column",
-                gap: 8,
                 overscrollBehavior: "contain",
               }}
             >
               {chatMessages.length === 0 ? (
                 <motion.div
-                  className="flex flex-1 flex-col items-center justify-center gap-1 py-4 text-center"
+                  className="flex flex-1 flex-col items-center justify-center gap-2 py-4 text-center"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                 >
-                  <span className="text-2xl">💬</span>
-                  <p className="text-[11px] font-bold" style={{ color: GP.inkSoft }}>
+                  <span
+                    className="grid place-items-center"
+                    style={{
+                      width: 54,
+                      height: 54,
+                      borderRadius: 20,
+                      background: "linear-gradient(180deg, #FFF6E8, #FFE9C8)",
+                      border: "2.5px solid rgba(255,255,255,0.95)",
+                      outline: "1.5px solid rgba(242,166,61,0.30)",
+                      boxShadow: "0 4px 0 rgba(222,168,92,0.28), 0 10px 18px -8px rgba(122,90,69,0.28)",
+                    }}
+                  >
+                    <GpChatIcon size={28} />
+                  </span>
+                  <p className="text-[12px] font-extrabold" style={{ color: GP.inkSoft }}>
                     ابدأ بطرح سؤالك
                   </p>
                 </motion.div>
               ) : (
-                chatMessages.map((m) => renderMessage(m))
+                chatMessages.map((m, i) => {
+                  const isSystem = m.senderUid === "system";
+                  const isMe = m.senderUid === uid;
+                  const prev = chatMessages[i - 1];
+                  const next = chatMessages[i + 1];
+                  const contPrev = !isSystem && Boolean(prev && prev.senderUid === m.senderUid);
+                  const contNext = !isSystem && Boolean(next && next.senderUid === m.senderUid);
+                  const side = isSystem ? "sys" : isMe ? "me" : "them";
+                  return (
+                    <div
+                      key={m.id}
+                      className={`gp-msg ${side}${contPrev ? " cont" : ""}${contNext ? " grp" : ""}`}
+                    >
+                      {!isSystem && !isMe && !contPrev ? (
+                        <span className="gp-msg-name">{opponentName}</span>
+                      ) : null}
+                      {renderMessage(m)}
+                    </div>
+                  );
+                })
               )}
               {!myTurn && opponentTyping ? (
-                <div className="shrink-0">
+                <div className="gp-msg them shrink-0">
                   <TypingDots />
                 </div>
               ) : null}
@@ -350,15 +455,24 @@ export const GameplaySocialSurface = memo(function GameplaySocialSurface({
 
         </>
       ) : (
-        <motion.div className="flex flex-1 flex-col items-center justify-center gap-3 px-4 py-10 text-center">
+        <motion.div className="relative z-[1] flex flex-1 flex-col items-center justify-center gap-3 px-4 py-10 text-center">
           <motion.span
-            className="text-3xl"
+            className="grid place-items-center"
             animate={{ rotate: [0, 8, -8, 0] }}
             transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+            style={{
+              width: 56,
+              height: 56,
+              borderRadius: 20,
+              background: "linear-gradient(180deg, #FFF6E8, #FFE9C8)",
+              border: "2.5px solid rgba(255,255,255,0.95)",
+              outline: "1.5px solid rgba(242,166,61,0.30)",
+              boxShadow: "0 4px 0 rgba(222,168,92,0.28), 0 10px 18px -8px rgba(122,90,69,0.28)",
+            }}
           >
-            ⏳
+            <GpSpark size={26} />
           </motion.span>
-          <p className="text-xs font-semibold" style={{ color: GP.inkSoft }}>
+          <p className="text-xs font-bold" style={{ color: GP.inkSoft }}>
             ستظهر واجهة اللعب عند بدء المباراة
           </p>
         </motion.div>
@@ -366,3 +480,145 @@ export const GameplaySocialSurface = memo(function GameplaySocialSurface({
     </motion.div>
   );
 });
+
+/** All cartoon-casual gameplay styles, scoped under .gp-toon (gameplay screen only). */
+function GpToonStyles() {
+  return (
+    <style>{`
+.gp-toon,
+.gp-toon input,
+.gp-toon button {
+  font-family: var(--font-toon-gp), var(--display), system-ui, sans-serif;
+}
+
+/* ── Backdrop ─────────────────────────────────────────────── */
+.gp-toon .gp-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  background-image: radial-gradient(rgba(200, 136, 31, 0.08) 1.5px, transparent 1.6px);
+  background-size: 24px 24px;
+  -webkit-mask-image: linear-gradient(180deg, black 0%, rgba(0,0,0,.45) 60%, transparent 95%);
+          mask-image: linear-gradient(180deg, black 0%, rgba(0,0,0,.45) 60%, transparent 95%);
+}
+.gp-toon .gp-blob {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+/* ── Opponent-card stage ──────────────────────────────────── */
+.gp-toon .gp-stage-glow {
+  position: absolute;
+  width: 290px;
+  height: 290px;
+  left: 50%;
+  top: 48%;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(255, 196, 110, 0.40), rgba(255, 196, 110, 0.12) 55%, transparent 75%);
+  pointer-events: none;
+}
+.gp-toon .gp-stage-shadow {
+  position: absolute;
+  bottom: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 190px;
+  height: 20px;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(122, 90, 69, 0.22), transparent);
+  filter: blur(2px);
+  pointer-events: none;
+}
+
+/* ── Chat: message grouping + player distinction ──────────── */
+.gp-toon .gp-msg {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  margin-top: 10px;
+}
+.gp-toon .gp-msg:first-child {
+  margin-top: 0;
+}
+.gp-toon .gp-msg.cont {
+  margin-top: 3px;
+}
+.gp-toon .gp-msg-name {
+  align-self: flex-start;
+  font-size: 10.5px;
+  font-weight: 800;
+  color: #B8763A;
+  margin: 0 10px 3px;
+}
+
+/* ── Chat bubbles — cartoon clay ──────────────────────────── */
+.gp-toon .bubble {
+  border-radius: 20px;
+  padding: 10px 15px;
+  font-size: 14.5px;
+  font-weight: 700;
+  line-height: 1.5;
+  max-width: 80%;
+}
+.gp-toon .bubble.me {
+  background: linear-gradient(180deg, #FFC861 0%, #FFAB43 55%, #FF9D2E 100%);
+  border: 2px solid rgba(255, 255, 255, 0.92);
+  color: #5C2C0E;
+  box-shadow:
+    0 3px 0 rgba(224, 134, 44, 0.55),
+    0 10px 18px -8px rgba(242, 138, 61, 0.45),
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.45);
+  border-bottom-left-radius: 7px;
+}
+.gp-toon .bubble.them {
+  background: linear-gradient(180deg, #FFFFFF 0%, #FFF4E4 100%);
+  border: 2px solid rgba(255, 255, 255, 0.95);
+  outline: 1.5px solid rgba(242, 166, 61, 0.28);
+  color: #4A2E1B;
+  box-shadow:
+    0 3px 0 rgba(222, 168, 92, 0.30),
+    0 8px 16px -8px rgba(122, 90, 69, 0.25),
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.9);
+  border-bottom-right-radius: 7px;
+}
+.gp-toon .bubble.system {
+  border-radius: 999px;
+  background: rgba(255, 246, 232, 0.92);
+  border: 2px solid rgba(255, 255, 255, 0.92);
+  outline: 1px solid rgba(242, 166, 61, 0.25);
+  color: #8A6242;
+  font-weight: 700;
+  box-shadow: 0 4px 10px -6px rgba(122, 90, 69, 0.25);
+}
+
+/* Grouped corners — chain bubbles of the same sender */
+.gp-toon .gp-msg.me.cont .bubble {
+  border-top-left-radius: 7px;
+}
+.gp-toon .gp-msg.them.cont .bubble {
+  border-top-right-radius: 7px;
+}
+.gp-toon .gp-msg.me.grp .bubble {
+  border-bottom-left-radius: 7px;
+}
+.gp-toon .gp-msg.them.grp .bubble {
+  border-bottom-right-radius: 7px;
+}
+
+/* ── Motion (disabled under reduced-motion) ───────────────── */
+@media (prefers-reduced-motion: no-preference) {
+  .gp-toon .gp-spark {
+    animation: gpTwinkle 2.6s ease-in-out infinite;
+  }
+}
+@keyframes gpTwinkle {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.4; transform: scale(0.7) rotate(18deg); }
+}
+`}</style>
+  );
+}

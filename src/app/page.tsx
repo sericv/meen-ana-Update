@@ -19,7 +19,14 @@ import { ShellCoin } from "@/components/shell/ShellCoin";
 import { ShellFramedAvatar } from "@/components/shell/ShellFramedAvatar";
 import { ShellIcon } from "@/components/shell/ShellIcons";
 import { ShellTabBar } from "@/components/shell/ShellTabBar";
-import { ActionTile, ActionGrid, MajlisHero } from "@/components/shell/HomeScreenParts";
+import {
+  ActionTile,
+  ActionGrid,
+  MajlisHero,
+  HomeToonBackdrop,
+  HomeToonStyles,
+  homeToonFont,
+} from "@/components/shell/HomeScreenParts";
 
 type FriendRow = { friendUid: string };
 
@@ -74,14 +81,18 @@ export default function HomePage() {
   }
 
   return (
-    <div className="shell-screen" style={{ background: "transparent" }}>
+    <div
+      className={`shell-screen home-toon ${homeToonFont.variable}`}
+      style={{ background: "transparent" }}
+    >
+      <HomeToonStyles />
+      <HomeToonBackdrop />
       <ShellEmbers count={6} />
-      <div className="topbar">
+      <div className="topbar" style={{ position: "relative", zIndex: 2 }}>
         <button
           type="button"
-          className="row gap-2"
+          className="toon-id"
           onClick={() => nav("/profile", true)}
-          style={{ alignItems: "center", background: "none", border: "none", cursor: "pointer" }}
         >
           <ShellFramedAvatar
             cosmetic={myCosmetic}
@@ -91,8 +102,8 @@ export default function HomePage() {
             frame="gold"
           />
           <div className="col" style={{ alignItems: "flex-start", lineHeight: 1.2 }}>
-            <span className="text-sm muted">مرحبًا</span>
-            <span className="h-display fw-7 text-md">{loading ? "…" : displayName}</span>
+            <span className="toon-id-hi">مرحبًا</span>
+            <span className="toon-id-name h-display">{loading ? "…" : displayName}</span>
           </div>
         </button>
         <div className="topbar-slot-end">
@@ -100,7 +111,7 @@ export default function HomePage() {
         </div>
       </div>
 
-      <div className="f-1 scroll-y" style={{ padding: "4px 16px 12px" }}>
+      <div className="f-1 scroll-y" style={{ padding: "4px 16px 12px", position: "relative", zIndex: 1 }}>
         <MajlisHero onPlay={() => nav("/play/random")} />
 
         <div className="mt-5">
@@ -125,11 +136,10 @@ export default function HomePage() {
         </div>
 
         <div className="mt-5 row between" style={{ padding: "0 4px" }}>
-          <div className="h-display fw-7 text-md">أصدقاؤك</div>
+          <div className="h-display toon-sechead">أصدقاؤك</div>
           <button
             type="button"
-            className="text-sm muted"
-            style={{ background: "none", border: "none", cursor: "pointer" }}
+            className="toon-pill"
             onClick={() => nav("/profile/friends", true)}
           >
             عرض الكل ←
@@ -149,7 +159,7 @@ export default function HomePage() {
               return (
                 <motion.div
                   key={friendUid}
-                  className="surf"
+                  className="toon-friend"
                   whileTap={{ scale: 0.96 }}
                   transition={{ type: "spring", stiffness: 400, damping: 28 }}
                   style={{
@@ -187,7 +197,7 @@ export default function HomePage() {
             })}
             <motion.button
               type="button"
-              className="surf"
+              className="toon-friend toon-friend-add"
               onClick={() => nav("/profile/friends", true)}
               whileTap={{ scale: 0.96 }}
               transition={{ type: "spring", stiffness: 400, damping: 28 }}
@@ -199,8 +209,6 @@ export default function HomePage() {
                 alignItems: "center",
                 justifyContent: "center",
                 gap: 8,
-                borderStyle: "dashed",
-                color: "var(--fg-2)",
                 cursor: "pointer",
               }}
             >
