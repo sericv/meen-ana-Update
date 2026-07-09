@@ -184,7 +184,6 @@ export function ShellMatchmakingView({
             />
         </div>
 
-        {/* Status card */}
         <AnimatePresence mode="wait">
           <motion.div
             key={searching ? "searching" : "found"}
@@ -192,60 +191,68 @@ export function ShellMatchmakingView({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -6, scale: 0.97 }}
             transition={{ duration: 0.3, ease: EASE_OUT }}
-            className="surf"
+            className="bezel-outer"
             style={{
               width: "100%",
-              padding: 20,
-              textAlign: "center",
-              ...(isFound ? {
-                background: "linear-gradient(160deg, rgba(62,184,122,0.09), rgba(255,255,255,0.98))",
-                boxShadow: [
-                  "var(--sh-2)",
-                  "inset 0 0 0 1.5px oklch(0.62 0.14 150 / 0.28)",
-                  "0 0 28px -4px oklch(0.62 0.14 150 / 0.25)",
-                ].join(", "),
-              } : {}),
+              padding: 5,
+              background: isFound ? "rgba(52, 211, 153, 0.18)" : "rgba(255, 255, 255, 0.42)",
+              borderColor: isFound ? "rgba(52, 211, 153, 0.35)" : "rgba(251, 146, 60, 0.14)",
+              boxShadow: isFound ? "0 8px 24px rgba(52, 211, 153, 0.15)" : "0 4px 12px rgba(180, 100, 30, 0.04)",
             }}
           >
-            {searching ? (
-              <>
-                <div className="h-display fw-7 text-lg" style={{ letterSpacing: "-0.01em" }}>
-                  {statusTitle}
-                </div>
-                <div className="text-sm muted mt-2">{statusSubtitle}</div>
-                <div
-                  style={{
-                    marginTop: 16,
-                    height: 6,
-                    borderRadius: 999,
-                    background: "oklch(0.90 0.025 76 / 0.45)",
-                    overflow: "hidden",
-                    position: "relative",
-                    boxShadow: "inset 0 1px 2px rgba(0,0,0,0.06)",
-                  }}
-                >
-                  <div className="loading-stripe" />
-                </div>
-              </>
-            ) : (
-              <>
-                <motion.div
-                  className="h-display fw-7 text-lg row center gap-2"
-                  initial={{ scale: 0.9, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  transition={{ ...SPRING_DRAMATIC, delay: 0.05 }}
-                  style={{
-                    color: "var(--win)",
-                    filter: "drop-shadow(0 0 8px oklch(0.62 0.14 150 / 0.4))",
-                  }}
-                >
-                  <ShellIcon name="sparkle" size={16} />
-                  {statusTitle}
-                  <ShellIcon name="sparkle" size={16} />
-                </motion.div>
-                <div className="text-sm muted mt-2">{statusSubtitle}</div>
-              </>
-            )}
+            <div
+              className="bezel-inner"
+              style={{
+                padding: "20px 16px",
+                textAlign: "center",
+                background: isFound 
+                  ? "linear-gradient(180deg, #FFFDF9 0%, #F5FFF9 100%)" 
+                  : "linear-gradient(180deg, #FFFDF9 0%, #FFFDF2 100%)",
+                borderColor: isFound ? "rgba(52, 211, 153, 0.2)" : "rgba(255, 255, 255, 0.75)",
+                width: "100%",
+                borderRadius: 21,
+              }}
+            >
+              {searching ? (
+                <>
+                  <div className="h-display fw-8 text-lg text-[#5e3011]" style={{ letterSpacing: "-0.01em" }}>
+                    {statusTitle}
+                  </div>
+                  <div className="text-sm muted mt-2">{statusSubtitle}</div>
+                  <div
+                    style={{
+                      marginTop: 16,
+                      height: 6,
+                      borderRadius: 999,
+                      background: "oklch(0.90 0.025 76 / 0.45)",
+                      overflow: "hidden",
+                      position: "relative",
+                      boxShadow: "inset 0 1px 2px rgba(0,0,0,0.06)",
+                    }}
+                  >
+                    <div className="loading-stripe" />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <motion.div
+                    className="h-display fw-7 text-lg row center gap-2"
+                    initial={{ scale: 0.9, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ ...SPRING_DRAMATIC, delay: 0.05 }}
+                    style={{
+                      color: "var(--win)",
+                      filter: "drop-shadow(0 0 8px oklch(0.62 0.14 150 / 0.4))",
+                    }}
+                  >
+                    <ShellIcon name="sparkle" size={16} />
+                    {statusTitle}
+                    <ShellIcon name="sparkle" size={16} />
+                  </motion.div>
+                  <div className="text-sm muted mt-2">{statusSubtitle}</div>
+                </>
+              )}
+            </div>
           </motion.div>
         </AnimatePresence>
 

@@ -168,17 +168,28 @@ export function XpExchangeCard({
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.32, ease: EASE_OUT }}
+      className="bezel-outer"
       style={{
+        padding: 4.5,
+        background: "rgba(255, 255, 255, 0.45)",
+        borderColor: "rgba(251, 146, 60, 0.14)",
+        boxShadow: "0 6px 18px rgba(180, 100, 30, 0.04)",
         borderRadius: 20,
-        overflow: "hidden",
         position: "relative",
-        background:
-          "linear-gradient(160deg, oklch(0.995 0.008 82) 0%, oklch(0.970 0.022 74) 60%, oklch(0.950 0.030 68) 100%)",
-        border: "1.5px solid oklch(0.84 0.08 72 / .55)",
-        boxShadow:
-          "0 4px 24px oklch(0.70 0.14 68 / .14), inset 0 1px 0 rgba(255,255,255,0.95)",
+        overflow: "hidden",
       }}
     >
+      <div
+        className="bezel-inner"
+        style={{
+          borderRadius: 15,
+          background: "linear-gradient(160deg, #FFFDF9 0%, #FFF9F0 100%)",
+          borderColor: "rgba(255, 255, 255, 0.75)",
+          width: "100%",
+          height: "100%",
+          overflow: "hidden",
+        }}
+      >
       {/* Top accent bar — XP purple-gold gradient */}
       <div
         style={{
@@ -473,6 +484,7 @@ export function XpExchangeCard({
             </motion.span>
           </motion.button>
         )}
+      </div>
       </div>
     </motion.div>
   );

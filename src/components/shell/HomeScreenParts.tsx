@@ -27,34 +27,29 @@ export function ActionTile({
   onClick?: () => void;
 }) {
   const tints = {
-    amber: "linear-gradient(160deg, oklch(0.94 0.07 75), oklch(0.88 0.10 65))",
-    terra: "linear-gradient(160deg, oklch(0.92 0.07 35), oklch(0.85 0.10 28))",
-    sage:  "linear-gradient(160deg, oklch(0.93 0.04 165), oklch(0.87 0.05 160))",
-    muted: "linear-gradient(160deg, oklch(0.95 0.02 75), oklch(0.90 0.03 70))",
+    amber: "linear-gradient(160deg, #FFFDF9 0%, #FFF5E8 100%)",
+    terra: "linear-gradient(160deg, #FFFDF9 0%, #FFEFE5 100%)",
+    sage:  "linear-gradient(160deg, #FFFDF9 0%, #F0FAF5 100%)",
+    muted: "linear-gradient(160deg, #FFFDF9 0%, #F5F3F0 100%)",
   };
-  const borderColors = {
-    amber: "oklch(0.78 0.13 65 / .48)",
-    terra: "oklch(0.72 0.13 30 / .48)",
-    sage:  "oklch(0.70 0.07 165 / .42)",
-    muted: "oklch(0.78 0.05 65 / .40)",
+  const outerBorders = {
+    amber: "rgba(251, 146, 60, 0.18)",
+    terra: "rgba(234, 88, 12, 0.16)",
+    sage:  "rgba(16, 185, 129, 0.14)",
+    muted: "rgba(120, 113, 108, 0.12)",
   };
   const iconBg = {
-    amber: "linear-gradient(160deg, oklch(0.86 0.14 70), oklch(0.74 0.16 55))",
-    terra: "linear-gradient(160deg, oklch(0.78 0.13 35), oklch(0.66 0.15 28))",
-    sage:  "linear-gradient(160deg, oklch(0.78 0.07 165), oklch(0.62 0.08 160))",
-    muted: "linear-gradient(160deg, oklch(0.86 0.03 70), oklch(0.78 0.04 65))",
+    amber: "linear-gradient(135deg, #FFB03A, #FF8A00)",
+    terra: "linear-gradient(135deg, #FF6B4A, #E02E00)",
+    sage:  "linear-gradient(135deg, #34D399, #059669)",
+    muted: "linear-gradient(135deg, #A8A29E, #78716C)",
   };
-  const iconColors = {
-    amber: "oklch(0.30 0.08 45)",
-    terra: "oklch(0.96 0.02 80)",
-    sage:  "oklch(0.96 0.02 80)",
-    muted: "var(--fg-2)",
-  };
+  const iconColors = "#ffffff";
   const glowColors = {
-    amber: "oklch(0.78 0.15 65 / .18)",
-    terra: "oklch(0.68 0.13 30 / .18)",
-    sage:  "oklch(0.68 0.09 165 / .16)",
-    muted: "oklch(0.78 0.04 65 / .12)",
+    amber: "rgba(251, 146, 60, 0.06)",
+    terra: "rgba(234, 88, 12, 0.05)",
+    sage:  "rgba(16, 185, 129, 0.04)",
+    muted: "rgba(120, 113, 108, 0.03)",
   };
 
   return (
@@ -62,74 +57,63 @@ export function ActionTile({
       type="button"
       onClick={onClick}
       variants={staggerItem}
-      whileTap={{ scale: 0.95 }}
+      whileTap={{ scale: 0.95, y: 2 }}
       transition={SPRING_UI}
+      className="bezel-outer"
       style={{
-        padding: 14,
-        textAlign: "right",
-        background: tints[tint],
-        border: `1.5px solid ${borderColors[tint]}`,
-        outline: "1px solid rgba(255,255,255,0.6)",
-        borderRadius: 18,
-        boxShadow: [
-          "0 1px 1px rgba(0,0,0,0.04)",
-          `0 4px 10px -2px ${glowColors[tint]}`,
-          `0 10px 24px -4px ${glowColors[tint]}`,
-          "inset 0 1.5px 0 rgba(255,255,255,.75)",
-          "inset 0 -1px 0 rgba(0,0,0,0.03)",
-        ].join(", "),
-        position: "relative",
+        padding: 5,
+        background: "rgba(255, 255, 255, 0.45)",
+        borderColor: outerBorders[tint],
+        boxShadow: `0 6px 16px ${glowColors[tint]}`,
+        cursor: "pointer",
         display: "flex",
         flexDirection: "column",
-        gap: 16,
-        minHeight: 110,
-        cursor: "pointer",
-        overflow: "hidden",
+        minHeight: 112,
         willChange: "transform",
       }}
     >
-      {/* Inner gloss highlight */}
-      <span
-        aria-hidden
-        style={{
-          position: "absolute",
-          inset: 0,
-          borderRadius: 18,
-          background: "linear-gradient(180deg, rgba(255,255,255,0.32) 0%, transparent 50%)",
-          pointerEvents: "none",
-        }}
-      />
-
-      {/* Icon box */}
       <div
+        className="bezel-inner"
         style={{
-          width: 42,
-          height: 42,
-          borderRadius: 13,
-          background: iconBg[tint],
-          color: iconColors[tint],
-          display: "grid",
-          placeItems: "center",
-          position: "relative",
-          boxShadow: [
-            "inset 0 1.5px 0 rgba(255,255,255,.65)",
-            "inset 0 -1px 0 rgba(0,0,0,.10)",
-            "0 3px 8px oklch(0.45 0.06 50 / .22)",
-          ].join(", "),
+          padding: "12px 10px",
+          display: "flex",
+          flexDirection: "column",
+          gap: 12,
+          minHeight: 100,
+          background: tints[tint],
+          borderColor: "rgba(255, 255, 255, 0.75)",
+          textAlign: "right",
+          width: "100%",
+          alignItems: "flex-start",
+          flex: "1 1 auto",
         }}
       >
-        <ShellIcon name={icon} size={22} />
-      </div>
+        {/* Icon box */}
+        <div
+          style={{
+            width: 36,
+            height: 36,
+            borderRadius: 11,
+            background: iconBg[tint],
+            color: iconColors,
+            display: "grid",
+            placeItems: "center",
+            boxShadow: "0 3px 8px rgba(180, 100, 30, 0.12)",
+          }}
+        >
+          <ShellIcon name={icon} size={18} />
+        </div>
 
-      <div>
-        <div className="h-display fw-7 text-md">{title}</div>
-        <div className="text-xs muted">{subtitle}</div>
+        <div style={{ marginTop: "auto" }}>
+          <div className="h-display fw-8 text-sm" style={{ color: "var(--fg-0)", fontSize: 14 }}>{title}</div>
+          <div className="text-xs muted" style={{ marginTop: 2, fontSize: 11 }}>{subtitle}</div>
+        </div>
       </div>
 
       {badge ? (
         <span
           className="chip chip-amber"
-          style={{ position: "absolute", top: 10, left: 10, fontSize: 10 }}
+          style={{ position: "absolute", top: 12, left: 12, fontSize: 9, padding: "2px 6px" }}
         >
           {badge}
         </span>
@@ -163,12 +147,12 @@ export function MajlisHero({ onPlay }: { onPlay: () => void }) {
     <div style={{ position: "relative", padding: "12px 4px 0" }}>
       {/* Hero headline — staggered entry */}
       <motion.div
-        className="h-display fw-7"
+        className="h-display fw-8"
         initial={{ opacity: 0, y: 14, scale: 0.97 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.38, ease: EASE_OUT }}
         style={{
-          fontSize: 34,
+          fontSize: 36,
           lineHeight: 1.0,
           color: "var(--fg-0)",
           letterSpacing: "-0.02em",
@@ -177,12 +161,12 @@ export function MajlisHero({ onPlay }: { onPlay: () => void }) {
         مَن أنا؟
       </motion.div>
       <motion.div
-        className="text-sm muted mt-2"
+        className="text-sm muted mt-2 fw-5"
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3, ease: EASE_OUT, delay: 0.08 }}
       >
-        اسأل، خمّن، اكتشف نفسك في عيون خصمك.
+        اسأل، خمّن، واكتشف شخصيتك السرية في عيون خصمك.
       </motion.div>
 
       <motion.div
@@ -198,21 +182,16 @@ export function MajlisHero({ onPlay }: { onPlay: () => void }) {
           justifyContent: "center",
         }}
       >
-        {/* Outer distant bloom */}
-        <div
-          className="bloom"
-          style={{ inset: -30, opacity: 0.55 }}
-        />
-        {/* Inner tighter bloom */}
+        {/* Ambient warmth blobs */}
         <div
           className="bloom"
           style={{
-            inset: 20,
-            opacity: 0.35,
-            background: "radial-gradient(closest-side, oklch(0.70 0.16 55 / 0.25), transparent)",
+            inset: -20,
+            opacity: 0.65,
+            background: "radial-gradient(closest-side, rgba(255, 176, 58, 0.22), transparent)",
           }}
         />
-        <div style={{ position: "absolute", right: 24, top: 4 }}>
+        <div style={{ position: "absolute", right: 32, top: 4 }}>
           <ShellGameCard
             width={132}
             height={184}
@@ -223,7 +202,7 @@ export function MajlisHero({ onPlay }: { onPlay: () => void }) {
             priority
           />
         </div>
-        <div style={{ position: "absolute", left: 20, bottom: 4 }}>
+        <div style={{ position: "absolute", left: 24, bottom: 4 }}>
           <ShellGameCard width={120} height={168} variant="back" tilt={7} />
         </div>
       </motion.div>
@@ -235,11 +214,11 @@ export function MajlisHero({ onPlay }: { onPlay: () => void }) {
         initial={{ opacity: 0, y: 12, scale: 0.96 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ ...SPRING_DRAMATIC, delay: 0.18 }}
-        whileTap={{ scale: 0.97 }}
-        style={{ height: 62, fontSize: 19, willChange: "transform" }}
+        whileTap={{ scale: 0.96 }}
+        style={{ height: 60, fontSize: 19, willChange: "transform" }}
       >
         <ShellIcon name="play" size={22} />
-        ابحث عن خصم
+        ابحث عن خصم عشوائي
       </motion.button>
     </div>
   );

@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion, useMotionValue, useTransform } from "framer-motion";
 import Image from "next/image";
 import { memo, useState } from "react";
 import { GP } from "@/components/game/play/tokens";
@@ -36,92 +36,117 @@ export const GameplayHeroCard = memo(function GameplayHeroCard({ opponentCard, c
   const h = voice ? "min(278px, 58vw)" : "min(270px, 52vw)";
   const hasImage = Boolean(opponentCard?.imageUrl);
 
+  // 3D Tilt values using motion variables
+  const x = useMotionValue(200 / 2);
+  const y = useMotionValue(270 / 2);
+
+  const rotateX = useTransform(y, [0, 270], [12, -12]);
+  const rotateY = useTransform(x, [0, 200], [-12, 12]);
+
+  function handleMouseMove(event: React.MouseEvent<HTMLDivElement, MouseEvent>) {
+    const rect = event.currentTarget.getBoundingClientRect();
+    x.set(event.clientX - rect.left);
+    y.set(event.clientY - rect.top);
+  }
+
+  function handleMouseLeave() {
+    x.set(200 / 2);
+    y.set(270 / 2);
+  }
+
   return (
     <motion.div
       className="relative mx-auto grid place-items-center"
-      style={{ width: w, height: h }}
+      style={{ width: w, height: h, perspective: 1000 }}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
     >
-
       {/* Card surface */}
       <motion.div
-        className="relative flex h-full w-full flex-col overflow-hidden rounded-[20px]"
+        className="relative flex h-full w-full flex-col overflow-hidden rounded-[24px] bezel-outer"
         style={{
-          border: "1.5px solid rgba(255,138,61,0.3)",
-          outline: "1px solid rgba(255,255,255,0.55)",
-          background: "linear-gradient(160deg, #fff 0%, #fff3e2 48%, #fbe0bd 100%)",
-          boxShadow: [
-            "0 1px 1px rgba(0,0,0,0.05)",
-            "0 6px 12px -2px rgba(180,100,30,0.18)",
-            "0 18px 36px -4px rgba(180,100,30,0.22)",
-            "inset 0 2px 0 #fff",
-            "inset 0 -2px 0 #f5d4a0",
-          ].join(", "),
+          padding: 5,
+          background: "rgba(255, 255, 255, 0.45)",
+          borderColor: "rgba(251, 146, 60, 0.22)",
+          boxShadow: "0 10px 30px rgba(180, 100, 30, 0.08)",
+          rotateX,
+          rotateY,
+          transformStyle: "preserve-3d",
         }}
         initial={{ opacity: 0, scale: 0.92, y: 12 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ duration: 0.38, ease: EASE_OUT }}
       >
-        {/* Image area */}
-        <div className="relative min-h-0 flex-1 overflow-hidden bg-gradient-to-b from-[#FFF8EF] to-[#FFE8BF]">
-          {hasImage ? (
-            <CardImg src={opponentCard!.imageUrl!} alt={opponentCard?.nameAr ?? "بطاقة"} />
-          ) : (
-            <div className="flex h-full items-center justify-center">
-              {/* Shadow ؟ behind */}
-              <span
-                aria-hidden
-                className="absolute text-6xl font-black select-none"
-                style={{
-                  transform: "translate(3px, 4px)",
-                  color: `${GP.gold}28`,
-                  filter: "blur(3px)",
-                  userSelect: "none",
-                }}
-              >
-                ؟
-              </span>
-              {/* Main ؟ */}
-              <span
-                className="relative text-6xl font-black"
-                style={{
-                  background: `linear-gradient(160deg, #fff 0%, ${GP.gold} 60%, ${GP.goldDeep} 100%)`,
-                  WebkitBackgroundClip: "text",
-                  backgroundClip: "text",
-                  color: "transparent",
-                  filter: `drop-shadow(0 0 8px ${GP.gold}88)`,
-                }}
-              >
-                ؟
-              </span>
-            </div>
-          )}
+        <div
+          className="bezel-inner relative flex h-full w-full flex-col overflow-hidden"
+          style={{
+            borderRadius: 19,
+            background: "linear-gradient(160deg, #fff 0%, #fffbf2 50%, #ffe9cc 100%)",
+            borderColor: "rgba(255, 255, 255, 0.75)",
+          }}
+        >
+          {/* Image area */}
+          <div className="relative min-h-0 flex-1 overflow-hidden bg-gradient-to-b from-[#FFF8EF] to-[#FFE8BF]">
+            {hasImage ? (
+              <CardImg src={opponentCard!.imageUrl!} alt={opponentCard?.nameAr ?? "بطاقة"} />
+            ) : (
+              <div className="flex h-full items-center justify-center">
+                {/* Shadow ؟ behind */}
+                <span
+                  aria-hidden
+                  className="absolute text-6xl font-black select-none"
+                  style={{
+                    transform: "translate(3px, 4px)",
+                    color: `${GP.gold}28`,
+                    filter: "blur(3px)",
+                    userSelect: "none",
+                  }}
+                >
+                  ؟
+                </span>
+                {/* Main ؟ */}
+                <span
+                  className="relative text-6xl font-black"
+                  style={{
+                    background: `linear-gradient(160deg, #fff 0%, ${GP.gold} 60%, ${GP.goldDeep} 100%)`,
+                    WebkitBackgroundClip: "text",
+                    backgroundClip: "text",
+                    color: "transparent",
+                    filter: `drop-shadow(0 0 8px ${GP.gold}88)`,
+                  }}
+                >
+                  ؟
+                </span>
+              </div>
+            )}
 
-          {/* Bottom image vignette */}
-          <div
-            aria-hidden
-            className="pointer-events-none absolute bottom-0 left-0 right-0 h-16"
-            style={{
-              background: "linear-gradient(to top, rgba(251,224,189,0.82) 0%, transparent 100%)",
-            }}
-          />
-        </div>
+            {/* Bottom image vignette */}
+            <div
+              aria-hidden
+              className="pointer-events-none absolute bottom-0 left-0 right-0 h-16"
+              style={{
+                background: "linear-gradient(to top, rgba(251,224,189,0.82) 0%, transparent 100%)",
+              }}
+            />
+          </div>
 
-        {/* Name / category footer */}
-        <div className="relative z-[1] shrink-0 px-3 pb-3 pt-2 text-center">
-          <p
-            className="truncate text-sm font-extrabold"
-            style={{
-              color: GP.ink,
-              textShadow: `0 1px 0 rgba(255,255,255,0.8)`,
-            }}
-          >
-            {opponentCard?.nameAr ?? "بطاقة الخصم"}
-          </p>
-          {categoryLabel ? (
-            <p className="mt-0.5 text-[10px] font-bold" style={{ color: GP.inkSoft }}>
-              {categoryLabel}
+          {/* Name / category footer */}
+          <div className="relative z-[1] shrink-0 px-3 pb-3 pt-2 text-center">
+            <p
+              className="truncate text-sm font-extrabold"
+              style={{
+                color: GP.ink,
+                textShadow: `0 1px 0 rgba(255,255,255,0.8)`,
+              }}
+            >
+              {opponentCard?.nameAr ?? "بطاقة الخصم"}
             </p>
-          ) : null}
+            {categoryLabel ? (
+              <p className="mt-0.5 text-[10px] font-bold" style={{ color: GP.inkSoft }}>
+                {categoryLabel}
+              </p>
+            ) : null}
+          </div>
         </div>
       </motion.div>
     </motion.div>

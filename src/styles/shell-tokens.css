@@ -15,28 +15,33 @@
   --win: oklch(0.62 0.14 150);
   --lose: oklch(0.58 0.16 25);
   --r-3: 18px;
-  /* Richer layered shadow — adds ambient + contact tiers */
+  /* Richer layered shadow — adds ambient + contact tiers (Light Mode) */
   --sh-2:
-    0 1px 2px oklch(0.5 0.06 50 / 0.08),
-    0 4px 12px -4px oklch(0.5 0.08 50 / 0.18),
-    0 10px 24px -8px oklch(0.5 0.08 50 / 0.12),
-    0 0 0 1px oklch(0.6 0.05 55 / 0.10);
-  /* Premium card shadow — deeper, warmer */
+    0 1.5px 3px rgba(180, 100, 30, 0.03),
+    0 8px 24px rgba(180, 100, 30, 0.08),
+    0 16px 40px rgba(180, 100, 30, 0.05),
+    0 0 0 1.5px rgba(251, 146, 60, 0.06);
+  /* Premium card shadow — deeper, warmer (Light Mode) */
   --sh-card:
-    0 2px 4px oklch(0.4 0.06 45 / 0.12),
-    0 12px 24px -8px oklch(0.4 0.08 45 / 0.28),
-    0 28px 48px -16px oklch(0.4 0.08 45 / 0.22),
-    inset 0 1.5px 0 rgba(255, 255, 255, 0.82),
-    inset 0 -1px 0 oklch(0.6 0.06 55 / 0.18);
-  /* Amber glow — tighter bloom, more saturated */
-  --glow-amber: 0 0 0 1px oklch(0.78 0.18 65 / 0.12), 0 0 20px -2px oklch(0.78 0.18 65 / 0.38), 0 0 48px -8px oklch(0.78 0.18 65 / 0.22);
+    0 3px 12px rgba(180, 100, 30, 0.05),
+    0 16px 44px rgba(180, 100, 30, 0.10),
+    0 38px 80px rgba(180, 100, 30, 0.07),
+    inset 0 2px 0.5px #ffffff,
+    inset 0 -1.5px 0.5px rgba(196, 130, 60, 0.06);
+  /* Amber glow — tighter bloom, more saturated (Light Mode) */
+  --glow-amber: 
+    0 0 0 1.5px rgba(255, 159, 10, 0.18), 
+    0 0 28px rgba(255, 159, 10, 0.25), 
+    0 0 60px rgba(255, 159, 10, 0.15);
   /* Premium ease — strong out, used everywhere */
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   --ease-smooth: cubic-bezier(0.25, 0.46, 0.45, 0.94);
-  --display: var(--font-tajawal), "Readex Pro", system-ui, sans-serif;
-  --body: var(--font-tajawal), "IBM Plex Sans Arabic", system-ui, sans-serif;
-  --mono: ui-monospace, monospace;
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+  --display: var(--font-tajawal), "Plus Jakarta Sans", system-ui, sans-serif;
+  --body: var(--font-tajawal), system-ui, sans-serif;
+  --mono: var(--font-plus-jakarta-sans), ui-monospace, monospace;
 }
 
 .shell-screen {
@@ -178,16 +183,16 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 14px 20px;
+  padding: 13px 24px;
   border-radius: 999px;
   font-family: var(--display);
-  font-weight: 700;
+  font-weight: 800;
   font-size: 16px;
-  /* Compositor-only properties only — no layout paint */
+  /* Compositor-only properties + 3D translate offset */
   transition:
-    transform 0.18s var(--ease-out),
-    box-shadow 0.18s var(--ease-out),
-    opacity 0.15s var(--ease-out);
+    transform 120ms var(--ease-out),
+    box-shadow 120ms var(--ease-out),
+    opacity 120ms var(--ease-out);
   position: relative;
   overflow: hidden;
   user-select: none;
@@ -200,17 +205,16 @@
 }
 
 .shell-screen .btn:active {
-  /* Pure scale — compositor-only, Emil Kowalski principle */
-  transform: scale(0.97);
-  transition-duration: 0.08s;
+  transform: scale(0.96) translateY(3px);
+  transition-duration: 0.06s;
 }
 
 @media (hover: hover) and (pointer: fine) {
   .shell-screen .btn:hover {
-    transform: scale(1.015);
+    transform: scale(1.02);
   }
   .shell-screen .btn:active {
-    transform: scale(0.97);
+    transform: scale(0.96) translateY(3px);
   }
 }
 
@@ -218,51 +222,74 @@
   /* Richer gradient with amber warmth */
   background: linear-gradient(180deg,
     oklch(0.88 0.17 76) 0%,
-    oklch(0.78 0.18 65) 50%,
-    oklch(0.68 0.19 53) 100%
+    oklch(0.78 0.18 65) 60%,
+    oklch(0.70 0.19 55) 100%
   );
   color: oklch(0.20 0.05 35);
-  /* Layered: specular top, engraved bottom edge, depth shadow, warm glow */
+  /* Specular highlight top, solid bottom edge for 3D extrusion */
   box-shadow:
-    inset 0 1.5px 0 rgba(255, 255, 255, 0.72),
-    inset 0 -2px 0 oklch(0.48 0.16 48),
-    0 2px 0 oklch(0.48 0.16 45),
-    0 8px 20px -6px oklch(0.62 0.18 55 / 0.55),
-    0 16px 40px -12px oklch(0.62 0.18 55 / 0.30);
+    inset 0 2px 0 rgba(255, 255, 255, 0.45),
+    inset 0 -2.5px 0 oklch(0.48 0.16 48),
+    0 4px 0 oklch(0.48 0.16 45),
+    0 8px 18px oklch(0.62 0.18 55 / 0.3);
+}
+
+.shell-screen .btn-primary:active {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.25),
+    inset 0 -1px 0 oklch(0.48 0.16 48),
+    0 1px 0 oklch(0.48 0.16 45),
+    0 2px 6px oklch(0.62 0.18 55 / 0.15);
 }
 
 @media (hover: hover) and (pointer: fine) {
   .shell-screen .btn-primary:hover {
     box-shadow:
-      inset 0 1.5px 0 rgba(255, 255, 255, 0.72),
-      inset 0 -2px 0 oklch(0.48 0.16 48),
-      0 2px 0 oklch(0.48 0.16 45),
-      0 10px 28px -6px oklch(0.62 0.18 55 / 0.65),
-      0 20px 48px -12px oklch(0.62 0.18 55 / 0.38);
+      inset 0 2px 0 rgba(255, 255, 255, 0.5),
+      inset 0 -2.5px 0 oklch(0.48 0.16 48),
+      0 4px 0 oklch(0.48 0.16 45),
+      0 10px 24px oklch(0.62 0.18 55 / 0.4);
+  }
+  .shell-screen .btn-primary:active {
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.25),
+      inset 0 -1px 0 oklch(0.48 0.16 48),
+      0 1px 0 oklch(0.48 0.16 45),
+      0 2px 6px oklch(0.62 0.18 55 / 0.15);
   }
 }
 
 .shell-screen .btn-secondary {
   background: linear-gradient(180deg,
-    rgba(255, 255, 255, 0.98) 0%,
-    oklch(0.94 0.025 78) 100%
+    rgba(255, 255, 255, 0.99) 0%,
+    oklch(0.96 0.015 80) 100%
   );
   color: var(--fg-0);
-  border: 1px solid oklch(0.75 0.06 62 / 0.52);
+  border: 1.5px solid oklch(0.75 0.06 62 / 0.4);
   box-shadow:
-    inset 0 1.5px 0 rgba(255, 255, 255, 0.95),
-    inset 0 -1px 0 oklch(0.70 0.04 60 / 0.22),
-    0 4px 10px -4px oklch(0.5 0.06 50 / 0.14),
-    0 8px 20px -8px oklch(0.5 0.06 50 / 0.10);
+    inset 0 2px 0 rgba(255, 255, 255, 0.95),
+    inset 0 -2px 0 oklch(0.70 0.04 60 / 0.15),
+    0 3px 0 oklch(0.70 0.04 60 / 0.25),
+    0 5px 12px rgba(180, 100, 30, 0.06);
+}
+
+.shell-screen .btn-secondary:active {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    inset 0 -1px 0 oklch(0.70 0.04 60 / 0.1),
+    0 1px 0 oklch(0.70 0.04 60 / 0.15),
+    0 2px 4px rgba(180, 100, 30, 0.04);
 }
 
 .shell-screen .btn-ghost {
-  background: oklch(0.98 0.012 80 / 0.60);
+  background: linear-gradient(180deg, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0.4) 100%);
   color: var(--fg-1);
-  border: 1px solid oklch(0.80 0.04 65 / 0.38);
+  border: 1.5px solid rgba(251, 146, 60, 0.18);
   backdrop-filter: blur(8px) saturate(150%);
   -webkit-backdrop-filter: blur(8px) saturate(150%);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
+  box-shadow:
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.9),
+    0 2px 6px rgba(180, 100, 30, 0.04);
 }
 
 .shell-screen .btn-block {

@@ -45,15 +45,13 @@ export const GameplayMyHiddenCard = memo(function GameplayMyHiddenCard({
       style={{
         width: w,
         height: h,
-        borderRadius: 14,
-        border: "1.5px solid rgba(255,190,100,0.6)",
-        outline: "1px solid rgba(255,255,255,0.18)",
-        background: "repeating-linear-gradient(45deg, #8a4520 0 5px, #7a3c18 5px 10px)",
+        borderRadius: 18,
+        border: "1.5px solid rgba(251, 146, 60, 0.28)",
+        background: "linear-gradient(135deg, #FFFDF8 0%, #FFEFC4 100%)",
         boxShadow: [
-          "0 1px 1px rgba(0,0,0,0.1)",
-          "0 4px 8px -2px rgba(80,40,10,0.3)",
-          "0 12px 24px -6px rgba(80,40,10,0.25)",
-          "inset 0 1.5px 0 rgba(255,180,80,0.22)",
+          "0 2px 6px rgba(180, 100, 30, 0.05)",
+          "0 8px 20px rgba(180, 100, 30, 0.08)",
+          "inset 0 1.5px 0.5px #ffffff",
         ].join(", "),
         willChange: "transform",
       }}
@@ -107,11 +105,12 @@ export const GameplayMyHiddenCard = memo(function GameplayMyHiddenCard({
       </div>
 
       <span
-        className="shrink-0 py-0.5 text-[7px] font-extrabold leading-tight"
+        className="shrink-0 py-1 text-[7.5px] font-extrabold leading-tight"
         style={{
-          background: "rgba(48,28,14,0.94)",
-          color: "#fff7e8",
+          background: "linear-gradient(180deg, #FFEAB2 0%, #F5BE50 100%)",
+          color: "#4f260a",
           letterSpacing: "0.03em",
+          borderTop: "1px solid rgba(251, 146, 60, 0.2)",
         }}
       >
         تلميحات

@@ -28,7 +28,7 @@ export function GameplaySheet({
       exit={{ opacity: 0 }}
       transition={{ duration: 0.2 }}
       className="absolute inset-0 z-[70] flex items-end"
-      style={{ background: "rgba(44,26,14,0.58)", backdropFilter: "blur(2px)" }}
+      style={{ background: "rgba(120, 70, 20, 0.22)", backdropFilter: "blur(4px)" }}
       onClick={onClose}
     >
       <motion.div
@@ -37,16 +37,16 @@ export function GameplaySheet({
         exit={{ y: "100%" }}
         transition={{ type: "spring", stiffness: 380, damping: 36, mass: 0.85 }}
         onClick={(e) => e.stopPropagation()}
-        className="w-full rounded-t-[28px] border border-b-0 px-[18px] pb-7 pt-2"
+        className="w-full rounded-t-[32px] border border-b-0 px-[18px] pb-7 pt-2"
         style={{
-          background: "linear-gradient(180deg, #fffcf4 0%, #fff5e4 50%, #fff1dd 100%)",
-          borderColor: "rgba(244,196,141,0.55)",
-          outline: "1px solid rgba(255,255,255,0.7)",
+          background: "rgba(255, 255, 255, 0.90)",
+          backdropFilter: "blur(20px) saturate(140%)",
+          borderColor: "rgba(251, 146, 60, 0.22)",
+          outline: "1px solid rgba(255,255,255,0.85)",
           boxShadow: [
-            "0 -4px 12px -2px rgba(80,40,10,0.08)",
-            "0 -16px 40px -8px rgba(80,40,10,0.18)",
-            "0 -40px 80px -16px rgba(80,40,10,0.14)",
-            "inset 0 1.5px 0 rgba(255,255,255,0.85)",
+            "0 -8px 24px rgba(180,100,30,0.06)",
+            "0 -24px 60px rgba(180,100,30,0.12)",
+            "inset 0 2px 0.5px #ffffff",
           ].join(", "),
           willChange: "transform",
         }}
@@ -56,9 +56,9 @@ export function GameplaySheet({
           className="mx-auto mb-4 rounded-full"
           style={{
             width: 40,
-            height: 4,
-            background: "linear-gradient(90deg, oklch(0.80 0.08 68 / .4), oklch(0.75 0.10 62 / .65), oklch(0.80 0.08 68 / .4))",
-            boxShadow: "0 1px 3px rgba(120,70,20,0.12)",
+            height: 4.5,
+            background: "linear-gradient(90deg, rgba(251,146,60,0.2), rgba(251,146,60,0.5), rgba(251,146,60,0.2))",
+            boxShadow: "0 1px 3px rgba(120,70,20,0.06)",
           }}
         />
 
@@ -76,8 +76,8 @@ export function GameplaySheet({
             onClick={onClose}
             className="grid h-8 w-8 place-items-center rounded-[10px] border-0"
             style={{
-              background: "oklch(0.90 0.04 68 / .6)",
-              color: GP.inkSoft,
+              background: "rgba(251, 146, 60, 0.08)",
+              color: "#c25e17",
             }}
             aria-label="إغلاق"
           >

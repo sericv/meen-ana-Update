@@ -154,27 +154,33 @@ export const ShopItemCard = memo(function ShopItemCard({
     <motion.article
       whileTap={reduced ? {} : { scale: 0.97 }}
       transition={{ type: "spring", stiffness: 440, damping: 30 }}
+      className="bezel-outer"
       style={{
-        /* Warm cream base — same for every rarity */
-        background: "linear-gradient(168deg, rgba(255,255,255,0.99) 0%, oklch(0.964 0.014 76) 100%)",
-        borderRadius: 18,
-        border: `1.5px solid ${rs.border}`,
-        overflow: "hidden",
+        padding: 4.5,
+        background: "rgba(255, 255, 255, 0.45)",
+        borderColor: rs.border,
+        boxShadow: `0 6px 16px rgba(180, 100, 30, 0.05)`,
         cursor: "pointer",
         userSelect: "none",
         WebkitTapHighlightColor: "transparent",
-        boxShadow: [
-          "inset 0 1.5px 0 rgba(255,255,255,0.90)",
-          rs.shadow,
-          "0 1px 2px rgba(0,0,0,0.03)",
-        ].join(", "),
-        contain: "layout style paint",
         display: "flex",
         flexDirection: "column",
         willChange: "transform",
+        borderRadius: 20,
         transition: "box-shadow 0.24s cubic-bezier(0.23,1,0.32,1), border-color 0.24s cubic-bezier(0.23,1,0.32,1)",
       }}
     >
+      <div
+        className="bezel-inner relative flex h-full w-full flex-col overflow-hidden"
+        style={{
+          borderRadius: 15,
+          background: "linear-gradient(168deg, #FFFDF9 0%, #FFF9F0 100%)",
+          borderColor: "rgba(255, 255, 255, 0.8)",
+          flex: "1 1 auto",
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
       {/* ── Rarity accent bar (top 3px) ── */}
       <div
         aria-hidden
@@ -420,7 +426,7 @@ export const ShopItemCard = memo(function ShopItemCard({
           )}
         </div>
       </div>
-
+      </div>
       <style>{CSS}</style>
     </motion.article>
   );

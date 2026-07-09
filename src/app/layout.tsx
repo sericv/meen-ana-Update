@@ -1,13 +1,19 @@
 import type { Metadata, Viewport } from "next";
-import { Tajawal } from "next/font/google";
+import { Tajawal, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/components/providers/AuthProvider";
 import { GlobalRoomInviteDockLazy } from "@/components/layout/GlobalRoomInviteDockLazy";
 
 const tajawal = Tajawal({
   subsets: ["arabic", "latin"],
-  weight: ["400", "500", "700"],
+  weight: ["400", "500", "700", "800", "900"],
   variable: "--font-tajawal",
+});
+
+const plusJakartaSans = Plus_Jakarta_Sans({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
+  variable: "--font-plus-jakarta-sans",
 });
 
 // Mobile-first viewport. We intentionally:
@@ -46,7 +52,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ar" dir="rtl" className={`${tajawal.variable} h-dvh max-h-dvh overflow-hidden antialiased`}>
+    <html lang="ar" dir="rtl" className={`${tajawal.variable} ${plusJakartaSans.variable} h-dvh max-h-dvh overflow-hidden antialiased`}>
       <body className="app-shell flex h-dvh max-h-dvh flex-col overflow-hidden font-sans text-[#5e3011] antialiased">
         <AuthProvider>
           <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">

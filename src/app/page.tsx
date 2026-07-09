@@ -132,7 +132,7 @@ export default function HomePage() {
             style={{ background: "none", border: "none", cursor: "pointer" }}
             onClick={() => nav("/profile/friends", true)}
           >
-            عرض الكل ←
+            عرض الكل
           </button>
         </div>
 
@@ -149,63 +149,97 @@ export default function HomePage() {
               return (
                 <motion.div
                   key={friendUid}
-                  className="surf"
-                  whileTap={{ scale: 0.96 }}
-                  transition={{ type: "spring", stiffness: 400, damping: 28 }}
+                  className="bezel-outer"
+                  whileTap={{ scale: 0.95, y: 2 }}
+                  transition={{ type: "spring", stiffness: 450, damping: 28 }}
                   style={{
-                    minWidth: 96,
-                    padding: 12,
+                    minWidth: 104,
+                    padding: 4,
                     display: "flex",
                     flexDirection: "column",
-                    alignItems: "center",
-                    gap: 6,
                     cursor: "pointer",
+                    background: "rgba(255, 255, 255, 0.4)",
+                    borderColor: "rgba(251, 146, 60, 0.12)",
+                    boxShadow: "0 4px 12px rgba(180, 100, 30, 0.04)",
                   }}
                 >
-                  <ShellFramedAvatar
-                    cosmetic={p?.cosmetic}
-                    displayName={name}
-                    size={52}
-                    frame={FRAME_RING[i % FRAME_RING.length] ?? "simple"}
-                    online={online}
-                  />
-                  <div className="text-sm fw-7" style={{ whiteSpace: "nowrap", textAlign: "center" }}>
-                    {name.length > 10 ? name.slice(0, 9) + "…" : name}
-                  </div>
                   <div
-                    className="text-xs"
+                    className="bezel-inner"
                     style={{
-                      whiteSpace: "nowrap",
-                      color: online ? "var(--win)" : "var(--fg-3)",
-                      fontWeight: online ? 700 : 600,
+                      padding: "12px 8px",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      gap: 8,
+                      background: "linear-gradient(180deg, #FFFDF9 0%, #FFF9F0 100%)",
+                      borderColor: "rgba(255, 255, 255, 0.75)",
+                      width: "100%",
+                      borderRadius: 20,
                     }}
                   >
-                    {presenceLabelAr(presence)}
+                    <ShellFramedAvatar
+                      cosmetic={p?.cosmetic}
+                      displayName={name}
+                      size={48}
+                      frame={FRAME_RING[i % FRAME_RING.length] ?? "simple"}
+                      online={online}
+                    />
+                    <div className="text-sm fw-8 text-[#5e3011]" style={{ whiteSpace: "nowrap", textAlign: "center" }}>
+                      {name.length > 9 ? name.slice(0, 8) + "…" : name}
+                    </div>
+                    <div
+                      className="text-xs"
+                      style={{
+                        whiteSpace: "nowrap",
+                        color: online ? "var(--win)" : "var(--fg-3)",
+                        fontWeight: online ? 800 : 600,
+                      }}
+                    >
+                      {presenceLabelAr(presence)}
+                    </div>
                   </div>
                 </motion.div>
               );
             })}
             <motion.button
               type="button"
-              className="surf"
+              className="bezel-outer"
               onClick={() => nav("/profile/friends", true)}
-              whileTap={{ scale: 0.96 }}
-              transition={{ type: "spring", stiffness: 400, damping: 28 }}
+              whileTap={{ scale: 0.95, y: 2 }}
+              transition={{ type: "spring", stiffness: 450, damping: 28 }}
               style={{
-                minWidth: 96,
-                padding: 12,
+                minWidth: 104,
+                padding: 4,
                 display: "flex",
                 flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 8,
-                borderStyle: "dashed",
-                color: "var(--fg-2)",
                 cursor: "pointer",
+                background: "rgba(255, 255, 255, 0.3)",
+                borderStyle: "dashed",
+                borderColor: "rgba(251, 146, 60, 0.2)",
+                boxShadow: "none",
               }}
             >
-              <ShellIcon name="plus" size={20} />
-              <span className="text-xs fw-6">إضافة صديق</span>
+              <div
+                className="bezel-inner"
+                style={{
+                  padding: "12px 8px",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 8,
+                  background: "transparent",
+                  border: "none",
+                  boxShadow: "none",
+                  width: "100%",
+                  height: "100%",
+                  color: "var(--fg-2)",
+                  minHeight: 96,
+                }}
+              >
+                <ShellIcon name="plus" size={18} />
+                <span className="text-xs fw-8">إضافة صديق</span>
+              </div>
             </motion.button>
           </div>
         </div>

@@ -315,10 +315,28 @@ function ResultSurf({
       initial={{ opacity: 0, y: 14 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ ...SPRING_SOFT, delay }}
-      className={`rounded-2xl border border-[rgba(244,196,141,0.42)] bg-white/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.92),0_8px_24px_rgba(196,134,82,0.11)] ${className}`}
-      style={style}
+      className={`bezel-outer ${className}`}
+      style={{
+        padding: 5,
+        background: "rgba(255, 255, 255, 0.45)",
+        borderColor: "rgba(251, 146, 60, 0.14)",
+        boxShadow: "0 6px 18px rgba(180, 100, 30, 0.05)",
+        ...style,
+      }}
     >
-      {children}
+      <div
+        className="bezel-inner"
+        style={{
+          padding: 16,
+          background: "linear-gradient(180deg, #FFFDF9 0%, #FFF9F0 100%)",
+          borderColor: "rgba(255, 255, 255, 0.75)",
+          borderRadius: 21,
+          width: "100%",
+          height: "100%",
+        }}
+      >
+        {children}
+      </div>
     </motion.div>
   );
 }
@@ -343,9 +361,10 @@ function RewardRow({
       className="flex items-center gap-3 rounded-2xl border p-3.5"
       style={{
         background: amber
-          ? "linear-gradient(160deg, #fff4e0, #ffe8c8)"
-          : "linear-gradient(160deg, #eef8f2, #e0f0e8)",
-        borderColor: amber ? "rgba(200,130,60,0.38)" : "rgba(90,154,122,0.32)",
+          ? "linear-gradient(160deg, #FFFDF0 0%, #FFEFC4 100%)"
+          : "linear-gradient(160deg, #F0FAF5 0%, #D1FAE5 100%)",
+        borderColor: amber ? "rgba(251, 146, 60, 0.2)" : "rgba(16, 185, 129, 0.2)",
+        boxShadow: "0 2px 6px rgba(180, 100, 30, 0.03)",
       }}
     >
       {/* icon bubble */}
@@ -354,10 +373,10 @@ function RewardRow({
         style={{
           background: amber
             ? `linear-gradient(180deg, ${W_GOLD}, ${W_GOLD_DEEP})`
-            : `linear-gradient(180deg, #62bc8a, #3a8a60)`,
+            : `linear-gradient(180deg, #34D399, #059669)`,
           boxShadow: amber
-            ? `inset 0 1px 0 rgba(255,255,255,0.5), 0 4px 12px ${W_GOLD_DEEP}44`
-            : "inset 0 1px 0 rgba(255,255,255,0.4), 0 4px 12px rgba(60,140,90,0.25)",
+            ? `inset 0 1px 0 rgba(255,255,255,0.5), 0 4px 12px ${W_GOLD_DEEP}33`
+            : "inset 0 1px 0 rgba(255,255,255,0.4), 0 4px 12px rgba(5,150,105,0.22)",
         }}
       >
         {icon}
@@ -365,7 +384,7 @@ function RewardRow({
 
       {/* text */}
       <div className="min-w-0 flex-1">
-        <p style={{ fontSize: 11, fontWeight: 600, color: W_INK_SOFT }}>{label}</p>
+        <p style={{ fontSize: 11, fontWeight: 700, color: W_INK_SOFT }}>{label}</p>
         <p style={{ fontSize: 22, fontWeight: 900, color: W_INK, lineHeight: 1.1, letterSpacing: "-0.03em" }}>
           {value}
         </p>
@@ -384,11 +403,12 @@ function StatCell({ label, value }: { label: string; value: string }) {
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        borderRadius: 14,
-        border: "1px solid rgba(244,196,141,0.32)",
-        background: "rgba(255,255,255,0.65)",
-        padding: "10px 8px",
-        gap: 2,
+        borderRadius: 16,
+        border: "1.5px solid rgba(251, 146, 60, 0.12)",
+        background: "linear-gradient(180deg, #FFFDF9, #FFFBF5)",
+        padding: "12px 10px",
+        gap: 4,
+        boxShadow: "0 2px 6px rgba(180, 100, 30, 0.02)",
       }}
     >
       <p
@@ -403,7 +423,7 @@ function StatCell({ label, value }: { label: string; value: string }) {
       >
         {value}
       </p>
-      <p style={{ fontSize: 10, fontWeight: 600, color: W_INK_SOFT, lineHeight: 1.2, textAlign: "center" }}>
+      <p style={{ fontSize: 10, fontWeight: 700, color: W_INK_SOFT, lineHeight: 1.2, textAlign: "center" }}>
         {label}
       </p>
     </div>

@@ -42,17 +42,13 @@ export function GameplayTacticalButton({ inventory, size = "compact", onPress }:
         position: "relative",
         width: w,
         height: h,
-        padding: 0,
-        borderRadius: 14,
-        border: "1.5px solid rgba(100,160,230,0.62)",
-        outline: "1px solid rgba(255,255,255,0.12)",
-        background: "repeating-linear-gradient(45deg, #243554 0 5px, #1c2e48 5px 10px)",
+        borderRadius: 18,
+        border: "1.5px solid rgba(100,160,230,0.45)",
+        background: "linear-gradient(135deg, #FFFDF8 0%, #E6F3FF 100%)",
         boxShadow: [
-          "0 1px 1px rgba(0,0,0,0.14)",
-          "0 4px 8px -2px rgba(16,36,68,0.35)",
-          "0 12px 24px -6px rgba(16,36,68,0.30)",
-          "inset 0 1.5px 0 rgba(120,175,255,0.20)",
-          "inset 0 -1px 0 rgba(0,0,0,0.18)",
+          "0 2px 6px rgba(16,36,68,0.05)",
+          "0 8px 20px rgba(16,36,68,0.06)",
+          "inset 0 1.5px 0.5px #ffffff",
         ].join(", "),
         display: "flex",
         flexDirection: "column",
@@ -189,21 +185,20 @@ export function GameplayTacticalButton({ inventory, size = "compact", onPress }:
         </div>
       </div>
 
-      {/* Label footer */}
       <div
         style={{
           flexShrink: 0,
-          padding: "3px 0 4px",
+          padding: "3.5px 0 4.5px",
           textAlign: "center",
-          background: "rgba(14,26,48,0.95)",
-          borderTop: "1px solid rgba(100,160,255,0.14)",
+          background: "linear-gradient(180deg, #E6F3FF 0%, #CBE3FF 100%)",
+          borderTop: "1px solid rgba(100,160,230,0.22)",
         }}
       >
         <span
           style={{
-            fontSize: 7,
+            fontSize: 7.5,
             fontWeight: 800,
-            color: hasTools ? "#b0ccf0" : "#6080a0",
+            color: hasTools ? "#1e40af" : "#5b7a9c",
             letterSpacing: "0.06em",
             fontFamily: "var(--display, system-ui)",
             transition: "color 0.3s",

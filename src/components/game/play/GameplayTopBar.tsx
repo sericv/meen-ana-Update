@@ -105,44 +105,61 @@ export const GameplayTopBar = memo(function GameplayTopBar({
   return (
     <div
       dir="ltr"
-      className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-2 px-3.5 pb-2 pt-1"
+      className="bezel-outer mx-3.5 my-2 px-1 py-1"
+      style={{
+        background: "rgba(255, 255, 255, 0.42)",
+        borderColor: "rgba(251, 146, 60, 0.12)",
+        boxShadow: "0 4px 16px rgba(180, 100, 30, 0.03)",
+        borderRadius: 24,
+        flexShrink: 0,
+      }}
     >
-      <PlayerCorner
-        name={myName}
-        uid={myUid}
-        cosmetic={myCosmetic}
-        photoURL={myPhotoURL}
-        active={myTurn}
-        reverse
-      />
+      <div
+        className="bezel-inner grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-3 py-2"
+        style={{
+          background: "linear-gradient(180deg, #FFFDF9 0%, #FFFBF5 100%)",
+          borderColor: "rgba(255, 255, 255, 0.75)",
+          borderRadius: 18,
+        }}
+      >
+        <PlayerCorner
+          name={myName}
+          uid={myUid}
+          cosmetic={myCosmetic}
+          photoURL={myPhotoURL}
+          active={myTurn}
+          reverse
+        />
 
-      {/* Center: arc + turn label */}
-      <div className="flex flex-col items-center gap-1">
-        <GameplayTurnArc secLeft={secLeft} maxSec={maxPhaseSec} active={myTurn} />
-        <AnimatePresence mode="wait">
-          <motion.span
-            key={turnLabel}
-            initial={{ opacity: 0, y: 4, scale: 0.92 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -3, scale: 0.94 }}
-            transition={{ duration: 0.22, ease: EASE_OUT }}
-            className="text-xs font-extrabold"
-            style={{
-              color: turnColor,
-              textShadow: `0 0 14px ${turnColor}99`,
-            }}
-          >
-            {turnLabel}
-          </motion.span>
-        </AnimatePresence>
+        {/* Center: arc + turn label */}
+        <div className="flex flex-col items-center gap-1">
+          <GameplayTurnArc secLeft={secLeft} maxSec={maxPhaseSec} active={myTurn} />
+          <AnimatePresence mode="wait">
+            <motion.span
+              key={turnLabel}
+              initial={{ opacity: 0, y: 4, scale: 0.92 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -3, scale: 0.94 }}
+              transition={{ duration: 0.22, ease: EASE_OUT }}
+              className="text-[10px] font-extrabold px-2 py-0.5 rounded-full"
+              style={{
+                color: turnColor,
+                background: `${turnColor}14`,
+                border: `1px solid ${turnColor}25`,
+              }}
+            >
+              {turnLabel}
+            </motion.span>
+          </AnimatePresence>
+        </div>
+
+        <PlayerCorner
+          name={opponentName}
+          uid={opponentUid}
+          cosmetic={opponentCosmetic}
+          active={!myTurn}
+        />
       </div>
-
-      <PlayerCorner
-        name={opponentName}
-        uid={opponentUid}
-        cosmetic={opponentCosmetic}
-        active={!myTurn}
-      />
     </div>
   );
 });
