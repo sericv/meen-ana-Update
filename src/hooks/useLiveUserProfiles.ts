@@ -18,7 +18,11 @@ export type LivePublicProfile = {
   displayName: string | null;
   photoURL: string | null;
   xp: number;
+  lifetimeXp: number;
   matchWins: number;
+  matchLosses: number;
+  matchTotal: number;
+  winRate: number;
 };
 
 /**
@@ -64,7 +68,11 @@ export function useLiveUserProfiles(uids: (string | null | undefined)[]): Record
               displayName: typeof d.displayName === "string" ? d.displayName : null,
               photoURL: typeof d.photoURL === "string" ? d.photoURL : null,
               xp: progress.xp,
+              lifetimeXp: progress.lifetimeXp,
               matchWins: progress.matchWins,
+              matchLosses: progress.matchLosses,
+              matchTotal: progress.matchTotal,
+              winRate: progress.winRate,
             },
           }));
         },
@@ -80,6 +88,13 @@ export function useLiveUserProfiles(uids: (string | null | undefined)[]): Record
                 gamePresenceRoomId: null,
                 gamePresenceUpdatedAtMs: null,
                 displayName: null,
+                photoURL: null,
+                xp: 0,
+                lifetimeXp: 0,
+                matchWins: 0,
+                matchLosses: 0,
+                matchTotal: 0,
+                winRate: 0,
               },
           }));
         },
@@ -104,6 +119,10 @@ function emptyLiveProfile(): LivePublicProfile {
     displayName: null,
     photoURL: null,
     xp: 0,
+    lifetimeXp: 0,
     matchWins: 0,
+    matchLosses: 0,
+    matchTotal: 0,
+    winRate: 0,
   };
 }

@@ -3,7 +3,6 @@
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 
-/** Premium inline prompt for anonymous / guest users — Google unlocks photo, username, and friends. */
 export function GuestProfileLockCard() {
   const router = useRouter();
 
@@ -11,49 +10,59 @@ export function GuestProfileLockCard() {
     <motion.section
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="relative mb-6 overflow-hidden rounded-[1.75rem] border border-white/90 bg-gradient-to-br from-[#fffdfb] via-[#fff5e8] to-[#ffe8cf] p-5 text-center shadow-[0_18px_44px_rgba(196,134,82,0.28)]"
+      className="game-card-outer w-full mb-4"
     >
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 opacity-[0.45]"
-        style={{
-          background:
-            "radial-gradient(80% 60% at 20% 0%, rgba(255,200,120,0.35), transparent 55%), radial-gradient(70% 50% at 100% 100%, rgba(255,180,200,0.22), transparent 50%)",
-        }}
-      />
-      <div className="relative mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/80 shadow-inner ring-1 ring-[#f4d4b0]">
-        <svg viewBox="0 0 24 24" className="h-7 w-7 text-[#c2530c]" fill="none" aria-hidden>
-          <path
-            d="M12 11c2.21 0 4-1.34 4-3s-1.79-3-4-3-4 1.34-4 3 1.79 3 4 3z"
-            stroke="currentColor"
-            strokeWidth="1.8"
-          />
-          <path
-            d="M5 20v-1c0-2.5 3.13-4 7-4s7 1.5 7 4v1"
-            stroke="currentColor"
-            strokeWidth="1.8"
-            strokeLinecap="round"
-          />
-        </svg>
+      <div className="game-card-inner p-6 bg-gradient-to-br from-white via-purple-50/20 to-purple-50/40 border border-slate-100 rounded-[22px] flex flex-col items-center gap-4 text-center relative overflow-hidden">
+        
+        {/* Glow bloom */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 opacity-[0.25]"
+          style={{
+            background:
+              "radial-gradient(80% 60% at 50% 0%, rgba(124,58,237,0.15), transparent 60%)",
+          }}
+        />
+
+        <div className="relative mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-purple-50 border border-purple-100">
+          <svg viewBox="0 0 24 24" className="h-6 w-6 text-[#7C3AED]" fill="none" aria-hidden>
+            <path
+              d="M12 11c2.21 0 4-1.34 4-3s-1.79-3-4-3-4 1.34-4 3 1.79 3 4 3z"
+              stroke="currentColor"
+              strokeWidth="2"
+            />
+            <path
+              d="M5 20v-1c0-2.5 3.13-4 7-4s7 1.5 7 4v1"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+            />
+          </svg>
+        </div>
+
+        <div style={{ lineHeight: 1.25 }}>
+          <h4 className="text-xs font-black text-slate-800">
+            سجّل عبر Google لحفظ تقدمك وحجز معرفك المميز
+          </h4>
+          <p className="mt-1 text-[10px] font-bold text-slate-400 max-w-[240px] mx-auto">
+            يمكنك مواصلة اللعب كزائر — الارتباط بـ Google يتيح لك تعديل صورتك واسم المستخدم وقائمة أصدقائك.
+          </p>
+        </div>
+
+        <motion.button
+          type="button"
+          whileTap={{ scale: 0.96 }}
+          onClick={() => router.push(`/login?next=${encodeURIComponent("/profile")}`)}
+          className="w-full py-3.5 mt-2 rounded-xl text-xs font-black text-white shadow-sm border border-purple-800"
+          style={{
+            background: "linear-gradient(135deg, #7C3AED 0%, #A78BFA 100%)",
+            cursor: "pointer",
+          }}
+        >
+          المتابعة والتسجيل عبر Google
+        </motion.button>
+
       </div>
-      <p className="relative text-[14px] font-extrabold leading-relaxed text-[#5e3011]">
-        سجّل عبر Google لرفع صورتك وحجز اسمك العام
-      </p>
-      <p className="relative mt-2 text-xs font-semibold leading-relaxed text-[#a16231]">
-        يمكنك مواصلة اللعب كزائر — الارتباط بـ Google يفتح الصورة الشخصية واسم المستخدم والأصدقاء.
-      </p>
-      <motion.button
-        type="button"
-        whileTap={{ scale: 0.97 }}
-        onClick={() => router.push(`/login?next=${encodeURIComponent("/profile")}`)}
-        className="relative mt-5 w-full rounded-2xl py-3.5 text-base font-black text-white"
-        style={{
-          background: "linear-gradient(180deg,#FF9F0A 0%,#FF6B00 100%)",
-          boxShadow: "inset 0 2px 0 rgba(255,255,255,0.4), 0 7px 0 #be5200, 0 14px 28px rgba(255,107,0,0.32)",
-        }}
-      >
-        المتابعة عبر Google
-      </motion.button>
     </motion.section>
   );
 }

@@ -3,6 +3,7 @@
 import { doc, getDoc, onSnapshot } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { motion } from "framer-motion";
 import { AuthGate } from "@/components/auth/AuthGate";
 import { ShellMatchmakingView, type ShellMatchStage } from "@/components/shell/lobby/ShellMatchmakingView";
 import { ShellIcon } from "@/components/shell/ShellIcons";
@@ -346,30 +347,59 @@ function RandomInner() {
   };
 
   const footer = (
-    <>
+    <div className="flex flex-col gap-2 w-full">
       {phase === "idle" ? (
-        <button type="button" className="btn btn-block btn-lg btn-primary" style={{ height: 56 }} onClick={() => void startSearch()}>
-          <ShellIcon name="search" size={20} />
-          ابحث عن خصم
-        </button>
+        <motion.button
+          type="button"
+          whileTap={{ scale: 0.96 }}
+          onClick={() => void startSearch()}
+          className="w-full py-4 rounded-2xl text-sm font-black text-white shadow-md transition-transform flex items-center justify-center gap-2 border border-purple-800"
+          style={{
+            background: "linear-gradient(135deg, #7C3AED 0%, #A78BFA 100%)",
+            cursor: "pointer",
+          }}
+        >
+          <ShellIcon name="search" size={16} color="#FFFFFF" />
+          البحث عن منافس
+        </motion.button>
       ) : null}
       {phase === "searching" ? (
-        <button type="button" className="btn btn-block btn-secondary" onClick={() => void cancelSearch()}>
-          <ShellIcon name="close" size={18} />
+        <motion.button
+          type="button"
+          whileTap={{ scale: 0.96 }}
+          onClick={() => void cancelSearch()}
+          className="w-full py-4 rounded-2xl text-sm font-black bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 shadow-sm transition-transform flex items-center justify-center gap-2"
+          style={{
+            cursor: "pointer",
+          }}
+        >
+          <ShellIcon name="close" size={14} color="#64748B" />
           إلغاء البحث
-        </button>
+        </motion.button>
       ) : null}
-      {phase === "found" || phase === "matched" ? (
-        <button type="button" className="btn btn-block btn-secondary" disabled>
-          جاري ربط اللاعبين…
+      {(phase === "found" || phase === "matched") ? (
+        <button
+          type="button"
+          disabled
+          className="w-full py-4 rounded-2xl text-sm font-black bg-slate-50 border border-slate-100 text-slate-400 flex items-center justify-center gap-2 select-none"
+        >
+          جاري ربط اللاعبين...
         </button>
       ) : null}
       {phase === "idle" ? (
-        <button type="button" className="btn btn-ghost btn-block mt-3" onClick={() => router.push("/")}>
-          الرئيسية
-        </button>
+        <motion.button
+          type="button"
+          whileTap={{ scale: 0.96 }}
+          onClick={() => router.push("/")}
+          className="w-full py-3.5 rounded-2xl text-xs font-black bg-slate-50 hover:bg-slate-100 border border-slate-150 text-slate-500 mt-2 transition-transform flex items-center justify-center gap-2"
+          style={{
+            cursor: "pointer",
+          }}
+        >
+          العودة للرئيسية
+        </motion.button>
       ) : null}
-    </>
+    </div>
   );
 
   return (

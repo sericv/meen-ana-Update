@@ -1,44 +1,14 @@
 "use client";
 
+import { motion } from "framer-motion";
 import { ProfileAvatar } from "@/components/profile/ProfileAvatar";
 import { ShellIcon } from "@/components/shell/ShellIcons";
 import { levelFromXp } from "@/lib/profile/level";
+import { EASE_OUT } from "@/lib/motion";
 import type { PlayerCosmetic } from "@/lib/profile/cosmetics";
+import { usePlayerProfileModal } from "@/components/providers/PlayerProfileModalProvider";
 
-const iconBoxStyle = {
-  width: 30,
-  height: 30,
-  borderRadius: 8,
-  background: "linear-gradient(180deg, oklch(0.94 0.07 75), oklch(0.88 0.10 65))",
-  display: "grid",
-  placeItems: "center",
-  color: "oklch(0.40 0.10 50)",
-} as const;
-
-export function ShellSettingRow({
-  label,
-  value,
-  icon,
-}: {
-  label: string;
-  value: string;
-  icon: string;
-}) {
-  return (
-    <div className="row between" style={{ padding: "8px 4px", borderRadius: 10 }}>
-      <div className="row gap-2">
-        <div style={iconBoxStyle}>
-          <ShellIcon name={icon} size={16} />
-        </div>
-        <span className="text-sm fw-6">{label}</span>
-      </div>
-      <div className="row gap-1">
-        <span className="text-sm muted">{value}</span>
-        <ShellIcon name="back" size={16} color="var(--fg-3)" />
-      </div>
-    </div>
-  );
-}
+/* ─── Preserved exports (used by ShellMatchmakingView) ──────────── */
 
 export function ShellLobbyPlayerAvatar({
   displayName,
@@ -109,7 +79,6 @@ export function ShellMatchPlayerBlock({
       style={{ gap: 10, opacity: hidden ? 0.35 : 1, transition: "opacity 0.4s cubic-bezier(0.23,1,0.32,1)" }}
     >
       <div style={{ position: "relative" }}>
-        {/* Outer warm bloom */}
         <div
           className="bloom"
           style={{
@@ -118,7 +87,6 @@ export function ShellMatchPlayerBlock({
             background: `radial-gradient(closest-side, ${side === "me" ? amberGlow : redGlow}, transparent 70%)`,
           }}
         />
-        {/* Tighter accent bloom */}
         <div
           className="bloom"
           style={{
@@ -166,7 +134,63 @@ export function ShellMatchPlayerBlock({
   );
 }
 
+/* ─── Premium Setting Row ───────────────────────────────────────── */
+
+export function ShellSettingRow({
+  label,
+  value,
+  icon,
+}: {
+  label: string;
+  value: string;
+  icon: string;
+}) {
+  const colors: Record<string, string> = {
+    sparkle: "#8B5CF6",
+    flame: "#FB7185",
+    sound: "#06B6D4",
+    chat: "#22C55E",
+    lightbulb: "#FBBF24",
+  };
+  const accent = colors[icon] ?? "#8B5CF6";
+
+  return (
+    <div
+      className="row between"
+      style={{
+        padding: "8px 8px 8px 12px",
+        borderRadius: 14,
+        background: "rgba(245, 243, 255, 0.5)",
+        border: "1px solid rgba(139, 92, 246, 0.06)",
+      }}
+    >
+      <div className="row gap-2.5">
+        <div
+          style={{
+            width: 30,
+            height: 30,
+            borderRadius: 10,
+            background: `linear-gradient(135deg, color-mix(in srgb, ${accent} 18%, white), color-mix(in srgb, ${accent} 8%, white))`,
+            display: "grid",
+            placeItems: "center",
+            color: accent,
+          }}
+        >
+          <ShellIcon name={icon} size={15} />
+        </div>
+        <span className="text-sm fw-7" style={{ fontFamily: "var(--display)" }}>{label}</span>
+      </div>
+      <div className="row gap-1.5">
+        <span className="text-xs fw-6" style={{ color: "var(--fg-2)" }}>{value}</span>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Premium Player Card (Lobby) ──────────────────────────────── */
+
 export function ShellLobbySlotCard({
+  uid,
   name,
   cosmetic,
   photoURL,
@@ -174,7 +198,9 @@ export function ShellLobbySlotCard({
   matchWins,
   ready,
   isMe,
+  roomId,
 }: {
+  uid?: string;
   name: string;
   cosmetic?: PlayerCosmetic;
   photoURL?: string | null;
@@ -182,83 +208,125 @@ export function ShellLobbySlotCard({
   matchWins?: number;
   ready: boolean;
   isMe?: boolean;
+  roomId?: string;
 }) {
+  const { openProfile } = usePlayerProfileModal();
   const level = levelFromXp(xp ?? 0);
   return (
-    <div
-      className="bezel-outer"
-      style={{
-        padding: 5,
-        minHeight: 206,
-        background: ready ? "rgba(255, 176, 58, 0.22)" : "rgba(255, 255, 255, 0.42)",
-        borderColor: ready ? "rgba(255, 159, 10, 0.35)" : "rgba(251, 146, 60, 0.14)",
-        boxShadow: ready ? "0 8px 24px rgba(255, 159, 10, 0.15)" : "0 4px 12px rgba(180, 100, 30, 0.04)",
-        transition: "all 0.35s cubic-bezier(0.23, 1, 0.32, 1)",
-      }}
+    <motion.div
+      initial={{ opacity: 0, y: 16, scale: 0.96 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ duration: 0.35, ease: EASE_OUT }}
+      className="game-card-outer"
+      onClick={uid ? () => openProfile(uid, { roomId, screen: "lobby" }) : undefined}
+      style={{ willChange: "transform", cursor: uid ? "pointer" : "default" }}
     >
       <div
-        className="bezel-inner"
+        className="game-card-inner"
         style={{
-          padding: 14,
-          background: ready 
-            ? "linear-gradient(180deg, #FFFDF0 0%, #FFFDF8 100%)" 
-            : "linear-gradient(180deg, #FFFDF9 0%, #FFF9F0 100%)",
-          borderColor: ready ? "rgba(255, 159, 10, 0.25)" : "rgba(255, 255, 255, 0.75)",
-          height: "100%",
-          width: "100%",
-          borderRadius: 21,
+          padding: 16,
+          background: ready
+            ? "linear-gradient(180deg, #FAFFFE 0%, #F0FDF4 100%)"
+            : "#FFFFFF",
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
-          gap: 8,
+          gap: 10,
+          position: "relative",
+          overflow: "hidden",
         }}
       >
-        {isMe ? (
-          <span className="chip chip-amber" style={{ position: "absolute", top: 10, left: 10, fontSize: 9, padding: "2px 6px" }}>
+        {/* Decorative ambient glow */}
+        <div
+          aria-hidden
+          style={{
+            position: "absolute",
+            top: -40,
+            right: -40,
+            width: 120,
+            height: 120,
+            borderRadius: "50%",
+            background: ready
+              ? "radial-gradient(circle, rgba(52, 211, 153, 0.1) 0%, transparent 70%)"
+              : "radial-gradient(circle, rgba(139, 92, 246, 0.06) 0%, transparent 70%)",
+            pointerEvents: "none",
+          }}
+        />
+
+        {/* "أنت" badge */}
+        {isMe && (
+          <span
+            className="select-none"
+            style={{
+              position: "absolute",
+              top: 10,
+              insetInlineStart: 10,
+              fontSize: 8,
+              fontWeight: 900,
+              padding: "2px 7px",
+              borderRadius: 999,
+              background: "#F5F3FF",
+              color: "#7C3AED",
+              border: "1px solid rgba(139, 92, 246, 0.12)",
+              fontFamily: "var(--display)",
+              letterSpacing: "0.02em",
+            }}
+          >
             أنت
           </span>
-        ) : null}
+        )}
 
+        {/* Avatar */}
         <div style={{ position: "relative" }}>
           <div
-            className="bloom"
+            aria-hidden
             style={{
-              inset: -12,
-              opacity: ready ? 0.75 : 0.32,
-              background: "radial-gradient(closest-side, rgba(255, 159, 10, 0.25), transparent)",
-              transition: "opacity 0.4s ease",
+              position: "absolute",
+              inset: -14,
+              borderRadius: "50%",
+              background: ready
+                ? "radial-gradient(closest-side, rgba(52, 211, 153, 0.18), transparent)"
+                : "radial-gradient(closest-side, rgba(139, 92, 246, 0.10), transparent)",
+              opacity: 0.7,
+              pointerEvents: "none",
             }}
           />
           <ShellLobbyPlayerAvatar displayName={name} cosmetic={cosmetic} photoURL={photoURL} size="md" />
         </div>
 
-        <div className="h-display fw-8 text-md text-[#5e3011]" style={{ letterSpacing: "-0.01em" }}>{name}</div>
+        {/* Name */}
+        <div className="h-display fw-8" style={{ fontSize: 14, color: "#1e293b", lineHeight: 1.2 }}>
+          {name}
+        </div>
 
         {/* Level + wins badge */}
         <div
           style={{
             display: "inline-flex",
             alignItems: "center",
-            gap: 5,
+            gap: 4,
             padding: "3px 10px",
-            borderRadius: 20,
-            background: "linear-gradient(180deg, #FFEAB2 0%, #F5BE50 60%, #E6A933 100%)",
-            boxShadow:
-              "inset 0 1.5px 0 rgba(255,255,255,0.7), inset 0 -1px 0 rgba(160,90,0,0.15), 0 2px 6px rgba(200,130,20,0.18)",
+            borderRadius: 999,
+            background: ready
+              ? "linear-gradient(180deg, #D1FAE5 0%, #A7F3D0 100%)"
+              : "linear-gradient(180deg, #F5F3FF 0%, #EDE9FE 100%)",
+            boxShadow: ready
+              ? "inset 0 1px 0 rgba(255,255,255,0.7), 0 2px 6px rgba(52, 211, 153, 0.12)"
+              : "inset 0 1px 0 rgba(255,255,255,0.7), 0 2px 6px rgba(139, 92, 246, 0.08)",
           }}
         >
           <span
             style={{
-              fontSize: 9.5,
+              fontSize: 9,
               fontWeight: 800,
-              color: "#4f260a",
+              color: ready ? "#047857" : "#6D28D9",
               fontFamily: "var(--display)",
               letterSpacing: "0.01em",
             }}
           >
             مستوى {level}
             {matchWins !== undefined && (
-              <span style={{ opacity: 0.5, margin: "0 4px" }}>·</span>
+              <span style={{ opacity: 0.4, margin: "0 3px" }}>·</span>
             )}
             {matchWins !== undefined && `${matchWins} فوز`}
           </span>
@@ -266,21 +334,35 @@ export function ShellLobbySlotCard({
 
         {/* Ready chip */}
         <div
-          className={`chip ${ready ? "chip-win" : ""}`}
+          className="chip"
           style={{
-            marginTop: 4,
+            marginTop: 2,
             gap: 4,
-            transition: "all 0.3s ease",
-            ...(ready ? {
-              background: "rgba(52, 211, 153, 0.15)",
-              borderColor: "rgba(52, 211, 153, 0.35)",
-              color: "#047857",
-            } : {}),
+            padding: "3px 10px",
+            borderRadius: 999,
+            fontSize: 10,
+            fontWeight: 800,
+            border: "1.5px solid",
+            fontFamily: "var(--display)",
+            transition: "all 0.3s cubic-bezier(0.23, 1, 0.32, 1)",
+            ...(ready
+              ? {
+                  background: "rgba(52, 211, 153, 0.12)",
+                  borderColor: "rgba(52, 211, 153, 0.3)",
+                  color: "#047857",
+                }
+              : {
+                  background: "rgba(148, 163, 184, 0.08)",
+                  borderColor: "rgba(148, 163, 184, 0.2)",
+                  color: "#94A3B8",
+                }),
           }}
         >
           {ready ? (
             <>
-              <ShellIcon name="check" size={11} />
+              <svg width={11} height={11} viewBox="0 0 24 24" fill="none" aria-hidden>
+                <path d="M5 12l5 5L19 7" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
               جاهز
             </>
           ) : (
@@ -288,47 +370,50 @@ export function ShellLobbySlotCard({
           )}
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
 
+/* ─── Premium Waiting Slot ──────────────────────────────────────── */
+
 export function ShellLobbyWaitingSlot() {
   return (
-    <div
-      className="bezel-outer"
+    <motion.div
+      initial={{ opacity: 0, y: 16, scale: 0.96 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ duration: 0.35, ease: EASE_OUT, delay: 0.08 }}
+      className="game-card-outer"
       style={{
-        padding: 5,
-        minHeight: 206,
-        background: "rgba(255,255,255,0.22)",
-        borderColor: "rgba(251, 146, 60, 0.12)",
+        background: "rgba(255,255,255,0.5)",
         borderStyle: "dashed",
-        boxShadow: "none",
+        borderColor: "rgba(139, 92, 246, 0.12)",
+        willChange: "transform",
       }}
     >
       <div
-        className="bezel-inner"
+        className="game-card-inner"
         style={{
-          padding: 16,
-          height: "100%",
-          width: "100%",
-          borderRadius: 21,
+          background: "rgba(255, 255, 255, 0.6)",
           borderStyle: "dashed",
-          borderColor: "rgba(251, 146, 60, 0.25)",
-          background: "transparent",
+          borderColor: "rgba(139, 92, 246, 0.2)",
+          padding: 24,
           display: "flex",
           flexDirection: "column",
+          alignItems: "center",
           justifyContent: "center",
-          gap: 12,
-          minHeight: 194,
+          gap: 14,
+          minHeight: 206,
         }}
       >
-        <div style={{ position: "relative", display: "inline-block", margin: "0 auto" }}>
+        <div style={{ position: "relative" }}>
           <div
-            className="bloom"
+            aria-hidden
             style={{
-              inset: -16,
-              opacity: 0.5,
-              background: "radial-gradient(closest-side, rgba(251, 146, 60, 0.12), transparent)",
+              position: "absolute",
+              inset: -18,
+              borderRadius: "50%",
+              background: "radial-gradient(closest-side, rgba(139, 92, 246, 0.08), transparent)",
+              pointerEvents: "none",
             }}
           />
           <div
@@ -337,37 +422,40 @@ export function ShellLobbyWaitingSlot() {
               width: 64,
               height: 64,
               borderRadius: "50%",
-              background: "rgba(255, 255, 255, 0.7)",
-              border: "1.5px dashed rgba(251, 146, 60, 0.35)",
+              background: "#F5F3FF",
+              border: "2px dashed rgba(139, 92, 246, 0.25)",
               display: "grid",
               placeItems: "center",
-              color: "var(--fg-3)",
+              color: "#8B5CF6",
               margin: "0 auto",
-              boxShadow: "0 2px 8px rgba(180, 100, 30, 0.03)",
             }}
           >
-            <ShellIcon name="plus" size={24} />
+            <ShellIcon name="plus" size={26} />
           </div>
         </div>
-        <div>
-          <div className="h-display fw-8 text-sm text-[#5e3011]">بانتظار خصم</div>
-          <div className="text-xs muted" style={{ marginTop: 2 }}>شارك الرمز لبدء اللعب</div>
-          <div className="row center gap-1.5 mt-2">
-            {[0, 1, 2].map((i) => (
-              <span
-                key={i}
-                className="dot pulse"
-                style={{
-                  color: "rgba(251, 146, 60, 0.8)",
-                  width: 5,
-                  height: 5,
-                  animationDelay: `${-i * 0.4}s`,
-                }}
-              />
-            ))}
+        <div className="col center" style={{ gap: 4 }}>
+          <div className="h-display fw-8" style={{ fontSize: 14, color: "#475569" }}>
+            بانتظار خصم
           </div>
+          <div className="text-xs fw-6" style={{ color: "#94A3B8" }}>
+            شارك الرمز لبدء اللعب
+          </div>
+        </div>
+        <div className="row center" style={{ gap: 5 }}>
+          {[0, 1, 2].map((i) => (
+            <span
+              key={i}
+              className="dot pulse"
+              style={{
+                background: "#8B5CF6",
+                width: 5,
+                height: 5,
+                animationDelay: `${-i * 0.4}s`,
+              }}
+            />
+          ))}
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }

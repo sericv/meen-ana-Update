@@ -3,13 +3,12 @@
 import { memo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ProfileAvatar } from "@/components/profile/ProfileAvatar";
-import { GameplayTurnArc } from "@/components/game/play/GameplayTurnArc";
-import { GP } from "@/components/game/play/tokens";
-import { EASE_OUT } from "@/lib/motion";
+import { usePlayerProfileModal } from "@/components/providers/PlayerProfileModalProvider";
+import { PlayerTimerRing } from "@/components/game/play/PlayerTimerRing";
 import { useSecLeft } from "@/hooks/useSecLeft";
+import { EASE_OUT } from "@/lib/motion";
 import type { PlayerCosmetic } from "@/lib/profile/cosmetics";
 import type { Timestamp } from "firebase/firestore";
-
 
 type PlayerProps = {
   name: string;
@@ -17,22 +16,41 @@ type PlayerProps = {
   cosmetic?: PlayerCosmetic | null;
   photoURL?: string | null;
   active: boolean;
-  reverse?: boolean;
+  secLeft: number | null;
+  maxPhaseSec: number;
+  roomId?: string | null;
+  matchId?: string | null;
 };
 
-// memo — only re-renders when player identity or active flag changes, not on every clock tick
-const PlayerCorner = memo(function PlayerCorner({ name, uid, cosmetic, photoURL, active, reverse }: PlayerProps) {
+const PlayerCorner = memo(function PlayerCorner({
+  name,
+  uid,
+  cosmetic,
+  photoURL,
+  active,
+  secLeft,
+  maxPhaseSec,
+  roomId,
+  matchId,
+}: PlayerProps) {
+  const { openProfile } = usePlayerProfileModal();
   return (
-    <div
-      className="flex min-w-0 items-center gap-2"
-      style={{
-        flexDirection: reverse ? "row-reverse" : "row",
+    <motion.div
+      className="relative flex flex-col items-center gap-1 cursor-pointer select-none"
+      onClick={uid ? () => openProfile(uid, { roomId, matchId, screen: "gameplay" }) : undefined}
+      animate={{
+        scale: active ? 1 : 0.88,
         opacity: active ? 1 : 0.5,
-        filter: active ? "none" : "grayscale(0.7)",
-        transition: "opacity 0.3s, filter 0.3s",
       }}
+      transition={{ duration: 0.4, ease: EASE_OUT }}
     >
-      <div className="relative shrink-0">
+      {/* Avatar with timer ring */}
+      <PlayerTimerRing
+        active={active}
+        secLeft={secLeft}
+        maxSec={maxPhaseSec}
+        size="sm"
+      >
         <ProfileAvatar
           cosmetic={uid ? cosmetic : null}
           fallbackPhotoURL={photoURL}
@@ -41,20 +59,40 @@ const PlayerCorner = memo(function PlayerCorner({ name, uid, cosmetic, photoURL,
           active={false}
           idle={false}
         />
-      </div>
+      </PlayerTimerRing>
 
-      <div
-        className="flex min-w-0 flex-col"
-        style={{ alignItems: reverse ? "flex-end" : "flex-start", lineHeight: 1.1 }}
-      >
-        <span
-          className="max-w-[5.5rem] truncate text-sm font-extrabold"
-          style={{ color: active ? GP.ink : GP.inkSoft }}
+      {/* Countdown label */}
+      {active && secLeft !== null && (
+        <motion.span
+          className="font-black tabular-nums select-none"
+          style={{
+            fontSize: 9,
+            color: "#8B5CF6",
+            fontFamily: "var(--display)",
+            lineHeight: 1,
+          }}
+          initial={{ opacity: 0, y: 4 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, ease: EASE_OUT }}
         >
-          {name}
-        </span>
-      </div>
-    </div>
+          {secLeft}
+        </motion.span>
+      )}
+
+      {/* Name */}
+      <span
+        className="truncate text-center font-black leading-tight"
+        style={{
+          fontSize: active ? 12 : 10,
+          color: active ? "#374151" : "#9CA3AF",
+          fontFamily: "var(--display)",
+          maxWidth: 80,
+          transition: "color 0.3s, font-size 0.3s",
+        }}
+      >
+        {name}
+      </span>
+    </motion.div>
   );
 });
 
@@ -67,14 +105,11 @@ type Props = {
   opponentCosmetic?: PlayerCosmetic | null;
   myPhotoURL?: string | null;
   myTurn: boolean;
-  /**
-   * Firestore deadline timestamp — the TopBar owns the 200ms countdown
-   * internally via useSecLeft so the parent (GameplaySocialSurface / RoomExperience)
-   * never has to hold a fast-ticking clock state.
-   */
   turnDeadline: Timestamp | null | undefined;
   maxPhaseSec: number;
   phase: string;
+  roomId?: string | null;
+  matchId?: string | null;
 };
 
 export const GameplayTopBar = memo(function GameplayTopBar({
@@ -89,75 +124,77 @@ export const GameplayTopBar = memo(function GameplayTopBar({
   turnDeadline,
   maxPhaseSec,
   phase,
+  roomId,
+  matchId,
 }: Props) {
-  // The countdown lives here — changes to secLeft only re-render this subtree,
-  // not RoomExperience or GameplaySocialSurface.
   const secLeft = useSecLeft(turnDeadline, myTurn || true);
 
   const turnLabel = myTurn
-    ? phase === "answer"
-      ? "دورك تجيب"
-      : "دورك تسأل"
+    ? phase === "answer" ? "دورك تجيب" : "دورك تسأل"
     : "دور الخصم";
 
-  const turnColor = myTurn ? GP.gold : GP.rose;
-
   return (
-    <div
-      dir="ltr"
-      className="bezel-outer mx-3.5 my-2 px-1 py-1"
-      style={{
-        background: "rgba(255, 255, 255, 0.42)",
-        borderColor: "rgba(251, 146, 60, 0.12)",
-        boxShadow: "0 4px 16px rgba(180, 100, 30, 0.03)",
-        borderRadius: 24,
-        flexShrink: 0,
-      }}
-    >
+    <div className="mx-4 mt-4 relative z-10">
       <div
-        className="bezel-inner grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-3 py-2"
+        className="flex items-center justify-center gap-4 rounded-2xl px-4 py-3"
         style={{
-          background: "linear-gradient(180deg, #FFFDF9 0%, #FFFBF5 100%)",
-          borderColor: "rgba(255, 255, 255, 0.75)",
-          borderRadius: 18,
+          background: "#FFFFFF",
+          boxShadow: "0 2px 8px rgba(139,92,246,0.04), 0 4px 16px rgba(0,0,0,0.02)",
         }}
       >
+        {/* Opponent */}
+        <PlayerCorner
+          name={opponentName}
+          uid={opponentUid}
+          cosmetic={opponentCosmetic}
+          active={!myTurn}
+          secLeft={secLeft}
+          maxPhaseSec={maxPhaseSec}
+          roomId={roomId}
+          matchId={matchId}
+        />
+
+        {/* Turn badge */}
+        <div className="flex shrink-0 items-center">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={turnLabel}
+              initial={{ opacity: 0, y: 4, scale: 0.92 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -3, scale: 0.94 }}
+              className="flex items-center gap-1.5 rounded-full px-3 py-1.5 select-none"
+              style={{
+                background: myTurn
+                  ? "linear-gradient(135deg, #F5F3FF 0%, #EDE9FE 100%)"
+                  : "linear-gradient(135deg, #FEF2F2 0%, #FEE2E2 100%)",
+                border: `1px solid ${myTurn ? "rgba(139,92,246,0.12)" : "rgba(239,68,68,0.12)"}`,
+              }}
+            >
+              <span
+                className="font-black leading-none"
+                style={{
+                  fontSize: 10,
+                  color: myTurn ? "#8B5CF6" : "#EF4444",
+                  fontFamily: "var(--display)",
+                }}
+              >
+                {turnLabel}
+              </span>
+            </motion.div>
+          </AnimatePresence>
+        </div>
+
+        {/* Me */}
         <PlayerCorner
           name={myName}
           uid={myUid}
           cosmetic={myCosmetic}
           photoURL={myPhotoURL}
           active={myTurn}
-          reverse
-        />
-
-        {/* Center: arc + turn label */}
-        <div className="flex flex-col items-center gap-1">
-          <GameplayTurnArc secLeft={secLeft} maxSec={maxPhaseSec} active={myTurn} />
-          <AnimatePresence mode="wait">
-            <motion.span
-              key={turnLabel}
-              initial={{ opacity: 0, y: 4, scale: 0.92 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -3, scale: 0.94 }}
-              transition={{ duration: 0.22, ease: EASE_OUT }}
-              className="text-[10px] font-extrabold px-2 py-0.5 rounded-full"
-              style={{
-                color: turnColor,
-                background: `${turnColor}14`,
-                border: `1px solid ${turnColor}25`,
-              }}
-            >
-              {turnLabel}
-            </motion.span>
-          </AnimatePresence>
-        </div>
-
-        <PlayerCorner
-          name={opponentName}
-          uid={opponentUid}
-          cosmetic={opponentCosmetic}
-          active={!myTurn}
+          secLeft={secLeft}
+          maxPhaseSec={maxPhaseSec}
+          roomId={roomId}
+          matchId={matchId}
         />
       </div>
     </div>

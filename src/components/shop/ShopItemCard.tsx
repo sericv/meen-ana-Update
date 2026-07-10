@@ -1,92 +1,73 @@
 "use client";
 
-/**
- * ShopItemCard — premium collectible card.
- *
- * Visual language:
- *  - All cards share the same warm cream base — rarity is never "painted" on.
- *  - Rarity shows through: thin 3px top accent bar, subtle border tint,
- *    a small ambient orb glow behind the icon, and a tiny dot on the chip.
- *  - Icon zone: tall warm zone, rarity-tinted radial halo, floating icon.
- *  - Info strip: clean hierarchy — name, subtitle, price + CTA.
- *
- * Motion:
- *  - whileTap scale(0.97), spring — tactile press
- *  - CSS float keyframe on icon — compositor only, no JS
- *  - No looping Framer Motion animations on the card shell
- *
- * Performance:
- *  - React.memo, contain: layout style paint
- *  - willChange: transform on icon only
- */
-
 import { motion, useReducedMotion } from "framer-motion";
 import { useCallback, memo } from "react";
 import { ShellCoin } from "@/components/shell/ShellCoin";
 
-type Rarity = "common" | "rare" | "epic" | "legendary";
+export type Rarity = "common" | "rare" | "epic" | "legendary" | "mythic";
 
-/* ── Rarity tokens ─────────────────────────────────────────────── */
 const RARITY: Record<Rarity, {
   label: string;
-  /** Tiny colored dot shown inside the rarity chip */
   dot: string;
-  /** 3px accent bar across the top of the card */
   accentBar: string;
-  /** Radial orb behind the icon */
   iconOrb: string;
-  /** Icon color */
   iconColor: string;
-  /** Card border tint */
   border: string;
-  /** Outer ambient shadow (rarity-tinted) */
-  shadow: string;
-  /** Float animation name */
+  bgGlow: string;
   float: string;
 }> = {
   common: {
     label: "عادي",
-    dot: "oklch(0.72 0.10 68)",
-    accentBar: "linear-gradient(90deg, oklch(0.78 0.10 72), oklch(0.68 0.12 60))",
-    iconOrb: "radial-gradient(circle at 50% 60%, oklch(0.88 0.10 72 / .55) 0%, transparent 65%)",
-    iconColor: "oklch(0.44 0.10 60)",
-    border: "oklch(0.82 0.07 70 / .50)",
-    shadow: "0 3px 14px oklch(0.68 0.08 65 / .10)",
+    dot: "bg-slate-400",
+    accentBar: "from-slate-400 to-slate-500",
+    iconOrb: "from-slate-100 to-transparent",
+    iconColor: "text-slate-500",
+    border: "border-slate-200/50",
+    bgGlow: "bg-slate-500/5",
     float: "shopFloat",
   },
   rare: {
     label: "نادر",
-    dot: "oklch(0.58 0.14 238)",
-    accentBar: "linear-gradient(90deg, oklch(0.62 0.14 238), oklch(0.52 0.16 228))",
-    iconOrb: "radial-gradient(circle at 50% 60%, oklch(0.80 0.12 238 / .45) 0%, transparent 65%)",
-    iconColor: "oklch(0.46 0.14 236)",
-    border: "oklch(0.72 0.10 236 / .38)",
-    shadow: "0 3px 16px oklch(0.58 0.14 236 / .13)",
+    dot: "bg-cyan-500",
+    accentBar: "from-cyan-400 to-cyan-500",
+    iconOrb: "from-cyan-100/50 to-transparent",
+    iconColor: "text-cyan-600",
+    border: "border-cyan-200/50",
+    bgGlow: "bg-cyan-500/5",
     float: "shopFloat",
   },
   epic: {
     label: "ملحمي",
-    dot: "oklch(0.56 0.18 288)",
-    accentBar: "linear-gradient(90deg, oklch(0.60 0.18 290), oklch(0.52 0.20 272))",
-    iconOrb: "radial-gradient(circle at 50% 60%, oklch(0.76 0.14 285 / .42) 0%, transparent 65%)",
-    iconColor: "oklch(0.50 0.16 284)",
-    border: "oklch(0.68 0.12 284 / .36)",
-    shadow: "0 3px 18px oklch(0.56 0.16 282 / .14)",
+    dot: "bg-purple-500",
+    accentBar: "from-purple-400 to-purple-500",
+    iconOrb: "from-purple-100/50 to-transparent",
+    iconColor: "text-purple-600",
+    border: "border-purple-200/50",
+    bgGlow: "bg-purple-500/5",
     float: "shopFloatSlow",
   },
   legendary: {
     label: "أسطوري",
-    dot: "oklch(0.72 0.20 68)",
-    accentBar: "linear-gradient(90deg, oklch(0.82 0.20 74), oklch(0.68 0.22 60))",
-    iconOrb: "radial-gradient(circle at 50% 60%, oklch(0.88 0.16 72 / .55) 0%, transparent 65%)",
-    iconColor: "oklch(0.50 0.18 66)",
-    border: "oklch(0.76 0.14 70 / .48)",
-    shadow: "0 4px 20px oklch(0.70 0.18 70 / .18)",
+    dot: "bg-amber-500",
+    accentBar: "from-amber-400 to-amber-500",
+    iconOrb: "from-amber-100/50 to-transparent",
+    iconColor: "text-amber-600",
+    border: "border-amber-200/50",
+    bgGlow: "bg-amber-500/5",
+    float: "shopFloatSlow",
+  },
+  mythic: {
+    label: "خرافي",
+    dot: "bg-rose-500",
+    accentBar: "from-rose-500 to-red-500",
+    iconOrb: "from-rose-100 to-transparent",
+    iconColor: "text-rose-600",
+    border: "border-rose-300/50",
+    bgGlow: "bg-rose-500/10",
     float: "shopFloatSlow",
   },
 };
 
-/* ── CSS keyframes (injected once via <style>) ──────────────────── */
 const CSS = `
   @keyframes shopFloat {
     0%, 100% { transform: translateY(0px);   }
@@ -98,7 +79,6 @@ const CSS = `
   }
 `;
 
-/* ── Types ─────────────────────────────────────────────────────── */
 export interface ShopItemCardProps {
   id: string;
   name: string;
@@ -116,11 +96,9 @@ export interface ShopItemCardProps {
   onBuy?: () => void;
   onEquip?: () => void;
   showOwnedCount?: boolean;
-  /** @deprecated — ignored */
-  preview?: React.ReactNode;
+  teaser?: boolean;
 }
 
-/* ── Component ──────────────────────────────────────────────────── */
 export const ShopItemCard = memo(function ShopItemCard({
   name,
   subtitle,
@@ -136,303 +114,167 @@ export const ShopItemCard = memo(function ShopItemCard({
   onBuy,
   onEquip,
   showOwnedCount = false,
+  teaser = false,
 }: ShopItemCardProps) {
   const reduced = useReducedMotion();
   const rs = RARITY[rarity];
 
-  const handleBuy = useCallback((e: React.MouseEvent | React.TouchEvent) => {
+  const handleBuy = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     onBuy?.();
   }, [onBuy]);
 
-  const handleEquip = useCallback((e: React.MouseEvent | React.TouchEvent) => {
+  const handleEquip = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     onEquip?.();
   }, [onEquip]);
 
   return (
     <motion.article
-      whileTap={reduced ? {} : { scale: 0.97 }}
-      transition={{ type: "spring", stiffness: 440, damping: 30 }}
-      className="bezel-outer"
-      style={{
-        padding: 4.5,
-        background: "rgba(255, 255, 255, 0.45)",
-        borderColor: rs.border,
-        boxShadow: `0 6px 16px rgba(180, 100, 30, 0.05)`,
-        cursor: "pointer",
-        userSelect: "none",
-        WebkitTapHighlightColor: "transparent",
-        display: "flex",
-        flexDirection: "column",
-        willChange: "transform",
-        borderRadius: 20,
-        transition: "box-shadow 0.24s cubic-bezier(0.23,1,0.32,1), border-color 0.24s cubic-bezier(0.23,1,0.32,1)",
-      }}
+      whileTap={reduced || teaser ? {} : { scale: 0.97 }}
+      transition={{ type: "spring", stiffness: 400, damping: 20 }}
+      className={`game-card-outer flex flex-col relative overflow-hidden ${teaser ? "opacity-75 grayscale-[20%]" : ""}`}
     >
+      {/* 3px accent bar */}
+      <div className={`absolute top-0 inset-x-0 h-[3px] bg-gradient-to-r ${rs.accentBar}`} />
+
+      {/* Sparks particles background in low opacity */}
+      <div className="absolute inset-0 pointer-events-none opacity-5 flex items-center justify-between px-4">
+        <span className="text-xs">✦</span>
+        <span className="text-xs mt-8">✦</span>
+      </div>
+
       <div
-        className="bezel-inner relative flex h-full w-full flex-col overflow-hidden"
-        style={{
-          borderRadius: 15,
-          background: "linear-gradient(168deg, #FFFDF9 0%, #FFF9F0 100%)",
-          borderColor: "rgba(255, 255, 255, 0.8)",
-          flex: "1 1 auto",
-          display: "flex",
-          flexDirection: "column",
-        }}
+        className={`game-card-inner relative flex h-full w-full flex-col overflow-hidden p-4 bg-white border border-slate-100 rounded-[22px] shadow-sm gap-3 text-right`}
       >
-      {/* ── Rarity accent bar (top 3px) ── */}
-      <div
-        aria-hidden
-        style={{
-          height: 3,
-          background: rs.accentBar,
-          flexShrink: 0,
-          opacity: 0.82,
-        }}
-      />
+        {/* Rarity Label Row */}
+        <div className="flex justify-between items-center w-full">
+          <span 
+            className={`text-[8.5px] font-black px-2.5 py-0.5 rounded-full select-none ${
+              rarity === "mythic" ? "bg-rose-50 text-rose-600" :
+              rarity === "legendary" ? "bg-amber-50 text-amber-700" : 
+              rarity === "epic" ? "bg-purple-50 text-purple-700" : 
+              rarity === "rare" ? "bg-cyan-50 text-cyan-700" : "bg-slate-50 text-slate-500"
+            }`}
+          >
+            {rs.label}
+          </span>
+          <span className={`w-1.5 h-1.5 rounded-full ${rs.dot}`} />
+        </div>
 
-      {/* ── Icon Zone ── */}
-      <div
-        style={{
-          position: "relative",
-          height: 100,
-          /* Unified warm cream background — rarity only in the orb, not the zone */
-          background: "linear-gradient(175deg, oklch(0.975 0.018 78) 0%, oklch(0.940 0.024 74) 100%)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          overflow: "hidden",
-        }}
-      >
-        {/* Top specular — soft white streak */}
+        {/* Icon Zone */}
         <div
-          aria-hidden
-          style={{
-            position: "absolute",
-            top: 0,
-            left: "15%",
-            right: "15%",
-            height: 3,
-            background: "rgba(255,255,255,0.52)",
-            borderRadius: "0 0 999px 999px",
-            filter: "blur(1px)",
-            pointerEvents: "none",
-          }}
-        />
-
-        {/* Rarity orb — ambient halo behind the icon */}
-        <div
-          aria-hidden
-          style={{
-            position: "absolute",
-            inset: 0,
-            background: rs.iconOrb,
-            pointerEvents: "none",
-          }}
-        />
-
-        {/* Bottom inner shadow for depth */}
-        <div
-          aria-hidden
-          style={{
-            position: "absolute",
-            bottom: 0,
-            left: 0,
-            right: 0,
-            height: 28,
-            background: "linear-gradient(0deg, oklch(0.88 0.02 70 / .22) 0%, transparent 100%)",
-            pointerEvents: "none",
-          }}
-        />
-
-        {/* Floating icon */}
-        <div
-          style={{
-            color: rs.iconColor,
-            animation: reduced ? "none" : `${rs.float} 3.4s ease-in-out infinite`,
-            willChange: "transform",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            filter: rarity === "legendary"
-              ? "drop-shadow(0 2px 8px oklch(0.70 0.20 68 / .35))"
-              : rarity === "epic"
-                ? "drop-shadow(0 2px 7px oklch(0.56 0.18 284 / .30))"
-                : rarity === "rare"
-                  ? "drop-shadow(0 1px 6px oklch(0.58 0.14 236 / .28))"
-                  : "drop-shadow(0 1px 4px rgba(0,0,0,0.10))",
-          }}
+          className={`relative w-full rounded-xl flex items-center justify-center overflow-hidden border border-slate-50 ${rs.bgGlow}`}
+          style={{ height: 96 }}
         >
-          <IconZoneWrapper>{icon}</IconZoneWrapper>
-        </div>
-
-        {/* Owned count badge — top left */}
-        {showOwnedCount && typeof ownedCount === "number" && ownedCount > 0 && (
+          {/* Ambient orb backdrop */}
           <div
+            aria-hidden
+            className={`absolute inset-0 bg-gradient-to-b ${rs.iconOrb}`}
+            style={{ pointerEvents: "none" }}
+          />
+
+          {/* Floating item icon */}
+          <div
+            className={rs.iconColor}
             style={{
-              position: "absolute",
-              top: 7,
-              left: 8,
-              background: "oklch(0.22 0.04 45 / .68)",
-              color: "oklch(0.96 0.04 78)",
-              fontSize: 9,
-              fontWeight: 800,
-              fontFamily: "var(--display)",
-              padding: "2px 7px",
-              borderRadius: 20,
-              letterSpacing: "0.03em",
-              lineHeight: 1.7,
-              backdropFilter: "blur(4px)",
-              WebkitBackdropFilter: "blur(4px)",
+              animation: reduced || teaser ? "none" : `${rs.float} 3.4s ease-in-out infinite`,
+              willChange: "transform",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
             }}
           >
-            ×{ownedCount}
+            <IconZoneWrapper>{icon}</IconZoneWrapper>
           </div>
-        )}
 
-        {/* Rarity indicator — dot only, no text */}
-        <div
-          style={{
-            position: "absolute",
-            top: 8,
-            right: 9,
-            width: 8,
-            height: 8,
-            borderRadius: "50%",
-            background: rs.dot,
-            boxShadow: `0 0 6px ${rs.dot}, 0 0 12px ${rs.dot}55`,
-            border: "1.5px solid rgba(255,255,255,0.55)",
-          }}
-          aria-hidden
-        />
-      </div>
-
-      {/* ── Info Strip ── */}
-      <div
-        style={{
-          padding: "11px 12px 12px",
-          display: "flex",
-          flexDirection: "column",
-          gap: 9,
-          flex: 1,
-        }}
-      >
-        {/* Name + subtitle */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
-          <div
-            style={{
-              fontFamily: "var(--display)",
-              fontWeight: 800,
-              fontSize: 13.5,
-              color: "oklch(0.24 0.05 44)",
-              lineHeight: 1.2,
-              letterSpacing: "-0.01em",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {name}
-          </div>
-          {subtitle && (
+          {/* Owned count badge */}
+          {showOwnedCount && typeof ownedCount === "number" && ownedCount > 0 && (
             <div
-              style={{
-                fontSize: 10.5,
-                color: "oklch(0.52 0.05 56)",
-                fontFamily: "var(--display)",
-                fontWeight: 500,
-                lineHeight: 1.35,
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
+              className="absolute bottom-2 left-2 bg-slate-900/60 text-white font-extrabold text-[9px] px-2 py-0.5 rounded-full backdrop-blur-[2px]"
             >
+              ×{ownedCount}
+            </div>
+          )}
+        </div>
+
+        {/* Item Info (Name, Subtitle) */}
+        <div className="flex flex-col gap-1 min-h-[42px] justify-center">
+          <h4 className="h-display text-xs font-black text-slate-800 leading-tight">
+            {name}
+          </h4>
+          {subtitle && (
+            <p className="text-[9px] text-slate-400 font-bold leading-normal">
               {subtitle}
-            </div>
+            </p>
           )}
         </div>
 
-        {/* Divider */}
-        <div
-          aria-hidden
-          style={{
-            height: 1,
-            background: "oklch(0.88 0.04 70 / .45)",
-            margin: "0 -1px",
-          }}
-        />
+        <div className="border-t border-slate-100 my-0.5" />
 
-        {/* Price + CTA */}
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          {!owned && (
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <ShellCoin value={price} compact />
-            </div>
-          )}
-          {owned && <div style={{ flex: 1 }} />}
-
-          {owned ? (
-            onEquip ? (
-              <motion.button
-                type="button"
-                whileTap={{ scale: 0.92 }}
-                onClick={handleEquip}
-                onTouchEnd={handleEquip}
-                disabled={busy || equipped}
-                className="btn btn-primary btn-sm"
-                style={{ minWidth: 60, fontSize: 11.5, padding: "5px 10px", borderRadius: 10 }}
-              >
-                {busy ? "…" : equipped ? "مفعّل" : "تجهيز"}
-              </motion.button>
-            ) : (
-              <span
-                style={{
-                  fontSize: 10,
-                  fontWeight: 700,
-                  fontFamily: "var(--display)",
-                  color: "oklch(0.46 0.12 74)",
-                  background: "oklch(0.91 0.08 78 / .65)",
-                  padding: "3px 9px",
-                  borderRadius: 20,
-                  border: "1px solid oklch(0.80 0.08 74 / .40)",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                تمتلكه
-              </span>
-            )
+        {/* Price & CTA Button */}
+        <div className="flex items-center justify-between w-full mt-auto">
+          
+          {/* Teaser state */}
+          {teaser ? (
+            <>
+              <span className="text-[9px] font-black text-slate-400">قريبًا جداً</span>
+              <span className="text-[9px] font-black text-slate-400 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded">مغلق</span>
+            </>
           ) : (
-            <motion.button
-              type="button"
-              whileTap={{ scale: 0.90 }}
-              onClick={handleBuy}
-              onTouchEnd={handleBuy}
-              disabled={!canBuy || busy}
-              className="btn btn-primary btn-sm"
-              style={{
-                minWidth: 54,
-                fontSize: 12,
-                padding: "5px 13px",
-                borderRadius: 10,
-                opacity: insufficientCoins ? 0.42 : 1,
-                fontWeight: 800,
-                flexShrink: 0,
-                transition: "opacity 0.18s",
-              }}
-            >
-              {busy ? "…" : "شراء"}
-            </motion.button>
+            <>
+              {!owned && (
+                <div className="flex-1 text-right">
+                  <ShellCoin value={price} compact />
+                </div>
+              )}
+              {owned && <div className="flex-1" />}
+
+              {owned ? (
+                onEquip ? (
+                  <motion.button
+                    type="button"
+                    whileTap={{ scale: 0.95 }}
+                    onClick={handleEquip}
+                    disabled={busy || equipped}
+                    className="px-3.5 py-1.5 rounded-xl text-[10px] font-black transition-all bg-slate-50 border border-slate-200 text-slate-700 active:scale-95 disabled:bg-purple-50 disabled:border-purple-100 disabled:text-[#7C3AED]"
+                    style={{ cursor: "pointer" }}
+                  >
+                    {busy ? "…" : equipped ? "مفعّل" : "تجهيز"}
+                  </motion.button>
+                ) : (
+                  <span className="text-[9px] font-black text-slate-400 bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-xl">
+                    تمتلكه
+                  </span>
+                )
+              ) : (
+                <motion.button
+                  type="button"
+                  whileTap={{ scale: 0.95 }}
+                  onClick={handleBuy}
+                  disabled={!canBuy || busy}
+                  className="px-4 py-1.5 rounded-xl text-[10px] font-black transition-all bg-gradient-to-r from-purple-600 to-purple-400 border border-purple-800 text-white shadow-sm active:scale-95 disabled:opacity-40"
+                  style={{ cursor: "pointer" }}
+                >
+                  {busy ? (
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="animate-spin">
+                      <circle cx="12" cy="12" r="10" />
+                    </svg>
+                  ) : (
+                    "شراء"
+                  )}
+                </motion.button>
+              )}
+            </>
           )}
+
         </div>
-      </div>
       </div>
       <style>{CSS}</style>
     </motion.article>
   );
 });
 
-/* ── Icon zone wrapper ──────────────────────────────────────────── */
 function IconZoneWrapper({ children }: { children: React.ReactNode }) {
   return (
     <div

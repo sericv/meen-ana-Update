@@ -72,7 +72,7 @@ export type GameplaySocialSurfaceProps = {
   chatEndRef: RefObject<HTMLDivElement | null>;
   draft: string;
   onDraftChange: (v: string) => void;
-  onSendDraft: () => void | Promise<void>;
+  onSendDraft: (customText?: string) => void | Promise<void>;
   busy: boolean;
   onGuessClick: () => void;
   onComposerFocus: (el: HTMLInputElement) => void;
@@ -195,9 +195,33 @@ export const GameplaySocialSurface = memo(function GameplaySocialSurface({
     <motion.div
       layout
       className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
+      style={{ background: "var(--home-bg, #FCFCFA)" }}
       dir="rtl"
     >
-      <div className="shrink-0 px-3 pt-1">
+      {/* Premium decorative elements */}
+      <div className="absolute pointer-events-none select-none home-deco-bob" style={{ top: "12%", left: "6%", opacity: 0.08 }}>
+        <svg width={24} height={30} fill="none" aria-hidden>
+          <path d="M12 8c-4 0-7 2.7-7 6.5" stroke="#C4B5FD" strokeWidth={2.5} strokeLinecap="round" />
+          <path d="M12 3c-6.5 0-11.5 4.5-11.5 11" stroke="#DDD6FE" strokeWidth={2.5} strokeLinecap="round" />
+          <circle cx={12} cy={22} r={2.5} fill="#C4B5FD" />
+        </svg>
+      </div>
+      <div className="absolute pointer-events-none select-none home-deco-bob-delayed" style={{ top: "55%", right: "4%", opacity: 0.06 }}>
+        <svg width={18} height={22} fill="none" aria-hidden>
+          <path d="M9 6c-3 0-5 2-5 5" stroke="#FECDD3" strokeWidth={2} strokeLinecap="round" />
+          <path d="M9 2c-4.5 0-8 3.5-8 8" stroke="#FDA4AF" strokeWidth={2} strokeLinecap="round" />
+          <circle cx={9} cy={16} r={2} fill="#FECDD3" />
+        </svg>
+      </div>
+      <div className="absolute pointer-events-none select-none home-deco-drift" style={{ bottom: "20%", left: "10%", opacity: 0.06 }}>
+        <svg width={14} height={14} fill="none" aria-hidden>
+          <path d="M7 2l1.5 3.5H12l-2.5 2 1 4L7 9 4 11.5l1-4L2.5 5.5H6z" fill="#FDE68A" />
+        </svg>
+      </div>
+      <div className="absolute pointer-events-none select-none home-deco-pulse" style={{ top: "40%", right: "12%", width: 5, height: 5, borderRadius: "50%", background: "#DDD6FE", opacity: 0.15 }} />
+      <div className="absolute pointer-events-none select-none home-deco-pulse" style={{ bottom: "35%", left: "4%", width: 3, height: 3, borderRadius: "50%", background: "#BAE6FD", opacity: 0.12 }} />
+
+      <div className="shrink-0 px-3 pt-1 relative z-10">
         <AnimatePresence>
           {banner ? (
             <motion.p
@@ -205,7 +229,7 @@ export const GameplaySocialSurface = memo(function GameplaySocialSurface({
               initial={{ opacity: 0, y: -6 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
-              className="rounded-2xl border px-4 py-2 text-center text-[11px] font-extrabold"
+              className="rounded-2xl border px-4 py-2 text-center text-[10px] font-black"
               style={{
                 borderColor: `${GP.orangeSoft}cc`,
                 color: "#9a5f2d",
@@ -218,7 +242,7 @@ export const GameplaySocialSurface = memo(function GameplaySocialSurface({
         </AnimatePresence>
         {matchSyncWaiting ? (
           <p
-            className="mt-1.5 rounded-xl border px-3 py-1.5 text-center text-[10.5px] font-semibold"
+            className="mt-1.5 rounded-xl border px-3 py-1.5 text-center text-[10px] font-black"
             style={{
               borderColor: GP.creamDeep,
               background: "rgba(255,249,239,0.95)",
@@ -244,19 +268,89 @@ export const GameplaySocialSurface = memo(function GameplaySocialSurface({
             turnDeadline={turnDeadline}
             maxPhaseSec={maxPhaseSec}
             phase={phase}
+            roomId={roomId}
+            matchId={matchId}
           />
 
-          <div
-            className="mx-3 mt-1.5 flex flex-wrap items-center justify-between gap-2 rounded-xl border px-3 py-2"
-            style={{
-              borderColor: "rgba(244,196,141,0.45)",
-              background: "rgba(255,255,255,0.88)",
-            }}
-          >
-            <GuessRemainingIndicator remaining={myGuessRemaining} compact />
-            <span className="text-[10px] font-bold" style={{ color: GP.inkSoft }}>
-              الخصم: {opponentGuessRemaining}/3
-            </span>
+          <div className="mx-4 mt-3 z-10 relative">
+            <div
+              className="w-full flex items-center justify-between gap-2 text-right"
+              style={{
+                background: "#FFFFFF",
+                borderRadius: 18,
+                padding: "10px 14px",
+                boxShadow: "0 2px 8px rgba(139,92,246,0.04), 0 4px 16px rgba(0,0,0,0.02)",
+              }}
+            >
+              {/* Round indicator */}
+              <div className="flex items-center gap-2">
+                <div
+                  className="flex items-center justify-center font-black text-xs"
+                  style={{
+                    width: 28,
+                    height: 28,
+                    borderRadius: 10,
+                    background: "#F5F3FF",
+                    color: "#8B5CF6",
+                    fontFamily: "var(--display)",
+                  }}
+                >
+                  {Math.floor((match?.questionCountTotal ?? 0) / 2) + 1}
+                </div>
+                <div className="flex flex-col" style={{ lineHeight: 1.15 }}>
+                  <span
+                    className="text-[10px] font-black"
+                    style={{ color: "#374151", fontFamily: "var(--display)" }}
+                  >
+                    الجولة
+                  </span>
+                  <span className="text-[7px] font-bold" style={{ color: "#9CA3AF" }}>
+                    مواجهة تخمين
+                  </span>
+                </div>
+              </div>
+
+              {/* Guesses */}
+              <div className="flex items-center gap-2">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: "50%",
+                      background: i < myGuessRemaining ? "#8B5CF6" : "#EDE9FE",
+                      transition: "background 0.3s ease",
+                    }}
+                  />
+                ))}
+                <span className="text-[7px] font-bold" style={{ color: "#9CA3AF" }}>
+                  {myGuessRemaining}/3
+                </span>
+              </div>
+
+              {/* Phase */}
+              <div className="flex items-center gap-1.5">
+                <span className="text-[8px] font-bold" style={{ color: "#9CA3AF" }}>
+                  {phase === "answer" ? "إجابة" : phase === "guess" ? "تخمين" : "أسئلة"}
+                </span>
+                <div
+                  className="flex items-center justify-center"
+                  style={{
+                    width: 22,
+                    height: 22,
+                    borderRadius: 8,
+                    background: "#F5F3FF",
+                    color: "#8B5CF6",
+                  }}
+                >
+                  <svg width={11} height={11} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10" />
+                    <polyline points="12 6 12 12 16 14" />
+                  </svg>
+                </div>
+              </div>
+            </div>
           </div>
 
           <section className="relative mx-auto w-full max-w-md shrink-0 px-3 pb-1 pt-0">
@@ -284,12 +378,22 @@ export const GameplaySocialSurface = memo(function GameplaySocialSurface({
               ) : null}
 
               <motion.div className="flex w-full flex-col items-center justify-center px-2">
-                <p
-                  className="mb-1 text-center text-[10px] font-bold uppercase tracking-[0.15em]"
-                  style={{ color: GP.inkSoft }}
+                <span
+                  className="mb-2 inline-flex items-center gap-1.5 px-3 py-1 text-[9px] font-extrabold tracking-wider"
+                  style={{
+                    background: "#F5F3FF",
+                    color: "#8B5CF6",
+                    borderRadius: 999,
+                    border: "1px solid rgba(139,92,246,0.08)",
+                    fontFamily: "var(--display)",
+                  }}
                 >
+                  <svg width={10} height={10} viewBox="0 0 24 24" fill="none" aria-hidden>
+                    <rect x="3" y="5" width="18" height="14" rx="2" stroke="#8B5CF6" strokeWidth="2" />
+                    <path d="M3 16l5-5 4 4 3-3 6 6" stroke="#8B5CF6" strokeWidth="2" strokeLinejoin="round" />
+                  </svg>
                   بطاقة الخصم
-                </p>
+                </span>
                 <GameplayHeroCard
                   opponentCard={opponentCard}
                   categoryLabel={categoryLabel}
@@ -340,7 +444,7 @@ export const GameplaySocialSurface = memo(function GameplaySocialSurface({
               guessRemaining={myGuessRemaining}
               extraQuestionPending={extraQuestionPending}
               onDraftChange={handleDraftChange}
-              onSend={() => void onSendDraft()}
+              onSend={(customText) => void onSendDraft(customText)}
               onGuess={onGuessClick}
               onComposerFocus={onComposerFocus}
               onComposerBlur={onComposerBlur}

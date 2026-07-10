@@ -1,13 +1,14 @@
 import type { Metadata, Viewport } from "next";
-import { Tajawal, Plus_Jakarta_Sans } from "next/font/google";
+import { Baloo_Bhaijaan_2, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/components/providers/AuthProvider";
+import { PlayerProfileModalProvider } from "@/components/providers/PlayerProfileModalProvider";
 import { GlobalRoomInviteDockLazy } from "@/components/layout/GlobalRoomInviteDockLazy";
 
-const tajawal = Tajawal({
+const balooBhaijaan2 = Baloo_Bhaijaan_2({
   subsets: ["arabic", "latin"],
-  weight: ["400", "500", "700", "800", "900"],
-  variable: "--font-tajawal",
+  weight: ["400", "500", "600", "700", "800"],
+  variable: "--font-baloo",
 });
 
 const plusJakartaSans = Plus_Jakarta_Sans({
@@ -39,10 +40,14 @@ export const metadata: Metadata = {
   description: "لعبة تخمين اجتماعية سريعة عبر الويب",
   icons: {
     icon: [
+      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
       { url: "/icon.png", type: "image/png" },
       { url: "/favicon.ico", sizes: "any" },
     ],
-    apple: "/icon.png",
+    apple: [
+      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+    ],
   },
 };
 
@@ -52,13 +57,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ar" dir="rtl" className={`${tajawal.variable} ${plusJakartaSans.variable} h-dvh max-h-dvh overflow-hidden antialiased`}>
+    <html lang="ar" dir="rtl" className={`${balooBhaijaan2.variable} ${plusJakartaSans.variable} h-dvh max-h-dvh overflow-hidden antialiased`}>
       <body className="app-shell flex h-dvh max-h-dvh flex-col overflow-hidden font-sans text-[#5e3011] antialiased">
         <AuthProvider>
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-            <GlobalRoomInviteDockLazy />
-            <div className="app-main">{children}</div>
-          </div>
+          <PlayerProfileModalProvider>
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+              <GlobalRoomInviteDockLazy />
+              <div className="app-main">{children}</div>
+            </div>
+          </PlayerProfileModalProvider>
         </AuthProvider>
       </body>
     </html>

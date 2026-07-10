@@ -138,6 +138,7 @@ export function LobbyShellBridge({
       onLeave={onLeave}
       customPanels={customPanels}
       overlays={overlays}
+      roomId={room.id}
     />
   );
 }

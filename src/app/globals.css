@@ -10,8 +10,8 @@ html {
 }
 
 :root {
-  --background: #fff7ef;
-  --foreground: #5e3011;
+  --background: #EEF4FF;
+  --foreground: oklch(0.24 0.05 255);
 
   /* 8pt spacing system — use via var(--gap-2), var(--gap-3) … */
   --gap-1: 4px;
@@ -48,7 +48,7 @@ html {
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-tajawal), system-ui, -apple-system, Segoe UI, Arial, sans-serif;
+  --font-sans: var(--font-baloo), system-ui, -apple-system, Segoe UI, Arial, sans-serif;
 }
 
 /* ─── App-shell: lock document to the visible viewport (native-app feel).
@@ -78,13 +78,12 @@ body {
   max-height: 100%;
   overflow: hidden;
   overscroll-behavior: none;
-  /* Richer multi-radial warmth — more saturated blooms, softer gradient base */
+  /* Premium multi-radial off-white gradients — modern light mode game background */
   background:
-    radial-gradient(ellipse 70% 40% at 12% 18%, rgba(255,220,170,0.72) 0%, transparent 55%),
-    radial-gradient(ellipse 55% 35% at 90% 12%, rgba(255,196,130,0.55) 0%, transparent 50%),
-    radial-gradient(ellipse 50% 30% at 80% 85%, rgba(255,220,165,0.48) 0%, transparent 50%),
-    radial-gradient(ellipse 40% 25% at 20% 90%, rgba(255,200,140,0.35) 0%, transparent 50%),
-    linear-gradient(175deg, #fff9f2 0%, #fff2e0 55%, #ffeacc 100%);
+    radial-gradient(ellipse 60% 40% at 15% 15%, rgba(124, 62, 237, 0.04) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 35% at 85% 15%, rgba(254, 224, 71, 0.05) 0%, transparent 55%),
+    radial-gradient(ellipse 50% 30% at 80% 80%, rgba(255, 0, 127, 0.03) 0%, transparent 50%),
+    linear-gradient(175deg, #FCFCFC 0%, #FAFAF8 60%, #F5F5F3 100%);
   color: var(--foreground);
   -webkit-tap-highlight-color: transparent;
   -webkit-text-size-adjust: 100%;
@@ -273,38 +272,87 @@ html.kbd-open .gameplay-card-compact {
   background: inherit;
 }
 
-/* ─── Premium glass surface — reusable across cards ──────────────── */
+/* ─── Neo Memphis Comic Glass Surface ───────────────────────────── */
 .glass-card {
-  background: rgba(255, 255, 255, 0.78);
-  backdrop-filter: blur(14px) saturate(140%);
-  -webkit-backdrop-filter: blur(14px) saturate(140%);
-  box-shadow:
-    inset 0 1.5px 0 rgba(255, 255, 255, 0.95),
-    inset 0 -1px 0 rgba(196, 134, 82, 0.05),
-    0 2px 10px rgba(180, 100, 30, 0.04),
-    0 10px 30px rgba(180, 100, 30, 0.08),
-    0 24px 50px rgba(180, 100, 30, 0.05);
-  border: 1.5px solid rgba(251, 146, 60, 0.16);
+  background: #FFFFFF;
+  border: 2.5px solid #000000;
+  border-radius: var(--r-3);
+  box-shadow: var(--sh-card);
 }
 
-/* ─── Concentric Double Bezel — Awwwards Archetype ──────────────── */
+/* ─── Concentric Double Bezel — Memphis Arcade Style ────────────── */
 .bezel-outer {
-  padding: 6px;
-  border-radius: 26px;
-  background: rgba(255, 255, 255, 0.42);
-  border: 1px solid rgba(251, 146, 60, 0.14);
-  box-shadow: 0 4px 20px rgba(180, 100, 30, 0.04);
+  padding: 4px;
+  border-radius: var(--r-3);
+  background: #FFFFFF;
+  border: 2.5px solid #000000;
+  box-shadow: var(--sh-card);
 }
 
 .bezel-inner {
-  border-radius: calc(26px - 6px);
-  background: rgba(255, 255, 255, 0.88);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border: 1.5px solid rgba(251, 146, 60, 0.09);
+  border-radius: calc(var(--r-3) - 6px);
+  background: #FFFFFF;
+  border: 1.5px solid #000000;
+}
+
+/* ─── Neo Memphis Solid Cards & Insets ──────────────────────────── */
+.soft-card {
+  background: #FFFFFF;
+  border-radius: var(--r-3);
+  border: 2.5px solid #000000;
+  box-shadow: var(--sh-card);
+  transition: transform 0.12s var(--ease-spring), box-shadow 0.12s var(--ease-spring);
+}
+
+.soft-pressed {
+  background: #F1F5F9;
+  border-radius: 999px;
+  border: 1.5px solid #000000;
+}
+
+/* ─── Premium Mobile Game UI Cards & Outlines ───────────────────── */
+.game-card-outer {
+  background: rgba(0, 0, 0, 0.02);
+  border: 1px solid rgba(0, 0, 0, 0.04);
+  padding: 6px;
+  border-radius: 28px;
   box-shadow: 
-    inset 0 1.5px 0.5px rgba(255, 255, 255, 0.95),
-    0 2px 6px rgba(180, 100, 30, 0.03);
+    0 10px 30px -10px rgba(0, 0, 0, 0.04),
+    0 1px 3px rgba(0, 0, 0, 0.02);
+  transition: transform 0.2s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.game-card-inner {
+  border-radius: calc(28px - 6px);
+  background: #FFFFFF;
+  box-shadow: 
+    inset 0 1px 0px rgba(255, 255, 255, 0.6),
+    0 4px 12px -2px rgba(31, 41, 122, 0.03);
+}
+
+.game-btn-outer {
+  background: rgba(0, 0, 0, 0.03);
+  border: 1.5px solid rgba(0, 0, 0, 0.05);
+  padding: 4px;
+  border-radius: 9999px;
+  box-shadow: 0 4px 10px -2px rgba(0, 0, 0, 0.05);
+  transition: transform 0.15s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.game-btn-inner {
+  border-radius: 9999px;
+  background: var(--memphis-yellow);
+  box-shadow: 
+    inset 0 1.5px 1px rgba(255, 255, 255, 0.4),
+    0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+/* ─── Soft Grid Background ──────────────────────────────────────── */
+.memphis-grid {
+  background-color: #FAFAF8;
+  background-image: 
+    radial-gradient(rgba(124, 98, 237, 0.03) 1px, transparent 1px);
+  background-size: 16px 16px;
 }
 
 /* ─── Button gloss streak (applied by Button.tsx on primary) ──────── */
@@ -465,48 +513,51 @@ html.kbd-open .gameplay-card-compact {
 
 /* ─── Chat bubble system ──────────────────────────────────────────
    Used by renderMessage (RoomExperience) + TypingDots (GameplaySocialSurface).
-   Alignment relies on parent being dir="rtl":
-     .me   → flex-end   (right in LTR, left in RTL = player side)
-     .them → flex-start (left  in LTR, right in RTL = opponent side)
+   Alignment:
+     .me   → flex-start (left  = player side)
+     .them → flex-end   (right = opponent side)
 ─────────────────────────────────────────────────────────────────── */
 .bubble {
   display: inline-flex;
   align-items: center;
   gap: 8px;
   max-width: 78%;
-  border-radius: 18px;
+  border-radius: 16px;
   padding: 10px 14px;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
-  line-height: 1.55;
+  font-family: var(--font-baloo), var(--body), sans-serif;
+  line-height: 1.45;
   word-break: break-word;
   white-space: pre-wrap;
 }
 .bubble.me {
-  align-self: flex-end;
-  background: linear-gradient(180deg, oklch(0.86 0.11 70), oklch(0.79 0.13 58));
-  border: 1px solid oklch(0.70 0.13 58 / .55);
-  color: oklch(0.22 0.04 35);
-  box-shadow: 0 6px 14px -8px oklch(0.55 0.15 55 / .45), inset 0 1px 0 rgba(255,255,255,.45);
-  border-bottom-right-radius: 4px;
+  align-self: flex-start;
+  background: linear-gradient(180deg, #F5F3FF 0%, #EDE9FE 100%);
+  border: 1px solid #DDD6FE;
+  color: #5B21B6;
+  box-shadow: 0 4px 12px -8px rgba(124, 58, 237, 0.2), inset 0 1px 0 rgba(255,255,255,0.75);
+  border-bottom-left-radius: 4px;
+  margin-right: auto;
 }
 .bubble.them {
-  align-self: flex-start;
-  background: linear-gradient(180deg, oklch(0.99 0.01 85), oklch(0.96 0.025 78));
-  border: 1px solid oklch(0.78 0.04 65 / .55);
-  color: oklch(0.24 0.04 35);
-  box-shadow: 0 4px 12px -8px oklch(0.45 0.08 45 / .28), inset 0 1px 0 rgba(255,255,255,.85);
-  border-bottom-left-radius: 4px;
+  align-self: flex-end;
+  background: linear-gradient(180deg, #F8FAFC 0%, #F1F5F9 100%);
+  border: 1px solid #E2E8F0;
+  color: #1E293B;
+  box-shadow: 0 4px 12px -8px rgba(15, 23, 42, 0.1), inset 0 1px 0 rgba(255,255,255,0.85);
+  border-bottom-right-radius: 4px;
+  margin-left: auto;
 }
 .bubble.system {
   align-self: center;
   max-width: 85%;
   border-radius: 999px;
-  border: 1px solid oklch(0.78 0.04 65 / .45);
-  background: oklch(0.96 0.025 78 / .9);
-  color: oklch(0.44 0.06 45);
+  border: 1px solid #E2E8F0;
+  background: rgba(248, 250, 252, 0.95);
+  color: #64748B;
   padding: 7px 13px;
-  font-size: 11px;
+  font-size: 10px;
   text-align: center;
 }
 
@@ -675,6 +726,39 @@ html.kbd-open .gameplay-card-compact {
   animation: scorePop 0.5s cubic-bezier(0.23, 1, 0.32, 1) forwards;
 }
 
+/* ─── Neo Memphis Animations ─────────────────────────────────────── */
+@keyframes memphisWiggle {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-3deg); }
+  75% { transform: rotate(3deg); }
+}
+
+.memphis-wiggle:hover {
+  animation: memphisWiggle 0.25s linear infinite;
+}
+
+@keyframes memphisFloat {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-10px) rotate(4deg); }
+}
+
+.memphis-float {
+  animation: memphisFloat 4s ease-in-out infinite;
+}
+
+.memphis-float-delayed {
+  animation: memphisFloat 4.5s ease-in-out infinite;
+  animation-delay: 1.5s;
+}
+
+/* Background floating shapes */
+.bg-shape {
+  position: absolute;
+  pointer-events: none;
+  opacity: 0.15;
+  z-index: 1;
+}
+
 /* ─── Reduced motion friendliness ─────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -685,4 +769,293 @@ html.kbd-open .gameplay-card-compact {
     transition-duration: 0.001ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Premium Home Screen — Modern Flat Illustration / Organic Premium Game UI
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.home-screen {
+  background: var(--home-bg);
+}
+
+.home-screen .home-bg-blob {
+  position: absolute;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.home-screen .home-bg-blob-1 {
+  top: -5%;
+  right: -15%;
+  width: 280px;
+  height: 280px;
+  background: radial-gradient(circle at 30% 30%, rgba(196, 181, 253, 0.25), rgba(139, 92, 246, 0.05) 60%, transparent 80%);
+  border-radius: 50%;
+  filter: blur(40px);
+}
+
+.home-screen .home-bg-blob-2 {
+  bottom: 20%;
+  left: -20%;
+  width: 320px;
+  height: 320px;
+  background: radial-gradient(circle at 70% 70%, rgba(254, 205, 211, 0.2), rgba(251, 113, 133, 0.04) 60%, transparent 80%);
+  border-radius: 50%;
+  filter: blur(50px);
+}
+
+.home-screen .home-bg-blob-3 {
+  bottom: -10%;
+  right: -10%;
+  width: 200px;
+  height: 200px;
+  background: radial-gradient(circle at 50% 50%, rgba(253, 230, 138, 0.2), rgba(251, 191, 36, 0.04) 60%, transparent 80%);
+  border-radius: 50%;
+  filter: blur(35px);
+}
+
+.home-screen .home-bg-blob-4 {
+  top: 40%;
+  left: -10%;
+  width: 180px;
+  height: 180px;
+  background: radial-gradient(circle at 50% 50%, rgba(186, 230, 253, 0.2), rgba(147, 197, 253, 0.04) 60%, transparent 80%);
+  border-radius: 50%;
+  filter: blur(30px);
+}
+
+/* Decorative background elements */
+.home-deco {
+  position: absolute;
+  pointer-events: none;
+  z-index: 1;
+}
+
+@keyframes gentleBob {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-6px) rotate(2deg); }
+}
+@keyframes slowSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+@keyframes dotPulse {
+  0%, 100% { opacity: 0.3; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(1.2); }
+}
+@keyframes floatDrift {
+  0%, 100% { transform: translateY(0) translateX(0); }
+  33% { transform: translateY(-4px) translateX(3px); }
+  66% { transform: translateY(2px) translateX(-3px); }
+}
+
+.home-deco-bob {
+  animation: gentleBob 5s ease-in-out infinite;
+}
+.home-deco-bob-delayed {
+  animation: gentleBob 6s ease-in-out infinite;
+  animation-delay: 2s;
+}
+.home-deco-drift {
+  animation: floatDrift 8s ease-in-out infinite;
+}
+.home-deco-pulse {
+  animation: dotPulse 3s ease-in-out infinite;
+}
+
+/* Premium hero section */
+.home-hero {
+  background: linear-gradient(160deg, #F5F3FF 0%, #F0F9FF 30%, #FFFDF9 100%);
+  border-radius: 24px;
+  box-shadow:
+    0 4px 16px rgba(139, 92, 246, 0.06),
+    0 12px 40px -8px rgba(139, 92, 246, 0.08),
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.95);
+  position: relative;
+  overflow: hidden;
+}
+
+.home-hero::before {
+  content: '';
+  position: absolute;
+  top: -40%;
+  right: -20%;
+  width: 200px;
+  height: 200px;
+  background: radial-gradient(circle, rgba(221, 214, 254, 0.4), transparent 70%);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.home-hero::after {
+  content: '';
+  position: absolute;
+  bottom: -30%;
+  left: -10%;
+  width: 160px;
+  height: 160px;
+  background: radial-gradient(circle, rgba(254, 205, 211, 0.3), transparent 70%);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.home-btn-play {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 14px 24px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%);
+  color: #FFFFFF;
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 16px;
+  border: none;
+  box-shadow:
+    0 4px 14px rgba(139, 92, 246, 0.3),
+    0 8px 28px -4px rgba(139, 92, 246, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  cursor: pointer;
+  transition:
+    transform 0.18s cubic-bezier(0.23, 1, 0.32, 1),
+    box-shadow 0.18s cubic-bezier(0.23, 1, 0.32, 1);
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  position: relative;
+  overflow: hidden;
+}
+
+.home-btn-play:active {
+  transform: scale(0.97);
+  box-shadow:
+    0 2px 8px rgba(139, 92, 246, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+.home-btn-play::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 60%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+  animation: shimmer 3s ease-in-out infinite;
+}
+
+/* Premium game mode card */
+.home-gcard {
+  background: #FFFFFF;
+  border-radius: 20px;
+  padding: 16px;
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.04),
+    0 8px 24px -6px rgba(139, 92, 246, 0.06);
+  cursor: pointer;
+  transition:
+    transform 0.25s cubic-bezier(0.23, 1, 0.32, 1),
+    box-shadow 0.25s cubic-bezier(0.23, 1, 0.32, 1);
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  position: relative;
+  overflow: hidden;
+  min-height: 130px;
+  display: flex;
+  flex-direction: column;
+}
+
+.home-gcard:active {
+  transform: scale(0.97);
+}
+
+/* Premium friends avatar */
+.home-friend-avatar {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  object-fit: cover;
+  position: relative;
+}
+
+/* Premium floating bottom tab bar */
+.home-tabbar {
+  flex-shrink: 0;
+  margin: 8px 16px calc(8px + env(safe-area-inset-bottom, 0px));
+  padding: 6px;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.92);
+  border-radius: 999px;
+  box-shadow:
+    0 4px 20px rgba(139, 92, 246, 0.06),
+    0 8px 32px -8px rgba(0, 0, 0, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  position: relative;
+  z-index: 50;
+}
+
+.home-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 8px 4px;
+  border-radius: 999px;
+  border: none;
+  background: transparent;
+  text-decoration: none;
+  color: #9CA3AF;
+  font-size: 9px;
+  font-weight: 600;
+  transition:
+    color 0.2s ease,
+    transform 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+  position: relative;
+  cursor: pointer;
+}
+
+.home-tab-active {
+  color: #8B5CF6;
+}
+
+.home-tab-indicator {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 999px;
+  background: #F5F3FF;
+  z-index: -1;
+}
+
+/* Premium store card */
+.home-store-card {
+  background: linear-gradient(135deg, #ECFDF5 0%, #F0F9FF 50%, #FFFBEB 100%);
+  border-radius: 20px;
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.03),
+    0 8px 24px -6px rgba(16, 185, 129, 0.06);
+  cursor: pointer;
+  transition:
+    transform 0.25s cubic-bezier(0.23, 1, 0.32, 1),
+    box-shadow 0.25s cubic-bezier(0.23, 1, 0.32, 1);
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.home-store-card:active {
+  transform: scale(0.98);
 }

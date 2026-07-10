@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <!-- Playful Shadow -->
+  <rect x="112" y="76" width="320" height="400" rx="48" ry="48" fill="#2C1A04" opacity="0.2" />
+  
+  <!-- Yellow Card -->
+  <rect x="96" y="56" width="320" height="400" rx="48" ry="48" fill="#FFE600" stroke="#2C1A04" stroke-width="24" stroke-linejoin="round" />
+  
+  <!-- Diagonal Gloss Reflection Highlight (Top-left inside border) -->
+  <path d="M 130 84 A 12 12 0 0 1 142 72 L 200 72 A 12 12 0 0 0 188 84 L 142 84 A 12 12 0 0 1 130 84 Z" fill="#FFFFFF" opacity="0.25" />
+
+  <!-- Cartoon Question Mark Outline -->
+  <path d="M210 170 C210 130, 302 130, 302 180 C302 220, 256 230, 256 270" stroke="#2C1A04" stroke-width="80" stroke-linecap="round" fill="none" />
+  <circle cx="256" cy="350" r="40" fill="#2C1A04" />
+  
+  <!-- Cartoon Question Mark Inner Purple Fill -->
+  <path d="M210 170 C210 130, 302 130, 302 180 C302 220, 256 230, 256 270" stroke="#7C3AED" stroke-width="48" stroke-linecap="round" fill="none" />
+  <circle cx="256" cy="350" r="24" fill="#7C3AED" />
+
+  <!-- Tiny highlight reflection circles -->
+  <circle cx="140" cy="100" r="14" fill="#FFFFFF" />
+  <circle cx="164" cy="116" r="7" fill="#FFFFFF" />
+</svg>

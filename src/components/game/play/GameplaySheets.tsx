@@ -4,15 +4,11 @@ import type { ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { memo, useCallback } from "react";
 import { GameplayLetterRow } from "@/components/game/play/GameplayLetterRow";
-import { IconClose, IconHintBulb } from "@/components/game/play/icons";
-import { GP } from "@/components/game/play/tokens";
 
-/* ═══════════════════════════════════════════════
-   GameplaySheet — base bottom-sheet container
-   ═══════════════════════════════════════════════ */
+/* ── Base Bottom Sheet wrapper ── */
 export function GameplaySheet({
   title,
-  accent = GP.gold,
+  accent = "#7C3AED",
   onClose,
   children,
 }: {
@@ -27,62 +23,44 @@ export function GameplaySheet({
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.2 }}
-      className="absolute inset-0 z-[70] flex items-end"
-      style={{ background: "rgba(120, 70, 20, 0.22)", backdropFilter: "blur(4px)" }}
+      className="absolute inset-0 z-[70] flex items-end justify-center bg-slate-900/60 backdrop-blur-sm"
       onClick={onClose}
     >
       <motion.div
         initial={{ y: "100%" }}
         animate={{ y: 0 }}
         exit={{ y: "100%" }}
-        transition={{ type: "spring", stiffness: 380, damping: 36, mass: 0.85 }}
+        transition={{ type: "spring", stiffness: 400, damping: 35, mass: 0.85 }}
         onClick={(e) => e.stopPropagation()}
-        className="w-full rounded-t-[32px] border border-b-0 px-[18px] pb-7 pt-2"
+        className="w-full max-w-md rounded-t-[32px] border border-b-0 px-[18px] pb-7 pt-2 bg-white/95 shadow-2xl"
         style={{
-          background: "rgba(255, 255, 255, 0.90)",
-          backdropFilter: "blur(20px) saturate(140%)",
-          borderColor: "rgba(251, 146, 60, 0.22)",
           outline: "1px solid rgba(255,255,255,0.85)",
-          boxShadow: [
-            "0 -8px 24px rgba(180,100,30,0.06)",
-            "0 -24px 60px rgba(180,100,30,0.12)",
-            "inset 0 2px 0.5px #ffffff",
-          ].join(", "),
           willChange: "transform",
         }}
       >
         {/* drag handle */}
-        <div
-          className="mx-auto mb-4 rounded-full"
-          style={{
-            width: 40,
-            height: 4.5,
-            background: "linear-gradient(90deg, rgba(251,146,60,0.2), rgba(251,146,60,0.5), rgba(251,146,60,0.2))",
-            boxShadow: "0 1px 3px rgba(120,70,20,0.06)",
-          }}
-        />
+        <div className="mx-auto mb-4 w-10 h-1.5 rounded-full bg-slate-200" />
 
         {/* header */}
         <div className="mb-4 flex items-center justify-between">
           <h2
-            className="text-[17px] font-extrabold"
-            style={{ color: accent, letterSpacing: "-0.01em" }}
+            className="text-sm font-black"
+            style={{ color: accent }}
           >
             {title}
           </h2>
-          <motion.button
+          <button
             type="button"
-            whileTap={{ scale: 0.88 }}
             onClick={onClose}
-            className="grid h-8 w-8 place-items-center rounded-[10px] border-0"
-            style={{
-              background: "rgba(251, 146, 60, 0.08)",
-              color: "#c25e17",
-            }}
+            className="w-8 h-8 rounded-lg bg-slate-50 border border-slate-200/50 flex items-center justify-center text-slate-400 active:scale-95 transition-transform"
             aria-label="إغلاق"
+            style={{ cursor: "pointer" }}
           >
-            <IconClose />
-          </motion.button>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
         </div>
 
         {children}
@@ -91,9 +69,7 @@ export function GameplaySheet({
   );
 }
 
-/* ═══════════════════════════════════════════════
-   MyHiddenCardSheet  (= HintSheet)
-   ═══════════════════════════════════════════════ */
+/* ── Hidden Card / Hint Sheet ── */
 export function MyHiddenCardSheet({
   open,
   letters,
@@ -122,18 +98,17 @@ export function MyHiddenCardSheet({
   const used = hintUsed || countRevealed || revealedIdx.length > 0;
 
   const statusNote = used
-    ? "استخدمت تلميحك في هذه المباراة"
+    ? "لقد استخدمت تلميحك المتاح في هذه الجولة."
     : bonusLetterHints + bonusCountHints > 0
-      ? `رصيدك: ${bonusLetterHints} حرف · ${bonusCountHints} عدد`
-      : "لا يوجد رصيد — اشترِ من المتجر";
+      ? `رصيدك الفعال: ${bonusLetterHints} كشف حرف · ${bonusCountHints} كشف عدد`
+      : "لا تملك تلميحات إضافية في رصيدك حالياً.";
 
   return (
     <AnimatePresence>
       {open ? (
         <GameplaySheet title="كرتك والتلميحات" onClose={onClose}>
-
-          {/* status note */}
-          <p className="mb-3 text-xs font-semibold" style={{ color: GP.inkSoft }}>
+          
+          <p className="mb-4 text-[9px] font-bold text-slate-400 text-right pr-1">
             {statusNote}
           </p>
 
@@ -142,45 +117,40 @@ export function MyHiddenCardSheet({
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-            className="mx-auto mb-4 grid min-h-[88px] w-full max-w-[220px] place-items-center rounded-2xl border-2 px-2 py-3"
-            style={{
-              background: "repeating-linear-gradient(45deg, #8a4520 0 6px, #7a3c18 6px 12px)",
-              borderColor: "rgba(255,190,100,0.55)",
-              boxShadow: "0 4px 16px rgba(80,30,10,0.22)",
-            }}
+            className="game-card-outer w-full max-w-[200px] mx-auto mb-4"
           >
-            {letters.length > 0 ? (
-              <GameplayLetterRow letters={letters} revealedIdx={revealedIdx} compact />
-            ) : (
-              <span className="text-3xl font-black" style={{ color: "rgba(255,247,232,0.88)" }}>؟</span>
-            )}
+            <div className="game-card-inner p-3 bg-slate-900 border border-slate-950 rounded-2xl flex items-center justify-center min-h-[72px]">
+              {letters.length > 0 ? (
+                <GameplayLetterRow letters={letters} revealedIdx={revealedIdx} compact />
+              ) : (
+                <span className="text-2xl font-black text-slate-400">؟</span>
+              )}
+            </div>
           </motion.div>
 
           {/* hint options */}
-          <div className="flex flex-col gap-2.5">
+          <div className="flex flex-col gap-3">
             <HintCard
-              kind="count"
-              title="عدد الأحرف"
-              subtitle="يكشف كم مربعًا في كرتك"
-              available={bonusCountHints > 0}
+              title="كشف عدد الأحرف"
+              subtitle="يكشف عدد مربعات اسمك المخفي"
+              available={bonusCountHints > 0 || hintsLeft > 0}
               used={used}
-              recommended
               busy={busy}
               onClick={() => onUseHint("count")}
             />
             <HintCard
-              kind="letter"
-              title="حرف واحد"
-              subtitle="يكشف حرفًا عشوائيًا من كرتك"
-              available={bonusLetterHints > 0}
+              title="كشف حرف عشوائي"
+              subtitle="يكشف حرفاً واحداً من الاسم في مكانه الصحيح"
+              available={bonusLetterHints > 0 || hintsLeft > 0}
               used={used}
+              recommended
               busy={busy}
               onClick={() => onUseHint("letter")}
             />
           </div>
 
-          <p className="mt-3 text-center text-[11px] font-semibold" style={{ color: GP.inkSoft }}>
-            تلميح واحد فقط في المباراة — اختر بحكمة
+          <p className="mt-4 text-center text-[8px] font-bold text-slate-400">
+            يُسمح باستخدام تلميح واحد فقط لكل جولة لعب — اختر بحكمة!
           </p>
         </GameplaySheet>
       ) : null}
@@ -190,11 +160,8 @@ export function MyHiddenCardSheet({
 
 export const HintSheet = MyHiddenCardSheet;
 
-/* ═══════════════════════════════════════════════
-   HintCard — premium interactive option card
-   ═══════════════════════════════════════════════ */
+/* ── Interactive Option Card ── */
 const HintCard = memo(function HintCard({
-  kind,
   title,
   subtitle,
   available,
@@ -203,7 +170,6 @@ const HintCard = memo(function HintCard({
   busy,
   onClick,
 }: {
-  kind: "letter" | "count";
   title: string;
   subtitle: string;
   available: boolean;
@@ -219,119 +185,54 @@ const HintCard = memo(function HintCard({
     if (!disabled) onClick();
   }, [disabled, onClick]);
 
-  const iconColor = recommended ? GP.ink : GP.inkSoft;
-  const bgActive = recommended
-    ? "linear-gradient(160deg, oklch(0.98 0.04 82 / .95), oklch(0.92 0.07 76 / .98))"
-    : "linear-gradient(160deg, oklch(0.97 0.02 80 / .95), oklch(0.92 0.03 72 / .98))";
-  const borderActive = recommended
-    ? "rgba(242,181,68,0.58)"
-    : "rgba(244,196,141,0.42)";
-  const glowActive = recommended
-    ? "0 6px 18px rgba(242,181,68,0.22)"
-    : "0 4px 12px rgba(200,160,80,0.12)";
-
   return (
     <motion.button
       type="button"
       disabled={disabled}
       onClick={handleClick}
-      whileTap={disabled ? {} : { scale: 0.975 }}
-      className="relative w-full text-right"
-      style={{
-        background: active ? bgActive : "rgba(255,255,255,0.75)",
-        borderRadius: 18,
-        border: `1.5px solid ${active ? borderActive : "rgba(220,190,150,0.3)"}`,
-        padding: "12px 14px",
-        boxShadow: active
-          ? `${glowActive}, inset 0 1px 0 rgba(255,255,255,0.7)`
-          : "0 1px 4px rgba(180,130,60,0.08)",
-        opacity: disabled ? 0.52 : 1,
-        cursor: disabled ? "not-allowed" : "pointer",
-        willChange: "transform",
-        transition: "opacity 0.2s, box-shadow 0.2s",
-      }}
+      whileTap={disabled ? {} : { scale: 0.98 }}
+      className={`w-full text-right transition-opacity ${disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
     >
-      {/* recommended badge */}
-      <AnimatePresence>
-        {recommended && active && (
-          <motion.span
-            initial={{ opacity: 0, scale: 0.7 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.7 }}
-            className="absolute -top-2.5 right-3 rounded-full px-2 py-0.5 text-[9px] font-extrabold"
-            style={{
-              background: `linear-gradient(135deg, ${GP.gold}, ${GP.goldDeep})`,
-              color: GP.ink,
-              boxShadow: "0 2px 8px rgba(242,181,68,0.4)",
-            }}
-          >
-            الأفضل
-          </motion.span>
-        )}
-      </AnimatePresence>
+      <div className="game-card-outer w-full">
+        <div className={`game-card-inner p-3 bg-white border rounded-[20px] flex items-center gap-3 ${recommended && active ? "border-amber-200 bg-amber-50/10" : "border-slate-100"}`}>
+          
+          {/* icon indicator */}
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${recommended && active ? "bg-amber-50 text-amber-600" : "bg-purple-50 text-[#7C3AED]"}`}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .6 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5" />
+              <path d="M9 18h6" />
+              <path d="M10 22h4" />
+            </svg>
+          </div>
 
-      <div className="flex items-center gap-3">
-        {/* icon */}
-        <motion.div
-          animate={active && recommended ? {
-            boxShadow: [
-              "0 0 0 0 rgba(242,181,68,0)",
-              "0 0 0 5px rgba(242,181,68,0)",
-            ],
-          } : {}}
-          transition={{ duration: 1.8, repeat: Infinity }}
-          className="grid shrink-0 place-items-center rounded-[14px]"
-          style={{
-            width: 44,
-            height: 44,
-            background: active
-              ? recommended
-                ? `linear-gradient(180deg, ${GP.gold} 0%, ${GP.goldDeep} 100%)`
-                : "linear-gradient(180deg, oklch(0.88 0.06 72), oklch(0.78 0.08 66))"
-              : GP.cream,
-            color: active ? iconColor : GP.inkSoft,
-          }}
-        >
-          <IconHintBulb size={22} variant="illustrated" />
-        </motion.div>
+          {/* text */}
+          <div className="flex-1 min-w-0" style={{ lineHeight: 1.15 }}>
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs font-black text-slate-800">{title}</span>
+              {recommended && active && (
+                <span className="text-[8px] font-black px-1.5 py-0.5 rounded-full bg-gradient-to-r from-amber-400 to-yellow-500 text-white shadow-sm">
+                  الأفضل
+                </span>
+              )}
+            </div>
+            <span className="text-[9px] text-slate-400 font-bold block mt-0.5 leading-tight">
+              {subtitle}
+            </span>
+          </div>
 
-        {/* text */}
-        <div className="min-w-0 flex-1">
-          <p
-            className="font-extrabold leading-tight"
-            style={{ color: GP.ink, fontSize: 13.5 }}
-          >
-            {title}
-          </p>
-          <p className="mt-0.5 text-xs leading-snug" style={{ color: GP.inkSoft }}>
-            {subtitle}
-          </p>
-        </div>
+          {/* status pill */}
+          <div className={`shrink-0 rounded-full px-2.5 py-1 text-[9px] font-black border ${
+            used 
+              ? "bg-slate-50 border-slate-200/50 text-slate-400" 
+              : active 
+                ? recommended 
+                  ? "bg-amber-50 border-amber-200 text-amber-600" 
+                  : "bg-purple-50 border-purple-100 text-purple-600" 
+                : "bg-slate-50 border-slate-200/50 text-slate-400"
+          }`}>
+            {used ? "مستخدم" : active ? "متاح" : "لا يوجد"}
+          </div>
 
-        {/* status pill */}
-        <div
-          className="shrink-0 rounded-full px-2.5 py-1 text-[10px] font-extrabold"
-          style={{
-            background: used
-              ? "rgba(200,180,140,0.18)"
-              : available
-                ? recommended
-                  ? "rgba(242,181,68,0.18)"
-                  : "rgba(200,220,170,0.22)"
-                : "rgba(200,180,140,0.18)",
-            color: used
-              ? GP.inkSoft
-              : available
-                ? recommended ? GP.goldDeep : "oklch(0.42 0.14 148)"
-                : GP.inkSoft,
-            border: `1px solid ${used
-              ? "rgba(200,180,140,0.2)"
-              : available
-                ? recommended ? "rgba(242,181,68,0.3)" : "rgba(120,180,120,0.25)"
-                : "rgba(200,180,140,0.2)"}`,
-          }}
-        >
-          {used ? "مستخدم" : available ? "متاح" : "لا يوجد"}
         </div>
       </div>
     </motion.button>

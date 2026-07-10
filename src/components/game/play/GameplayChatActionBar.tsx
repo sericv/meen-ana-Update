@@ -1,22 +1,9 @@
 "use client";
 
-/**
- * GameplayChatActionBar
- *
- * Layout (LTR physical order, inside dir="rtl" parent):
- *   [ إرسال (send) ]  [ ──── input ──── ]  [ خمّن (guess) ]
- *
- * • Send button: LEFT physical side
- * • Guess button: RIGHT physical side
- * • Player messages align LEFT in the chat viewport
- * • Opponent messages align RIGHT in the chat viewport
- */
-
-import { memo, useRef, useState } from "react";
+import { memo, useRef, useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { IconSend } from "@/components/game/play/icons";
-import { GP } from "@/components/game/play/tokens";
-import { EASE_OUT, SPRING_UI } from "@/lib/motion";
+import { SPRING_UI } from "@/lib/motion";
 
 type Props = {
   myTurn: boolean;
@@ -24,20 +11,15 @@ type Props = {
   draft: string;
   busy: boolean;
   guessRemaining?: number;
-  /**
-   * When true, extra-question tool is active and the player still has their
-   * second question to ask this turn (questionsThisTurn < questionQuota).
-   */
   extraQuestionPending?: boolean;
   onDraftChange: (v: string) => void;
-  onSend: () => void;
+  onSend: (customText?: string) => void;
   onGuess: () => void;
   onComposerFocus: (el: HTMLInputElement) => void;
   onComposerBlur: (el: HTMLInputElement) => void;
   keyboardOverlapPx?: number;
 };
 
-/** شريط سفلي: إرسال (يسار) | إدخال | خمّن (يمين) */
 export const GameplayChatActionBar = memo(function GameplayChatActionBar({
   myTurn,
   phase,
@@ -53,10 +35,28 @@ export const GameplayChatActionBar = memo(function GameplayChatActionBar({
   keyboardOverlapPx = 0,
 }: Props) {
   const [focused, setFocused] = useState(false);
+  const [showCustomAnswerInput, setShowCustomAnswerInput] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const canSend = myTurn && draft.trim().length > 0 && !busy;
+  // Reset custom answer state on phase / turn changes
+  useEffect(() => {
+    if (phase !== "answer" || !myTurn) {
+      setShowCustomAnswerInput(false);
+    }
+  }, [phase, myTurn]);
+
+  // Autofocus input when custom answer input is chosen
+  useEffect(() => {
+    if (showCustomAnswerInput) {
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 150);
+    }
+  }, [showCustomAnswerInput]);
+
+  const canSend = (myTurn || showCustomAnswerInput) && draft.trim().length > 0 && !busy;
   const canGuess = myTurn && phase === "question" && guessRemaining > 0 && !busy && !extraQuestionPending;
+
   const placeholder = myTurn
     ? phase === "answer"
       ? "أجب بـ نعم أو لا…"
@@ -65,185 +65,205 @@ export const GameplayChatActionBar = memo(function GameplayChatActionBar({
         : "اطرح سؤالًا بـ نعم/لا…"
     : "في انتظار الخصم…";
 
+  const handleCustomSend = () => {
+    if (!draft.trim()) return;
+    onSend();
+    setShowCustomAnswerInput(false);
+    inputRef.current?.blur();
+  };
+
+  const showQuickReplies = myTurn && phase === "answer" && !showCustomAnswerInput;
+
   return (
     <div
-      className="mt-auto shrink-0 px-2 pb-0 pt-1"
+      className="mt-auto shrink-0 px-3 pb-2 pt-1.5 bg-gradient-to-t from-white/90 to-transparent relative z-20"
       style={{
-        paddingBottom: `calc(max(env(safe-area-inset-bottom, 0px), 6px) + ${keyboardOverlapPx}px)`,
+        paddingBottom: `calc(max(env(safe-area-inset-bottom, 0px), 8px) + ${keyboardOverlapPx}px)`,
       }}
     >
-      {/* Extra question indicator — appears above the input bar */}
-      <AnimatePresence>
-        {extraQuestionPending && myTurn && phase === "question" && (
+      <AnimatePresence mode="wait">
+        {showQuickReplies ? (
           <motion.div
-            initial={{ opacity: 0, y: 6, height: 0 }}
-            animate={{ opacity: 1, y: 0, height: "auto" }}
-            exit={{ opacity: 0, y: 4, height: 0 }}
-            transition={{ duration: 0.26, ease: EASE_OUT }}
-            style={{
-              marginBottom: 6,
-              padding: "5px 14px",
-              borderRadius: 20,
-              background: "linear-gradient(135deg, oklch(0.62 0.18 148 / .15), oklch(0.52 0.16 144 / .12))",
-              border: "1px solid oklch(0.62 0.16 148 / .45)",
-              color: "oklch(0.36 0.14 148)",
-              fontFamily: "var(--display)",
-              fontWeight: 800,
-              fontSize: 11.5,
-              textAlign: "center",
-              letterSpacing: "-0.01em",
-            }}
+            key="quick-replies"
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 10 }}
+            transition={{ type: "spring", stiffness: 380, damping: 26 }}
+            className="flex flex-col items-center w-full"
           >
-            سؤال إضافي — اطرح سؤالك الثاني
+            <div className="grid grid-cols-2 gap-2.5 w-full max-w-[420px] mx-auto py-1">
+              {["نعم", "لا", "ربما", "إجابة أخرى"].map((option) => (
+                <motion.button
+                  key={option}
+                  type="button"
+                  whileHover={{ scale: 1.015 }}
+                  whileTap={{ scale: 0.96 }}
+                  onClick={() => {
+                    if (option === "إجابة أخرى") {
+                      setShowCustomAnswerInput(true);
+                    } else {
+                      onSend(option);
+                    }
+                  }}
+                  className="game-card-outer w-full shadow-sm"
+                  style={{ cursor: "pointer" }}
+                >
+                  <div className="game-card-inner bg-[#FAFAF8] hover:bg-[#F3E8FF] border border-slate-200/50 hover:border-purple-300 py-3.5 px-4 text-center rounded-2xl transition-colors duration-200 flex items-center justify-center min-h-[48px]">
+                    <span className="text-xs font-black text-slate-800 hover:text-[#7C3AED] font-sans">
+                      {option}
+                    </span>
+                  </div>
+                </motion.button>
+              ))}
+            </div>
+          </motion.div>
+        ) : (
+          <motion.div
+            key="normal-input"
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -5 }}
+            transition={{ duration: 0.2 }}
+            className="w-full"
+          >
+            {/* Extra question indicator */}
+            <AnimatePresence>
+              {extraQuestionPending && myTurn && phase === "question" && (
+                <motion.div
+                  initial={{ opacity: 0, y: 6, height: 0 }}
+                  animate={{ opacity: 1, y: 0, height: "auto" }}
+                  exit={{ opacity: 0, y: 4, height: 0 }}
+                  className="mb-2 p-1.5 rounded-xl bg-purple-50 border border-purple-200 text-purple-700 font-black text-[10px] text-center"
+                >
+                  سؤال إضافي — اطرح سؤالك الثاني
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            <div className="flex items-center gap-2" dir="ltr">
+              
+              {/* Send / Ask Button */}
+              <motion.button
+                type="button"
+                disabled={!canSend}
+                whileTap={canSend ? { scale: 0.93 } : {}}
+                transition={SPRING_UI}
+                onClick={() => {
+                  if (showCustomAnswerInput) {
+                    handleCustomSend();
+                  } else {
+                    onSend();
+                  }
+                }}
+                aria-label="إرسال"
+                className={`w-11 h-11 rounded-xl flex items-center justify-center border transition-all ${
+                  canSend 
+                    ? "text-white border-purple-800 shadow-md" 
+                    : "bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed"
+                }`}
+                style={{
+                  background: canSend 
+                    ? "linear-gradient(135deg, #7C3AED 0%, #A78BFA 100%)" 
+                    : undefined,
+                  cursor: canSend ? "pointer" : "not-allowed",
+                }}
+              >
+                <span className="relative z-10 flex items-center justify-center">
+                  <IconSend color="currentColor" />
+                </span>
+              </motion.button>
+
+              {/* Question/Answer Input Field (Center) */}
+              <div className="flex-1 min-w-0" dir="rtl">
+                <div className="game-card-outer w-full">
+                  <div 
+                    className={`game-card-inner px-3 bg-white border rounded-xl flex items-center transition-all ${
+                      focused ? "border-[#7C3AED] ring-2 ring-[#7C3AED]/10" : "border-slate-200"
+                    }`}
+                    style={{ minHeight: 44 }}
+                  >
+                    <input
+                      ref={inputRef}
+                      value={draft}
+                      onChange={(e) => onDraftChange(e.target.value)}
+                      placeholder={placeholder}
+                      disabled={(!myTurn && !showCustomAnswerInput) || busy}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && canSend) {
+                          if (showCustomAnswerInput) {
+                            handleCustomSend();
+                          } else {
+                            onSend();
+                          }
+                        }
+                      }}
+                      dir="rtl"
+                      inputMode="text"
+                      enterKeyHint="send"
+                      autoComplete="off"
+                      spellCheck={false}
+                      className="w-full bg-transparent py-2 text-xs font-black text-slate-800 outline-none placeholder-slate-400 font-sans"
+                      onFocus={(e) => {
+                        setFocused(true);
+                        onComposerFocus(e.currentTarget);
+                      }}
+                      onBlur={(e) => {
+                        setFocused(false);
+                        onComposerBlur(e.currentTarget);
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Cancel Custom Answer Button */}
+              {showCustomAnswerInput && (
+                <motion.button
+                  type="button"
+                  whileTap={{ scale: 0.93 }}
+                  onClick={() => {
+                    setShowCustomAnswerInput(false);
+                    onDraftChange("");
+                  }}
+                  className="w-11 h-11 rounded-xl flex items-center justify-center border border-slate-200 bg-slate-50 text-slate-400 active:scale-95 transition-transform"
+                  style={{ cursor: "pointer" }}
+                  aria-label="تراجع"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </motion.button>
+              )}
+
+              {/* Guess Button (Right physical side) */}
+              {!showCustomAnswerInput && (
+                <motion.button
+                  type="button"
+                  disabled={!canGuess}
+                  whileTap={canGuess ? { scale: 0.93 } : {}}
+                  transition={SPRING_UI}
+                  onClick={onGuess}
+                  className={`px-4 h-11 rounded-xl text-xs font-black border transition-all ${
+                    canGuess 
+                      ? "text-white border-rose-800 shadow-md" 
+                      : "bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed"
+                  }`}
+                  style={{
+                    background: canGuess 
+                      ? "linear-gradient(135deg, #E11D48 0%, #FDA4AF 100%)" 
+                      : undefined,
+                    cursor: canGuess ? "pointer" : "not-allowed",
+                  }}
+                >
+                  خمّن {guessRemaining > 0 ? `(${guessRemaining})` : ""}
+                </motion.button>
+              )}
+
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/*
-       * dir="ltr" so physical left = first flex child = send button,
-       * physical right = last flex child = guess button.
-       * Input is RTL internally via dir="rtl" on the input itself.
-       */}
-      <div className="flex flex-row items-center gap-2" dir="ltr">
-
-        {/* ── SEND (LEFT) ── */}
-        <motion.button
-          type="button"
-          disabled={!canSend}
-          whileTap={canSend ? { scale: 0.88 } : {}}
-          transition={SPRING_UI}
-          onClick={onSend}
-          aria-label="إرسال"
-          className="flex shrink-0 items-center justify-center rounded-full border-0"
-          style={{
-            width: 46,
-            height: 46,
-            background: canSend
-              ? `linear-gradient(160deg, ${GP.gold} 0%, ${GP.goldDeep} 100%)`
-              : "#E8D4BC",
-            color: canSend ? GP.ink : GP.inkSoft,
-            opacity: canSend ? 1 : 0.5,
-            boxShadow: canSend
-              ? `inset 0 1.5px 0 rgba(255,255,255,0.55), 0 1px 1px rgba(0,0,0,0.06), 0 4px 12px -2px rgba(210,148,30,0.55), 0 0 0 1.5px ${GP.gold}22`
-              : "none",
-            transition: "background 0.22s cubic-bezier(0.23,1,0.32,1), box-shadow 0.22s cubic-bezier(0.23,1,0.32,1), opacity 0.22s",
-            willChange: "transform",
-          }}
-        >
-          {/* Glow ring for active state */}
-          <AnimatePresence>
-            {canSend && (
-              <motion.span
-                key="send-glow"
-                aria-hidden
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: [0.35, 0.6, 0.35], scale: [1, 1.06, 1] }}
-                exit={{ opacity: 0, scale: 0.8 }}
-                transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-                style={{
-                  position: "absolute",
-                  inset: -6,
-                  borderRadius: "50%",
-                  background: `radial-gradient(circle, ${GP.gold}44 0%, transparent 70%)`,
-                  filter: "blur(4px)",
-                  pointerEvents: "none",
-                }}
-              />
-            )}
-          </AnimatePresence>
-          <span style={{ position: "relative", zIndex: 1 }}>
-            <IconSend color="currentColor" />
-          </span>
-        </motion.button>
-
-        {/* ── INPUT (CENTER) ── */}
-        <motion.div
-          className="flex min-w-0 flex-1 items-center rounded-full px-3.5"
-          dir="rtl"
-          animate={{
-            boxShadow: focused
-              ? `inset 0 0 0 1.5px ${GP.gold}66, 0 0 0 3px ${GP.gold}18, 0 4px 14px rgba(180,100,30,0.10)`
-              : "inset 0 0 0 1px rgba(255,255,255,0.95), 0 4px 14px rgba(180,100,30,0.07)",
-          }}
-          transition={{ duration: 0.25, ease: EASE_OUT }}
-          style={{
-            minHeight: 46,
-            opacity: myTurn ? 1 : 0.6,
-            background: "rgba(255,255,255,0.93)",
-            transition: "opacity 0.25s",
-          }}
-        >
-          <input
-            ref={inputRef}
-            value={draft}
-            onChange={(e) => onDraftChange(e.target.value)}
-            placeholder={placeholder}
-            disabled={!myTurn || busy}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && canSend) onSend();
-            }}
-            dir="rtl"
-            inputMode="text"
-            enterKeyHint="send"
-            autoComplete="off"
-            spellCheck={false}
-            className="min-h-[38px] min-w-0 flex-1 border-0 bg-transparent py-2 font-semibold outline-none"
-            style={{ fontSize: 16, color: GP.ink }}
-            onFocus={(e) => {
-              setFocused(true);
-              onComposerFocus(e.currentTarget);
-            }}
-            onBlur={(e) => {
-              setFocused(false);
-              onComposerBlur(e.currentTarget);
-            }}
-          />
-        </motion.div>
-
-        {/* ── GUESS (RIGHT) ── */}
-        <motion.button
-          type="button"
-          whileTap={canGuess ? { scale: 0.92 } : {}}
-          transition={SPRING_UI}
-          onClick={onGuess}
-          disabled={!canGuess}
-          className="shrink-0 rounded-[14px] border-0 px-4 py-2.5 text-sm font-extrabold disabled:cursor-not-allowed"
-          style={{
-            position: "relative",
-            overflow: "hidden",
-            background: canGuess
-              ? `linear-gradient(160deg, ${GP.orange} 0%, ${GP.orangeDeep} 100%)`
-              : "#C8B8A8",
-            color: canGuess ? "white" : "#7A6A58",
-            opacity: canGuess ? 1 : 0.52,
-            boxShadow: canGuess
-              ? `inset 0 1.5px 0 rgba(255,255,255,0.45), inset 0 -1.5px 0 rgba(0,0,0,0.08), 0 1px 1px rgba(0,0,0,0.08), 0 6px 16px -4px rgba(224,102,10,0.6), 0 0 0 1.5px ${GP.orange}22`
-              : "inset 0 1px 0 rgba(255,255,255,0.25)",
-            transition: "background 0.22s cubic-bezier(0.23,1,0.32,1), box-shadow 0.22s cubic-bezier(0.23,1,0.32,1), opacity 0.22s",
-            willChange: "transform",
-          }}
-        >
-          {/* Inner gloss */}
-          {canGuess && (
-            <span
-              aria-hidden
-              style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                right: 0,
-                height: "45%",
-                borderRadius: "14px 14px 0 0",
-                background: "linear-gradient(180deg, rgba(255,255,255,0.22) 0%, transparent 100%)",
-                pointerEvents: "none",
-              }}
-            />
-          )}
-          <span style={{ position: "relative", zIndex: 1 }}>
-            خمّن {guessRemaining > 0 ? `(${guessRemaining})` : ""}
-          </span>
-        </motion.button>
-      </div>
     </div>
   );
 });

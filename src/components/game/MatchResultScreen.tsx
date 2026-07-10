@@ -1,72 +1,43 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion, useMotionValueEvent, useSpring, useMotionValue } from "framer-motion";
 import Image from "next/image";
-import { memo, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ConfettiBurst } from "@/components/game/ConfettiBurst";
 import { useLiveUserProfile } from "@/hooks/useLiveUserProfile";
 import { postGame } from "@/lib/api/game-client";
 import { XP_PER_LOSS, XP_PER_WIN, xpProgressInCurrentLevel } from "@/lib/profile/level";
 import { getCategoryById } from "@/lib/game/categories";
+import { EASE_OUT, SPRING_UI, EXIT, WHILE_TAP } from "@/lib/motion";
 import type { PlayerCosmetic } from "@/lib/profile/cosmetics";
 import type { AwardMatchRewardsResult } from "@/lib/game/match-rewards";
 import type { ChatMessage, GameCard } from "@/types";
 import type { XpBreakdown } from "@/lib/profile/level";
 
-/* ─── Design tokens (local mirror of GP) ─── */
-const W_ORANGE      = "#FF8A3D";
-const W_ORANGE_DEEP = "#F26A1F";
-const W_ORANGE_SOFT = "#FFC58A";
-const W_CREAM       = "#FFF1DD";
-const W_INK         = "#3A2517";
-const W_INK_SOFT    = "#7A5A45";
-const W_GOLD        = "#F2B544";
-const W_GOLD_DEEP   = "#C8881F";
-const W_GREEN       = "#3FB87A";
-const W_SAGE        = "#5a9a7a";
+const C = {
+  purple: "#8B5CF6",
+  purpleSoft: "#DDD6FE",
+  purpleLight: "#F5F3FF",
+  coral: "#FB7185",
+  coralSoft: "#FECDD3",
+  peach: "#FDE68A",
+  golden: "#FBBF24",
+  pearl: "#FFFDF9",
+  ink: "#374151",
+  inkSoft: "#9CA3AF",
+  white: "#FFFFFF",
+  bg: "#FCFCFA",
+} as const;
 
-const CARD_PLACEHOLDER = "/cards/_placeholder.svg";
+/* ─── Helpers ─────────────────────────────────────────── */
 
-/* ─── spring config ─── */
-const SPRING = { type: "spring", stiffness: 340, damping: 28, mass: 0.9 } as const;
-const SPRING_SOFT = { type: "spring", stiffness: 260, damping: 26, mass: 1 } as const;
-
-export type MatchResultScreenProps = {
-  roomId: string;
-  matchId: string | null;
-  myUid: string;
-  iWon: boolean;
-  winnerUid: string | null;
-  forfeitWin: boolean;
-  guessLimitWin?: boolean;
-  myName: string;
-  opponentName: string;
-  opponentCard: GameCard | null;
-  messages: ChatMessage[];
-  toolsUsed?: number;
-  matchStartedAtMs?: number | null;
-  matchEndedAtMs?: number | null;
-  replayBusy?: boolean;
-  onReplay: () => void;
-  onHome: () => void;
-  myCosmetic?: PlayerCosmetic | null;
-  opponentCosmetic?: PlayerCosmetic | null;
-  myPhotoURL?: string | null;
-};
-
-/* ═══════════════════════════════════════════════════════════
-   Helpers
-   ═══════════════════════════════════════════════════════════ */
-
-function useRevealedCards(roomId: string, myUid: string): {
-  myCard: GameCard | null;
-  opponentCard: GameCard | null;
-} {
+function useRevealedCards(roomId: string, myUid: string) {
   const [myCard, setMyCard] = useState<GameCard | null>(null);
   const [oppCard, setOppCard] = useState<GameCard | null>(null);
-
+  const clearedRef = useRef(false);
   useEffect(() => {
-    if (!roomId || !myUid) { setMyCard(null); setOppCard(null); return; }
+    if (!roomId || !myUid) { clearedRef.current = true; return; }
+    clearedRef.current = false;
     let cancelled = false;
     let attempts = 0;
     const tick = async () => {
@@ -97,7 +68,9 @@ function useRevealedCards(roomId: string, myUid: string): {
     void tick();
     return () => { cancelled = true; };
   }, [roomId, myUid]);
-
+  useEffect(() => {
+    if (clearedRef.current) { setMyCard(null); setOppCard(null); clearedRef.current = false; }
+  }, [roomId, myUid]);
   return { myCard, opponentCard: oppCard };
 }
 
@@ -108,397 +81,249 @@ function formatDuration(ms: number): string {
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
-/* ═══════════════════════════════════════════════════════════
-   SVG Icons & primitives
-   ═══════════════════════════════════════════════════════════ */
+/* ─── Animated Counter ────────────────────────────────── */
 
-function IconClose() {
+function AnimatedNumber({ value, suffix = "" }: { value: number; suffix?: string }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  const mv = useMotionValue(0);
+  const spring = useSpring(mv, { stiffness: 80, damping: 18 });
+  useMotionValueEvent(spring, "change", (v) => {
+    if (ref.current) ref.current.textContent = `${Math.floor(v)}${suffix}`;
+  });
+  useEffect(() => { mv.set(value); }, [mv, value]);
+  return <span ref={ref} className="font-black tabular-nums" style={{ fontFamily: "var(--display)", letterSpacing: "-0.02em" }}>0{suffix}</span>;
+}
+
+/* ─── SVG Icons ───────────────────────────────────────── */
+
+function TrophyIcon() {
   return (
-    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden>
-      <path d="M4 4l10 10M14 4L4 14" stroke={W_INK} strokeWidth="2" strokeLinecap="round" />
+    <svg width="48" height="48" viewBox="0 0 48 48" fill="none" aria-hidden>
+      <path d="M14 10h20v12c0 5.5-4.5 10-10 10s-10-4.5-10-10V10z" fill="#FDE68A" stroke="#FBBF24" strokeWidth="1.5" />
+      <path d="M14 10H8c-1.5 0-2.5 1-2.5 2.5v2c0 2.5 2 5 4.5 5.5L14 20" fill="#FEF3C7" stroke="#FBBF24" strokeWidth="1.2" />
+      <path d="M34 10h6c1.5 0 2.5 1 2.5 2.5v2c0 2.5-2 5-4.5 5.5L34 20" fill="#FEF3C7" stroke="#FBBF24" strokeWidth="1.2" />
+      <rect x="20" y="32" width="8" height="6" rx="1" fill="#DDD6FE" stroke="#C4B5FD" strokeWidth="1" />
+      <path d="M18 38h12v2.5a0.5 0.5 0 0 1-0.5 0.5h-11a0.5 0.5 0 0 1-0.5-0.5V38z" fill="#C4B5FD" />
+      <path d="M24 36v4" stroke="#8B5CF6" strokeWidth="1.2" strokeLinecap="round" />
+      <circle cx="24" cy="10" r="2" fill="#FBBF24" />
     </svg>
   );
 }
 
-function IconRefresh() {
+function StarIcon({ size = 14 }: { size?: number }) {
   return (
-    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden>
-      <path
-        d="M3 9a6 6 0 1 0 1.5-4M3 3v3.5h3.5"
-        stroke="#fff"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M12 2l2.4 5.8 6.2.5-4.7 4 1.4 6.1L12 15.8 7.7 18.4l1.4-6.1-4.7-4 6.2-.5L12 2z" fill="currentColor" />
     </svg>
   );
 }
 
-function IconStar() {
+function SparkleIcon({ size = 12 }: { size?: number }) {
   return (
-    <svg width="20" height="20" viewBox="0 0 22 22" fill="none" aria-hidden>
-      <path
-        d="M11 2l2.4 5.8 6.2.5-4.7 4 1.4 6.1L11 15.8 6.7 18.4l1.4-6.1-4.7-4 6.2-.5L11 2z"
-        fill={W_SAGE}
-      />
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M12 4l1 3h4l-3 2 1 4-3-2-3 2 1-4-3-2h4z" fill="currentColor" />
     </svg>
   );
 }
 
-/**
- * OfficialCoin — exact visual replica of .coin-ico from shell-tokens.css.
- * Uses inline SVG so it works outside .shell-screen context.
- * Radial gradient: oklch(0.96 0.13 90) → oklch(0.72 0.17 60) = #fef3a0 → #c8881f approx
- */
-function OfficialCoin({ size = 22 }: { size?: number }) {
+function CoinIcon({ size = 24 }: { size?: number }) {
   return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 22 22"
-      fill="none"
-      aria-hidden
-      style={{ flexShrink: 0 }}
-    >
-      <defs>
-        <radialGradient id="coinFace" cx="35%" cy="30%" r="65%">
-          <stop offset="0%"  stopColor="#fef6c8" />
-          <stop offset="45%" stopColor="#f2b544" />
-          <stop offset="100%" stopColor="#b87818" />
-        </radialGradient>
-        <radialGradient id="coinGlow" cx="50%" cy="50%" r="50%">
-          <stop offset="0%"  stopColor="#f2b544" stopOpacity="0.55" />
-          <stop offset="100%" stopColor="#f2b544" stopOpacity="0" />
-        </radialGradient>
-      </defs>
-      {/* outer glow ring */}
-      <circle cx="11" cy="11" r="10.5" fill="url(#coinGlow)" />
-      {/* coin face */}
-      <circle cx="11" cy="11" r="9" fill="url(#coinFace)" />
-      {/* inner bottom shadow */}
-      <ellipse cx="11" cy="16" rx="5.5" ry="2.5" fill="rgba(80,40,0,0.18)" />
-      {/* specular highlight */}
-      <ellipse cx="9" cy="7.5" rx="3" ry="1.5" fill="rgba(255,255,255,0.42)" transform="rotate(-18 9 7.5)" />
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden>
+      <circle cx="12" cy="12" r="10" fill="#FDE68A" stroke="#FBBF24" strokeWidth="1.2" />
+      <circle cx="12" cy="12" r="8" fill="#FEF3C7" />
+      <circle cx="12" cy="12" r="5" fill="#FBBF24" opacity="0.3" />
+      <ellipse cx="10" cy="9" rx="2.5" ry="1.2" fill="white" opacity="0.5" transform="rotate(-15 10 9)" />
     </svg>
   );
 }
 
-/* ═══════════════════════════════════════════════════════════
-   Card image
-   ═══════════════════════════════════════════════════════════ */
-
-const CardImg = memo(function CardImgInner({ src, alt }: { src: string; alt: string }) {
-  const [errored, setErrored] = useState(false);
-  const finalSrc = errored || !src ? CARD_PLACEHOLDER : src;
+function ClockIcon() {
   return (
-    <Image
-      src={finalSrc}
-      alt={alt}
-      fill
-      className="object-cover object-center"
-      sizes="80px"
-      unoptimized
-      onError={() => setErrored(true)}
-    />
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <circle cx="12" cy="12" r="9" stroke={C.purple} strokeWidth="1.5" />
+      <path d="M12 7.5V12l3 3" stroke={C.purple} strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
   );
-});
+}
 
-/* ═══════════════════════════════════════════════════════════
-   ResultMiniCard — used inside the dual-card fan composition
-   ═══════════════════════════════════════════════════════════ */
-function ResultMiniCard({
-  title,
-  category,
-  imageUrl,
-  label,
-  tilt = 0,
-  delay = 0,
-  highlighted = false,
-}: {
-  title: string;
-  category: string | null;
-  imageUrl?: string;
-  label: string;
-  tilt?: number;
-  delay?: number;
-  highlighted?: boolean;
-}) {
+function QuestionIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <circle cx="12" cy="12" r="9" stroke={C.purple} strokeWidth="1.5" />
+      <path d="M10 9.5c0-1 1-2 2-2s2 0.8 2 2c0 1.5-2 2-2 3.5v1" stroke={C.purple} strokeWidth="1.5" strokeLinecap="round" />
+      <circle cx="12" cy="17" r="0.8" fill={C.purple} />
+    </svg>
+  );
+}
+
+function ToolsIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.8-3.8a1 1 0 0 0 0-1.4l-1.6-1.6a1 1 0 0 0-1.4 0l-3.8 3.8z" stroke={C.purple} strokeWidth="1.5" strokeLinejoin="round" />
+      <path d="M9 8L3 15v3h3l7-6" stroke={C.purple} strokeWidth="1.5" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function CardIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <rect x="3" y="5" width="18" height="14" rx="2" stroke={C.purple} strokeWidth="1.5" />
+      <path d="M3 16l5-5 4 4 3-3 6 6" stroke={C.purple} strokeWidth="1.5" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+/* ─── Premium Shell ───────────────────────────────────── */
+
+function PremiumShell({ children, delay = 0, className = "" }: { children: React.ReactNode; delay?: number; className?: string }) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20, rotate: tilt - (tilt > 0 ? 12 : -12) }}
-      animate={{ opacity: 1, y: 0, rotate: tilt }}
-      transition={{ ...SPRING, delay }}
-      style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}
-    >
-      {/* card */}
-      <div
-        style={{
-          position: "relative",
-          width: 80,
-          height: 112,
-          borderRadius: 14,
-          overflow: "hidden",
-          border: highlighted
-            ? `2px solid rgba(255,138,61,0.7)`
-            : "1.5px solid rgba(255,138,61,0.28)",
-          background: "linear-gradient(160deg,#fff 0%,#fff1dd 48%,#fbe0bd 100%)",
-          boxShadow: highlighted
-            ? "0 14px 32px rgba(180,100,30,0.28), inset 0 1px 0 #fff"
-            : "0 8px 22px rgba(180,100,30,0.18), inset 0 1px 0 #fff",
-        }}
-      >
-        <div style={{ position: "relative", height: "63%", width: "100%" }}>
-          {imageUrl ? <CardImg src={imageUrl} alt={title} /> : null}
-        </div>
-        <div style={{ padding: "4px 6px 5px", textAlign: "center" }}>
-          <p
-            style={{
-              fontSize: 9,
-              fontWeight: 800,
-              color: W_INK,
-              lineHeight: 1.2,
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {title}
-          </p>
-          {category && (
-            <p style={{ fontSize: 7.5, fontWeight: 600, color: W_INK_SOFT, marginTop: 1 }}>
-              {category}
-            </p>
-          )}
-        </div>
-      </div>
-
-      {/* owner label pill */}
-      <div
-        style={{
-          background: highlighted
-            ? `linear-gradient(180deg, ${W_ORANGE}, ${W_ORANGE_DEEP})`
-            : "rgba(255,255,255,0.88)",
-          border: highlighted ? "none" : "1px solid rgba(244,196,141,0.5)",
-          borderRadius: 999,
-          padding: "3px 10px",
-          fontSize: 10,
-          fontWeight: 800,
-          color: highlighted ? "#fff" : W_INK_SOFT,
-          boxShadow: highlighted
-            ? "0 3px 10px rgba(240,100,20,0.28)"
-            : "0 1px 4px rgba(180,100,30,0.10)",
-          whiteSpace: "nowrap",
-        }}
-      >
-        {label}
-      </div>
-    </motion.div>
-  );
-}
-
-/* ═══════════════════════════════════════════════════════════
-   Surface card
-   ═══════════════════════════════════════════════════════════ */
-function ResultSurf({
-  children,
-  className = "",
-  style,
-  delay = 0,
-}: {
-  children: React.ReactNode;
-  className?: string;
-  style?: React.CSSProperties;
-  delay?: number;
-}) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 14 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ ...SPRING_SOFT, delay }}
-      className={`bezel-outer ${className}`}
+      initial={{ opacity: 0, y: 16, scale: 0.97 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ duration: 0.4, ease: EASE_OUT, delay }}
+      className={className}
       style={{
-        padding: 5,
-        background: "rgba(255, 255, 255, 0.45)",
-        borderColor: "rgba(251, 146, 60, 0.14)",
-        boxShadow: "0 6px 18px rgba(180, 100, 30, 0.05)",
-        ...style,
-      }}
-    >
-      <div
-        className="bezel-inner"
-        style={{
-          padding: 16,
-          background: "linear-gradient(180deg, #FFFDF9 0%, #FFF9F0 100%)",
-          borderColor: "rgba(255, 255, 255, 0.75)",
-          borderRadius: 21,
-          width: "100%",
-          height: "100%",
-        }}
-      >
-        {children}
-      </div>
-    </motion.div>
-  );
-}
-
-/* ═══════════════════════════════════════════════════════════
-   Reward row — inline with the official coin
-   ═══════════════════════════════════════════════════════════ */
-function RewardRow({
-  icon,
-  label,
-  value,
-  accent,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-  accent: "amber" | "sage";
-}) {
-  const amber = accent === "amber";
-  return (
-    <div
-      className="flex items-center gap-3 rounded-2xl border p-3.5"
-      style={{
-        background: amber
-          ? "linear-gradient(160deg, #FFFDF0 0%, #FFEFC4 100%)"
-          : "linear-gradient(160deg, #F0FAF5 0%, #D1FAE5 100%)",
-        borderColor: amber ? "rgba(251, 146, 60, 0.2)" : "rgba(16, 185, 129, 0.2)",
-        boxShadow: "0 2px 6px rgba(180, 100, 30, 0.03)",
-      }}
-    >
-      {/* icon bubble */}
-      <div
-        className="grid h-11 w-11 shrink-0 place-items-center rounded-[14px]"
-        style={{
-          background: amber
-            ? `linear-gradient(180deg, ${W_GOLD}, ${W_GOLD_DEEP})`
-            : `linear-gradient(180deg, #34D399, #059669)`,
-          boxShadow: amber
-            ? `inset 0 1px 0 rgba(255,255,255,0.5), 0 4px 12px ${W_GOLD_DEEP}33`
-            : "inset 0 1px 0 rgba(255,255,255,0.4), 0 4px 12px rgba(5,150,105,0.22)",
-        }}
-      >
-        {icon}
-      </div>
-
-      {/* text */}
-      <div className="min-w-0 flex-1">
-        <p style={{ fontSize: 11, fontWeight: 700, color: W_INK_SOFT }}>{label}</p>
-        <p style={{ fontSize: 22, fontWeight: 900, color: W_INK, lineHeight: 1.1, letterSpacing: "-0.03em" }}>
-          {value}
-        </p>
-      </div>
-    </div>
-  );
-}
-
-/* ═══════════════════════════════════════════════════════════
-   Stat cell
-   ═══════════════════════════════════════════════════════════ */
-function StatCell({ label, value }: { label: string; value: string }) {
-  return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        borderRadius: 16,
-        border: "1.5px solid rgba(251, 146, 60, 0.12)",
-        background: "linear-gradient(180deg, #FFFDF9, #FFFBF5)",
-        padding: "12px 10px",
-        gap: 4,
-        boxShadow: "0 2px 6px rgba(180, 100, 30, 0.02)",
-      }}
-    >
-      <p
-        style={{
-          fontSize: 20,
-          fontWeight: 900,
-          color: W_INK,
-          lineHeight: 1,
-          letterSpacing: "-0.03em",
-          fontVariantNumeric: "tabular-nums",
-        }}
-      >
-        {value}
-      </p>
-      <p style={{ fontSize: 10, fontWeight: 700, color: W_INK_SOFT, lineHeight: 1.2, textAlign: "center" }}>
-        {label}
-      </p>
-    </div>
-  );
-}
-
-/* ═══════════════════════════════════════════════════════════
-   XP breakdown pill
-   ═══════════════════════════════════════════════════════════ */
-function XpPill({
-  label,
-  value,
-  color,
-}: {
-  label: string;
-  value: string;
-  color: "sage" | "amber" | "blue" | "purple";
-}) {
-  const configs = {
-    sage:   { bg: "rgba(62,184,122,0.12)", border: "rgba(62,184,122,0.35)", text: "#2d7c52" },
-    amber:  { bg: "rgba(242,181,68,0.14)", border: "rgba(200,130,60,0.38)", text: "#7a4c14" },
-    blue:   { bg: "rgba(80,140,230,0.12)", border: "rgba(80,140,230,0.35)", text: "#2c4e9a" },
-    purple: { bg: "rgba(150,90,220,0.12)", border: "rgba(150,90,220,0.35)", text: "#5c2a8e" },
-  };
-  const c = configs[color];
-  return (
-    <div
-      style={{
-        padding: "4px 10px",
         borderRadius: 20,
-        background: c.bg,
-        border: `1px solid ${c.border}`,
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 4,
+        background: C.white,
+        boxShadow: "0 2px 8px rgba(139, 92, 246, 0.06), 0 8px 32px -6px rgba(139, 92, 246, 0.08), inset 0 1px 0 rgba(255,255,255,0.95)",
+        padding: 16,
       }}
     >
-      <span style={{ fontSize: 10.5, fontWeight: 700, color: c.text }}>{label}</span>
-      <span style={{ fontSize: 11, fontWeight: 900, color: c.text }}>{value} XP</span>
-    </div>
+      {children}
+    </motion.div>
   );
 }
 
-/* ═══════════════════════════════════════════════════════════
-   Ambient embers
-   ═══════════════════════════════════════════════════════════ */
-function FloatingEmbers({ count }: { count: number }) {
-  const pieces = useMemo(
-    () =>
-      Array.from({ length: count }, (_, i) => ({
-        left: `${(i * 17 + 11) % 100}%`,
-        delay: (i % 6) * 0.35,
-        dur: 2.8 + (i % 4) * 0.6,
-        size: 3 + (i % 3),
-      })),
-    [count],
-  );
+/* ─── Stat Card ───────────────────────────────────────── */
+
+function StatCard({ icon, value, label, delay = 0 }: { icon: React.ReactNode; value: string; label: string; delay?: number }) {
   return (
-    <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
-      {pieces.map((p, i) => (
-        <motion.span
-          key={i}
-          className="absolute bottom-0 rounded-full"
-          style={{ left: p.left, width: p.size, height: p.size, background: W_ORANGE_SOFT }}
-          animate={{ y: [0, -120, -240], opacity: [0, 0.65, 0] }}
-          transition={{ duration: p.dur, repeat: Infinity, delay: p.delay, ease: "easeOut" }}
-        />
-      ))}
-    </div>
+    <motion.div
+      initial={{ opacity: 0, y: 12, scale: 0.95 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ duration: 0.35, ease: EASE_OUT, delay }}
+      className="flex flex-col items-center gap-2"
+      style={{
+        borderRadius: 16,
+        background: C.purpleLight,
+        padding: "14px 10px",
+      }}
+    >
+      <div style={{ color: C.purple, opacity: 0.8 }}>{icon}</div>
+      <span className="font-black leading-none" style={{ fontSize: 22, color: C.ink, fontFamily: "var(--display)", fontVariantNumeric: "tabular-nums" }}>
+        {value}
+      </span>
+      <span className="font-bold leading-tight" style={{ fontSize: 10, color: C.inkSoft, fontFamily: "var(--display)" }}>
+        {label}
+      </span>
+    </motion.div>
   );
 }
 
-/* ═══════════════════════════════════════════════════════════
-   Main screen
-   ═══════════════════════════════════════════════════════════ */
+/* ─── Premium XP Bar ──────────────────────────────────── */
+
+function XpBar({ pct, level, xpInLevel, xpToNext, leveledUp, delay = 0 }: {
+  pct: number;
+  level: number;
+  xpInLevel: number;
+  xpToNext: number;
+  leveledUp: boolean;
+  delay?: number;
+}) {
+  const [show, setShow] = useState(false);
+  useEffect(() => { const t = setTimeout(() => setShow(true), (delay + 0.3) * 1000); return () => clearTimeout(t); }, [delay]);
+
+  return (
+    <PremiumShell delay={delay}>
+      <div className="flex items-center gap-3">
+        {/* Level badge */}
+        <motion.div
+          initial={{ scale: 0 }}
+          animate={show ? { scale: 1 } : {}}
+          transition={{ type: "spring", stiffness: 380, damping: 22, delay: delay + 0.5 }}
+          className="flex shrink-0 items-center justify-center rounded-full font-black leading-none"
+          style={{
+            width: 48,
+            height: 48,
+            background: leveledUp
+              ? "linear-gradient(135deg, #FDE68A 0%, #FBBF24 100%)"
+              : `linear-gradient(135deg, ${C.purpleLight} 0%, ${C.purpleSoft} 100%)`,
+            color: leveledUp ? "#92400E" : C.purple,
+            fontSize: 16,
+            fontFamily: "var(--display)",
+            boxShadow: leveledUp ? "0 0 20px rgba(251,191,36,0.5)" : "none",
+          }}
+        >
+          {level}
+        </motion.div>
+
+        {/* XP info */}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="font-black leading-none" style={{ fontSize: 12, color: C.ink, fontFamily: "var(--display)" }}>
+              المستوى {level}
+            </span>
+            <span className="font-bold tabular-nums leading-none" style={{ fontSize: 10, color: C.inkSoft, fontFamily: "var(--display)" }}>
+              {xpInLevel} / {xpToNext} XP
+            </span>
+          </div>
+
+          {/* Bar track */}
+          <div style={{
+            position: "relative",
+            height: 8,
+            borderRadius: 999,
+            overflow: "hidden",
+            background: C.purpleLight,
+          }}>
+            {/* Animated fill */}
+            <motion.div
+              initial={{ width: "0%" }}
+              animate={show ? { width: `${Math.min(100, Math.max(0, pct))}%` } : {}}
+              transition={{ duration: 1.2, ease: EASE_OUT, delay: delay + 0.35 }}
+              style={{
+                height: "100%",
+                borderRadius: 999,
+                background: `linear-gradient(90deg, ${C.purple} 0%, ${C.coral} 100%)`,
+                boxShadow: `inset 0 1px 0 rgba(255,255,255,0.4), 0 0 12px ${C.purple}55`,
+              }}
+            />
+          </div>
+        </div>
+      </div>
+    </PremiumShell>
+  );
+}
+
+/* ─── Type ────────────────────────────────────────────── */
+
+export type MatchResultScreenProps = {
+  roomId: string;
+  matchId: string | null;
+  myUid: string;
+  iWon: boolean;
+  winnerUid: string | null;
+  forfeitWin: boolean;
+  guessLimitWin?: boolean;
+  myName: string;
+  opponentName: string;
+  opponentCosmetic?: PlayerCosmetic | null;
+  myPhotoURL?: string | null;
+  opponentCard: GameCard | null;
+  messages: ChatMessage[];
+  toolsUsed?: number;
+  matchStartedAtMs?: number | null;
+  matchEndedAtMs?: number | null;
+  replayBusy?: boolean;
+  onReplay: () => void;
+  onHome: () => void;
+};
+
+/* ════════════════════════════════════════════════════════
+   Main Screen
+   ════════════════════════════════════════════════════════ */
+
 export function MatchResultScreen({
   roomId,
   matchId,
@@ -506,7 +331,10 @@ export function MatchResultScreen({
   iWon,
   forfeitWin,
   guessLimitWin = false,
+  myName,
   opponentName,
+  opponentCosmetic: _opponentCosmetic,
+  myPhotoURL,
   opponentCard,
   messages,
   toolsUsed = 0,
@@ -525,19 +353,16 @@ export function MatchResultScreen({
   const myCategory  = myCard?.categoryId  ? (getCategoryById(myCard.categoryId)?.nameAr  ?? myCard.categoryId) : null;
   const oppCategory = effectiveOpponentCard?.categoryId ? (getCategoryById(effectiveOpponentCard.categoryId)?.nameAr ?? effectiveOpponentCard.categoryId) : null;
 
-  const [show, setShow]               = useState(false);
+  const [show, setShow] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
-  const [rewards, setRewards]         = useState<AwardMatchRewardsResult | null>(null);
+  const [rewards, setRewards] = useState<AwardMatchRewardsResult | null>(null);
 
-  useEffect(() => {
-    const t = window.setTimeout(() => setShow(true), 80);
-    return () => window.clearTimeout(t);
-  }, []);
+  useEffect(() => { const t = setTimeout(() => setShow(true), 80); return () => clearTimeout(t); }, []);
 
   useEffect(() => {
     if (!iWon) return;
-    const t = window.setTimeout(() => setShowConfetti(true), 240);
-    return () => window.clearTimeout(t);
+    const t = setTimeout(() => setShowConfetti(true), 240);
+    return () => clearTimeout(t);
   }, [iWon]);
 
   useEffect(() => {
@@ -576,24 +401,14 @@ export function MatchResultScreen({
   const xp = liveProfile?.progress.xp ?? 0;
   const xpForLevel = liveProfile?.progress.lifetimeXp ?? xp;
   const { level, xpInLevel, xpToNext, pct: levelPct } = xpProgressInCurrentLevel(xpForLevel);
-  const levelPctAnimated = show ? levelPct : Math.max(0, levelPct - 8);
 
-  const headline = iWon ? (forfeitWin ? "فزت!" : "أحسنت!") : "خسارة";
-  const subline  = iWon
-    ? forfeitWin
-      ? "فزت بانسحاب الخصم"
-      : guessLimitWin
-        ? "فزت — استنفد الخصم محاولات التخمين"
-        : "فزت بالمباراة · خمّنت كرتك في الوقت"
-    : guessLimitWin
-      ? "استنفدت محاولات التخمين"
-      : forfeitWin
-        ? "غادر خصمك المباراة"
-        : "في المرة القادمة تنجح إن شاء الله";
+  const headline = iWon ? "فزت!" : "خسارة";
+  const subline = iWon
+    ? forfeitWin ? "فوز بانسحاب الخصم" : "أحسنت · فوز مستحق"
+    : guessLimitWin ? "استنفدت المحاولات" : "في المرة القادمة";
 
   const coinReward  = rewards?.coinsAwarded ?? (iWon ? 1 : 0);
   const xpReward    = rewards?.xpAwarded   ?? (iWon ? XP_PER_WIN : XP_PER_LOSS);
-  const bonusLabel  = rewards?.bonusLabelAr ?? null;
   const xpBreakdown: XpBreakdown | null = rewards?.xpBreakdown ?? null;
   const leveledUp   = rewards?.leveledUp ?? false;
   const levelAfter  = rewards?.levelAfter ?? level;
@@ -604,17 +419,39 @@ export function MatchResultScreen({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      transition={{ duration: 0.22 }}
+      transition={EXIT}
       dir="rtl"
-      className="match-result-screen absolute inset-0 z-50 flex min-h-0 w-full flex-col overflow-hidden"
-      style={{
-        background: iWon
-          ? "radial-gradient(ellipse 900px 500px at 50% -5%, rgba(255,220,160,0.9), transparent), linear-gradient(180deg, #fff9f0 0%, #fce8d2 100%)"
-          : "radial-gradient(ellipse 900px 500px at 50% -5%, rgba(255,200,180,0.78), transparent), linear-gradient(180deg, #fff9f0 0%, #fce8d2 100%)",
-      }}
+      className="absolute inset-0 z-50 flex min-h-0 w-full flex-col overflow-hidden"
+      style={{ background: C.bg }}
     >
-      <FloatingEmbers count={iWon ? 22 : 8} />
+      {/* Confetti */}
       {iWon && showConfetti ? <ConfettiBurst active /> : null}
+
+      {/* Decorative background elements */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden select-none" aria-hidden>
+        <div className="absolute" style={{ top: "5%", left: "8%", width: 120, height: 120, borderRadius: "50%", background: `radial-gradient(circle, ${C.purpleSoft}22, transparent 70%)` }} />
+        <div className="absolute" style={{ top: "30%", right: "5%", width: 80, height: 80, borderRadius: "50%", background: `radial-gradient(circle, ${C.coralSoft}22, transparent 70%)` }} />
+        <div className="absolute" style={{ bottom: "20%", left: "15%", width: 100, height: 100, borderRadius: "50%", background: `radial-gradient(circle, ${C.peach}33, transparent 70%)` }} />
+
+        <motion.span className="absolute" style={{ top: "12%", right: "12%", color: C.purpleSoft, fontSize: 16 }} animate={{ y: [0, -8, 0], opacity: [0.3, 0.6, 0.3] }} transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}>
+          ✦
+        </motion.span>
+        <motion.span className="absolute" style={{ top: "20%", left: "10%", color: C.coralSoft, fontSize: 12 }} animate={{ y: [0, -6, 0], opacity: [0.3, 0.5, 0.3] }} transition={{ duration: 3.5, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}>
+          ✦
+        </motion.span>
+        <motion.span className="absolute" style={{ top: "45%", right: "8%", color: C.peach, fontSize: 14 }} animate={{ y: [0, -10, 0], opacity: [0.2, 0.5, 0.2] }} transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 1 }}>
+          ✦
+        </motion.span>
+        <motion.span className="absolute" style={{ top: "60%", left: "6%", color: C.purpleSoft, fontSize: 10 }} animate={{ y: [0, -7, 0], opacity: [0.2, 0.4, 0.2] }} transition={{ duration: 4.5, repeat: Infinity, ease: "easeInOut", delay: 0.8 }}>
+          ❓
+        </motion.span>
+        <motion.span className="absolute" style={{ bottom: "35%", right: "10%", color: C.coralSoft, fontSize: 11 }} animate={{ y: [0, -5, 0], opacity: [0.2, 0.4, 0.2] }} transition={{ duration: 3.8, repeat: Infinity, ease: "easeInOut", delay: 1.5 }}>
+          ❓
+        </motion.span>
+        <motion.span className="absolute" style={{ top: "8%", left: "20%", color: C.purpleSoft, fontSize: 8 }} animate={{ y: [0, -4, 0], opacity: [0.2, 0.5, 0.2] }} transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", delay: 0.3 }}>
+          ⭐
+        </motion.span>
+      </div>
 
       {/* ── Header ── */}
       <header
@@ -624,387 +461,467 @@ export function MatchResultScreen({
         <motion.button
           type="button"
           onClick={onHome}
-          whileTap={{ scale: 0.94 }}
-          transition={{ type: "spring", stiffness: 420, damping: 28 }}
-          className="rounded-xl p-2"
+          whileTap={WHILE_TAP}
+          transition={SPRING_UI}
+          className="flex items-center justify-center rounded-xl"
           style={{
-            background: "linear-gradient(180deg, rgba(255,255,255,0.96), rgba(255,248,236,0.92))",
-            border: "1px solid rgba(244,196,141,0.40)",
-            boxShadow: "inset 0 1.5px 0 rgba(255,255,255,0.90), 0 3px 10px rgba(180,100,30,0.10)",
+            width: 36,
+            height: 36,
+            background: C.white,
+            boxShadow: "0 1px 4px rgba(139,92,246,0.06), 0 2px 8px rgba(0,0,0,0.03)",
             cursor: "pointer",
           }}
           aria-label="إغلاق"
         >
-          <IconClose />
+          <svg width="16" height="16" viewBox="0 0 18 18" fill="none" aria-hidden>
+            <path d="M4 4l10 10M14 4L4 14" stroke={C.ink} strokeWidth="2" strokeLinecap="round" />
+          </svg>
         </motion.button>
+
         <span
+          className="inline-flex items-center gap-1.5 rounded-full font-black leading-none select-none"
           style={{
-            fontSize: 11,
-            fontWeight: 700,
-            color: W_INK_SOFT,
-            padding: "4px 10px",
-            borderRadius: 999,
-            background: "rgba(255,255,255,0.55)",
-            border: "1px solid rgba(244,196,141,0.35)",
+            padding: "5px 12px",
+            fontSize: 10,
+            fontFamily: "var(--display)",
+            background: C.purpleLight,
+            color: C.purple,
           }}
         >
-          المباراة #{shortRoom}
+          <SparkleIcon size={10} />
+          #{shortRoom}
         </span>
+
         <span style={{ width: 36 }} aria-hidden />
       </header>
 
       {/* ── Scrollable body ── */}
       <div className="relative z-10 min-h-0 flex-1 overflow-y-auto overscroll-contain px-[18px] pb-2">
 
-        {/* ── Headline ── */}
-        <div className="pt-1 text-center">
+        {/* ── Celebration Hero ── */}
+        <div className="flex flex-col items-center pt-2 pb-1 text-center">
           <motion.div
-            initial={{ scale: 0.55, opacity: 0 }}
+            initial={{ scale: 0.5, opacity: 0 }}
             animate={show ? { scale: 1, opacity: 1 } : {}}
-            transition={{ ...SPRING, delay: 0.04 }}
+            transition={{ type: "spring", stiffness: 380, damping: 26, delay: 0.04 }}
+            className="relative"
           >
+            {/* Trophy */}
+            {iWon && (
+              <motion.div
+                animate={{ y: [0, -4, 0] }}
+                transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                className="mb-2"
+              >
+                <TrophyIcon />
+              </motion.div>
+            )}
+
             <h1
               className="font-black leading-none"
               style={{
-                fontSize: "clamp(2.6rem, 12vw, 3.8rem)",
+                fontSize: "clamp(2.8rem, 13vw, 4rem)",
+                fontFamily: "var(--display)",
                 background: iWon
-                  ? `linear-gradient(180deg, ${W_ORANGE} 0%, ${W_ORANGE_DEEP} 100%)`
-                  : "linear-gradient(180deg, #c45a4a 0%, #8a3028 100%)",
+                  ? `linear-gradient(180deg, ${C.coral} 0%, ${C.purple} 100%)`
+                  : "linear-gradient(180deg, #9CA3AF 0%, #6B7280 100%)",
                 WebkitBackgroundClip: "text",
                 WebkitTextFillColor: "transparent",
                 filter: iWon
-                  ? "drop-shadow(0 3px 10px rgba(255,160,60,0.38))"
-                  : "drop-shadow(0 3px 10px rgba(180,80,60,0.32))",
+                  ? "drop-shadow(0 3px 12px rgba(139,92,246,0.35))"
+                  : "none",
               }}
             >
               {headline}
             </h1>
           </motion.div>
+
           <motion.p
             initial={{ opacity: 0, y: 6 }}
             animate={show ? { opacity: 1, y: 0 } : {}}
-            transition={{ duration: 0.38, delay: 0.22 }}
-            style={{ marginTop: 6, fontSize: 13, fontWeight: 600, color: W_INK_SOFT }}
+            transition={{ duration: 0.35, delay: 0.2 }}
+            className="font-bold"
+            style={{ marginTop: 4, fontSize: 13, color: C.inkSoft, fontFamily: "var(--display)" }}
           >
             {subline}
           </motion.p>
         </div>
 
-        {/* ── Cards reveal ── */}
-        <ResultSurf className="mt-5 p-5" delay={0.12}>
-          {/* Two-card fan: both centered, counter-rotation creates a V-spread */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "flex-end",
-              justifyContent: "center",
-              gap: 20,
-              marginBottom: 16,
-            }}
-          >
-            {/* My card — slight left tilt */}
-            <ResultMiniCard
-              title={myTitle}
-              category={myCategory}
-              imageUrl={myCard?.imageUrl}
-              label="كرتي"
-              tilt={-4}
-              delay={0.22}
-              highlighted={iWon}
-            />
-
-            {/* Opponent card — slight right tilt */}
-            <ResultMiniCard
-              title={oppTitle}
-              category={oppCategory}
-              imageUrl={effectiveOpponentCard?.imageUrl}
-              label="كرت الخصم"
-              tilt={4}
-              delay={0.30}
-              highlighted={!iWon}
-            />
-          </div>
-
-          {/* Card names listed below */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr",
-              gap: 8,
-            }}
-          >
-            <div
-              style={{
-                background: iWon ? "linear-gradient(160deg, #fff4e0, #ffe8c8)" : "rgba(255,255,255,0.65)",
-                borderRadius: 12,
-                border: iWon ? "1px solid rgba(242,181,68,0.5)" : "1px solid rgba(244,196,141,0.32)",
-                padding: "8px 10px",
-              }}
+        {/* ── Winner Profile Card ── */}
+        <motion.div
+          initial={{ opacity: 0, y: 20, scale: 0.95 }}
+          animate={show ? { opacity: 1, y: 0, scale: 1 } : {}}
+          transition={{ duration: 0.45, ease: EASE_OUT, delay: 0.15 }}
+          className="flex flex-col items-center gap-3 mb-4"
+          style={{
+            borderRadius: 24,
+            background: C.white,
+            padding: "20px 24px",
+            boxShadow: "0 2px 8px rgba(139,92,246,0.06), 0 12px 40px -8px rgba(139,92,246,0.12), inset 0 1px 0 rgba(255,255,255,0.95)",
+          }}
+        >
+          {/* Avatar with decorative frame */}
+          <div className="relative" style={{ width: 72, height: 72 }}>
+            {/* Decorative ring */}
+            <svg
+              width="88"
+              height="88"
+              viewBox="0 0 88 88"
+              className="absolute -left-2 -top-2"
+              aria-hidden
             >
-              <p style={{ fontSize: 10, fontWeight: 700, color: W_INK_SOFT, marginBottom: 2 }}>كرتي كان</p>
-              <p
+              <defs>
+                <linearGradient id="winnerFrame" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor={C.purple} />
+                  <stop offset="50%" stopColor={C.coral} />
+                  <stop offset="100%" stopColor={C.peach} />
+                </linearGradient>
+              </defs>
+              <circle cx="44" cy="44" r="42" fill="none" stroke="url(#winnerFrame)" strokeWidth="3" strokeDasharray="8 4" />
+            </svg>
+
+            {/* Avatar */}
+            <div className="relative flex h-full w-full items-center justify-center overflow-hidden rounded-full" style={{
+              background: "linear-gradient(135deg, #F5F3FF, #EDE9FE)",
+              boxShadow: "inset 0 2px 0 rgba(255,255,255,0.45), 0 0 0 2px rgba(139,92,246,0.15)",
+            }}>
+              {myPhotoURL ? (
+                <Image src={myPhotoURL} alt="" fill className="object-cover" sizes="72px" unoptimized />
+              ) : (
+                <span className="text-2xl">👤</span>
+              )}
+            </div>
+
+            {/* Winner badge */}
+            {iWon && (
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={show ? { scale: 1 } : {}}
+                transition={{ type: "spring", stiffness: 420, damping: 22, delay: 0.45 }}
+                className="absolute -bottom-1 -right-1 flex items-center justify-center rounded-full"
                 style={{
-                  fontSize: 14,
-                  fontWeight: 900,
-                  color: W_INK,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
+                  width: 26,
+                  height: 26,
+                  background: `linear-gradient(135deg, ${C.peach}, ${C.golden})`,
+                  boxShadow: "0 2px 8px rgba(251,191,36,0.4), 0 0 0 2px white",
+                  color: "#92400E",
+                  fontSize: 12,
                 }}
               >
-                {myTitle}
-              </p>
-            </div>
-            <div
-              style={{
-                background: !iWon ? "linear-gradient(160deg, #fff4e0, #ffe8c8)" : "rgba(255,255,255,0.65)",
-                borderRadius: 12,
-                border: !iWon ? "1px solid rgba(242,181,68,0.5)" : "1px solid rgba(244,196,141,0.32)",
-                padding: "8px 10px",
-              }}
-            >
-              <p style={{ fontSize: 10, fontWeight: 700, color: W_INK_SOFT, marginBottom: 2 }}>كرت الخصم</p>
-              <p
+                <StarIcon size={14} />
+              </motion.div>
+            )}
+          </div>
+
+          {/* Name + Level */}
+          <div className="text-center">
+            <span className="font-black leading-tight" style={{ fontSize: 16, color: C.ink, fontFamily: "var(--display)" }}>
+              {myName}
+            </span>
+            <div className="flex items-center justify-center gap-1.5 mt-0.5">
+              <span className="font-bold leading-none" style={{ fontSize: 11, color: C.inkSoft, fontFamily: "var(--display)" }}>
+                المستوى {levelAfter}
+              </span>
+              <div style={{ width: 3, height: 3, borderRadius: "50%", background: C.purpleSoft }} />
+              <span
+                className="inline-flex items-center gap-0.5 rounded-full font-black leading-none"
                 style={{
-                  fontSize: 14,
-                  fontWeight: 900,
-                  color: W_INK,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
+                  padding: "2px 8px",
+                  fontSize: 9,
+                  fontFamily: "var(--display)",
+                  background: iWon ? `linear-gradient(135deg, ${C.purpleLight}, ${C.purpleSoft})` : C.purpleLight,
+                  color: C.purple,
                 }}
               >
-                {oppTitle}
-              </p>
+                <StarIcon size={8} />
+                {iWon ? "فائز" : "خاسر"}
+              </span>
             </div>
           </div>
-        </ResultSurf>
+        </motion.div>
+
+        {/* ── Match Stats ── */}
+        <div className="grid grid-cols-3 gap-2.5 mb-4">
+          <StatCard icon={<QuestionIcon />} value={String(questionCount)} label="الأسئلة" delay={0.2} />
+          <StatCard icon={<ToolsIcon />} value={String(toolsUsed)} label="الأدوات" delay={0.28} />
+          <StatCard icon={<ClockIcon />} value={durationLabel} label="المدة" delay={0.36} />
+        </div>
 
         {/* ── Rewards ── */}
-        <ResultSurf className="mt-3 p-4" delay={0.22}>
-          <h2 style={{ fontSize: 15, fontWeight: 800, color: W_INK, marginBottom: 12 }}>
+        <PremiumShell delay={0.3}>
+          <h2 className="font-black mb-3" style={{ fontSize: 14, color: C.ink, fontFamily: "var(--display)" }}>
             المكافآت
           </h2>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-            <RewardRow
-              accent="amber"
-              label="عملات"
-              value={coinReward > 0 ? `+${coinReward}` : "—"}
-              icon={<OfficialCoin size={26} />}
-            />
-            <RewardRow
-              accent="sage"
-              label="خبرة"
-              value={`+${xpReward}`}
-              icon={<IconStar />}
-            />
+
+          <div className="grid grid-cols-2 gap-3">
+            {/* Coin reward */}
+            <div className="flex items-center gap-3 rounded-2xl p-3.5" style={{
+              background: `linear-gradient(160deg, ${C.peach}33, ${C.peach}88)`,
+            }}>
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl" style={{
+                background: `linear-gradient(135deg, ${C.peach}, ${C.golden})`,
+                boxShadow: "0 4px 12px rgba(251,191,36,0.3)",
+              }}>
+                <CoinIcon size={22} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <span className="font-bold leading-tight" style={{ fontSize: 10, color: C.inkSoft, fontFamily: "var(--display)" }}>
+                  عملات
+                </span>
+                <div className="font-black leading-tight" style={{ fontSize: 20, color: "#92400E", fontFamily: "var(--display)" }}>
+                  {show ? <AnimatedNumber value={coinReward} /> : `+${coinReward}`}
+                </div>
+              </div>
+            </div>
+
+            {/* XP reward */}
+            <div className="flex items-center gap-3 rounded-2xl p-3.5" style={{
+              background: `linear-gradient(160deg, ${C.purpleLight}, ${C.purpleSoft}66)`,
+            }}>
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl" style={{
+                background: `linear-gradient(135deg, ${C.purple}, ${C.coral})`,
+                boxShadow: `0 4px 12px ${C.purple}44`,
+                color: C.white,
+              }}>
+                <StarIcon size={20} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <span className="font-bold leading-tight" style={{ fontSize: 10, color: C.inkSoft, fontFamily: "var(--display)" }}>
+                  خبرة
+                </span>
+                <div className="font-black leading-tight" style={{ fontSize: 20, color: C.purple, fontFamily: "var(--display)" }}>
+                  {show ? <AnimatedNumber value={xpReward} /> : `+${xpReward}`}
+                </div>
+              </div>
+            </div>
           </div>
 
-          {/* coin fast-win label (separate from XP breakdown) */}
-          {bonusLabel && coinReward > 0 ? (
+          {/* Bonus label */}
+          {rewards?.bonusLabelAr && coinReward > 0 && (
             <motion.p
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.55, duration: 0.3 }}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5, duration: 0.3 }}
+              className="mt-2 text-center font-bold leading-tight rounded-xl"
               style={{
-                marginTop: 10,
-                borderRadius: 12,
-                border: "1px solid rgba(200,130,60,0.42)",
-                padding: "7px 12px",
-                textAlign: "center",
-                fontSize: 11.5,
-                fontWeight: 800,
-                color: W_INK,
-                background: "linear-gradient(180deg, #fff4e0, #ffe8c8)",
+                padding: "6px 12px",
+                fontSize: 11,
+                fontFamily: "var(--display)",
+                background: `linear-gradient(135deg, ${C.peach}44, ${C.peach}88)`,
+                color: "#92400E",
               }}
             >
-              {bonusLabel}
+              {rewards.bonusLabelAr}
             </motion.p>
-          ) : null}
+          )}
 
           {/* XP breakdown pills */}
           {xpBreakdown && (
-            <div
-              style={{
-                display: "flex",
-                flexWrap: "wrap",
-                gap: 6,
-                marginTop: 10,
-              }}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.55 }}
+              className="flex flex-wrap gap-2 mt-2.5"
             >
-              <XpPill label="أساسي" value={`+${xpBreakdown.base}`} color="sage" />
-              {xpBreakdown.fastWinBonus > 0 && (
-                <XpPill label="فوز سريع" value={`+${xpBreakdown.fastWinBonus}`} color="amber" />
-              )}
-              {xpBreakdown.toolBonus > 0 && (
-                <XpPill label="أدوات" value={`+${xpBreakdown.toolBonus}`} color="blue" />
-              )}
-              {xpBreakdown.longMatchBonus > 0 && (
-                <XpPill label="مثابرة" value={`+${xpBreakdown.longMatchBonus}`} color="purple" />
-              )}
-            </div>
+              {[
+                { label: "أساسي", value: `+${xpBreakdown.base}`, color: C.purple },
+                ...(xpBreakdown.fastWinBonus > 0 ? [{ label: "فوز سريع", value: `+${xpBreakdown.fastWinBonus}`, color: C.golden }] : []),
+                ...(xpBreakdown.toolBonus > 0 ? [{ label: "أدوات", value: `+${xpBreakdown.toolBonus}`, color: C.coral }] : []),
+                ...(xpBreakdown.longMatchBonus > 0 ? [{ label: "مثابرة", value: `+${xpBreakdown.longMatchBonus}`, color: "#60A5FA" }] : []),
+              ].map((pill) => (
+                <span
+                  key={pill.label}
+                  className="inline-flex items-center gap-1 rounded-full font-bold leading-none"
+                  style={{
+                    padding: "3px 10px",
+                    fontSize: 10,
+                    fontFamily: "var(--display)",
+                    background: `${pill.color}15`,
+                    border: `1px solid ${pill.color}30`,
+                    color: pill.color,
+                  }}
+                >
+                  {pill.label}
+                  <span className="font-black">{pill.value} XP</span>
+                </span>
+              ))}
+            </motion.div>
           )}
+        </PremiumShell>
 
-          {/* XP bar */}
-          <div style={{ marginTop: 14 }}>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                fontSize: 11,
-                fontWeight: 700,
-                color: W_INK_SOFT,
-                marginBottom: 6,
-              }}
-            >
-              <span style={{ fontWeight: 800, color: W_INK }}>المستوى {levelAfter}</span>
-              <span style={{ fontVariantNumeric: "tabular-nums" }}>
-                {xpInLevel} / {xpToNext} XP
-              </span>
-            </div>
-            <div
-              style={{
-                position: "relative",
-                height: 9,
-                borderRadius: 999,
-                overflow: "hidden",
-                background: "rgba(58,37,23,0.09)",
-                boxShadow: "inset 0 1px 2px rgba(0,0,0,0.08)",
-              }}
-            >
-              <div
-                style={{
-                  height: "100%",
-                  borderRadius: 999,
-                  width: `${levelPctAnimated}%`,
-                  background: `linear-gradient(90deg, ${W_GOLD}, #f5a820, ${W_GOLD_DEEP})`,
-                  boxShadow: `inset 0 1px 0 rgba(255,255,255,0.45), 0 0 10px ${W_GOLD}99`,
-                  transition: "width 1.1s cubic-bezier(0.23, 1, 0.32, 1) 0.35s",
-                }}
-              />
-            </div>
-          </div>
-        </ResultSurf>
+        {/* ── XP Progress ── */}
+        <div className="mt-3 mb-4">
+          <XpBar
+            pct={levelPct}
+            level={levelAfter}
+            xpInLevel={xpInLevel}
+            xpToNext={xpToNext}
+            leveledUp={leveledUp}
+            delay={0.45}
+          />
+        </div>
 
         {/* ── Level-up celebration ── */}
         {leveledUp && (
           <motion.div
-            initial={{ opacity: 0, scale: 0.82, y: 20 }}
+            initial={{ opacity: 0, scale: 0.88, y: 16 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            transition={{ type: "spring", stiffness: 380, damping: 22, delay: 0.62 }}
+            transition={{ type: "spring", stiffness: 380, damping: 22, delay: 0.7 }}
+            className="flex items-center gap-3 mb-4 rounded-2xl"
             style={{
-              marginTop: 12,
-              borderRadius: 22,
-              padding: "18px 20px",
-              background: `linear-gradient(138deg, #FFE27A 0%, ${W_GOLD} 30%, ${W_ORANGE} 70%, ${W_ORANGE_DEEP} 100%)`,
-              border: "1.5px solid rgba(255,255,255,0.42)",
-              boxShadow: `inset 0 2px 0 rgba(255,255,255,0.60), inset 0 -2px 0 rgba(0,0,0,0.10), 0 2px 0 rgba(160,70,0,0.30), 0 10px 28px ${W_ORANGE_DEEP}55, 0 0 40px -4px ${W_GOLD}88`,
-              display: "flex",
-              alignItems: "center",
-              gap: 14,
+              padding: "14px 18px",
+              background: `linear-gradient(135deg, ${C.peach}66, ${C.golden}44)`,
+              border: `1px solid ${C.peach}`,
+              boxShadow: "0 4px 16px rgba(251,191,36,0.15)",
             }}
           >
-            {/* Pulsing star circle */}
             <motion.div
-              animate={{ scale: [1, 1.08, 1] }}
-              transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
+              animate={{ scale: [1, 1.08, 1], rotate: [0, -5, 5, 0] }}
+              transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
+              className="flex shrink-0 items-center justify-center rounded-full"
               style={{
-                width: 50,
-                height: 50,
-                borderRadius: "50%",
-                background: "rgba(255,255,255,0.28)",
-                border: "1.5px solid rgba(255,255,255,0.55)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                flexShrink: 0,
-                boxShadow: "0 0 14px rgba(255,255,255,0.35)",
+                width: 44,
+                height: 44,
+                background: `linear-gradient(135deg, ${C.peach}, ${C.golden})`,
+                color: "#92400E",
+                fontSize: 18,
+                fontFamily: "var(--display)",
+                fontWeight: 900,
               }}
             >
-              <IconStar />
+              {levelAfter}
             </motion.div>
             <div>
-              <p style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.82)", letterSpacing: "0.01em" }}>
-                ارتقيت مستوى 🎉
-              </p>
-              <p style={{ fontSize: 24, fontWeight: 900, color: "#fff", letterSpacing: "-0.03em", lineHeight: 1.08, textShadow: "0 2px 8px rgba(0,0,0,0.18)" }}>
-                المستوى {levelAfter}
-              </p>
+              <span className="font-black leading-tight" style={{ fontSize: 12, color: "#92400E", fontFamily: "var(--display)" }}>
+                ارتقيت إلى المستوى {levelAfter}! 🎉
+              </span>
+              <span className="font-bold leading-tight block" style={{ fontSize: 10, color: "#A16207", fontFamily: "var(--display)" }}>
+                مبروك — واصل التألق!
+              </span>
             </div>
           </motion.div>
         )}
 
-        {/* ── Match stats ── */}
-        <ResultSurf className="mt-3 p-4" delay={0.30}>
-          <h2 style={{ fontSize: 15, fontWeight: 800, color: W_INK, marginBottom: 12 }}>
-            إحصائيات المباراة
+        {/* ── Match Summary ── */}
+        <PremiumShell delay={0.5}>
+          <h2 className="font-black mb-3" style={{ fontSize: 14, color: C.ink, fontFamily: "var(--display)" }}>
+            بطاقات المباراة
           </h2>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8 }}>
-            <StatCell label="الأسئلة"            value={String(questionCount)} />
-            <StatCell label="الأدوات والتلميحات"  value={String(toolsUsed)} />
-            <StatCell label="المدة"               value={durationLabel} />
-          </div>
-        </ResultSurf>
 
-        {/* bottom breathing room */}
+          <div className="grid grid-cols-2 gap-2.5">
+            {/* My card */}
+            <div className="rounded-2xl overflow-hidden" style={{ border: `1px solid ${C.purpleSoft}66` }}>
+              <div className="relative h-20 w-full" style={{ background: `linear-gradient(180deg, ${C.purpleLight}, ${C.purpleSoft}44)` }}>
+                {myCard?.imageUrl ? (
+                  <div className="absolute inset-0 flex items-center justify-center p-3">
+                    <div className="relative w-full h-full">
+                      <Image src={myCard.imageUrl} alt="" fill className="object-contain" sizes="100px" unoptimized />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center">
+                    <CardIcon />
+                  </div>
+                )}
+              </div>
+              <div className="px-3 py-2 text-center" style={{ background: C.purpleLight }}>
+                <span className="font-black leading-tight block truncate" style={{ fontSize: 11, color: C.ink, fontFamily: "var(--display)" }}>
+                  {myTitle}
+                </span>
+                {myCategory && (
+                  <span className="font-bold leading-tight block" style={{ fontSize: 8, color: C.inkSoft, fontFamily: "var(--display)" }}>
+                    {myCategory}
+                  </span>
+                )}
+                <span className="inline-block rounded-full font-bold leading-none mt-1" style={{ padding: "1.5px 8px", fontSize: 8, fontFamily: "var(--display)", background: `${C.purple}15`, color: C.purple }}>
+                  كرتي
+                </span>
+              </div>
+            </div>
+
+            {/* Opponent card */}
+            <div className="rounded-2xl overflow-hidden" style={{ border: `1px solid ${C.coralSoft}66` }}>
+              <div className="relative h-20 w-full" style={{ background: `linear-gradient(180deg, ${C.coralSoft}44, ${C.peach}44)` }}>
+                {effectiveOpponentCard?.imageUrl ? (
+                  <div className="absolute inset-0 flex items-center justify-center p-3">
+                    <div className="relative w-full h-full">
+                      <Image src={effectiveOpponentCard.imageUrl} alt="" fill className="object-contain" sizes="100px" unoptimized />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center" style={{ color: C.coralSoft }}>
+                    <CardIcon />
+                  </div>
+                )}
+              </div>
+              <div className="px-3 py-2 text-center" style={{ background: `${C.coralSoft}33` }}>
+                <span className="font-black leading-tight block truncate" style={{ fontSize: 11, color: C.ink, fontFamily: "var(--display)" }}>
+                  {oppTitle}
+                </span>
+                {oppCategory && (
+                  <span className="font-bold leading-tight block" style={{ fontSize: 8, color: C.inkSoft, fontFamily: "var(--display)" }}>
+                    {oppCategory}
+                  </span>
+                )}
+                <span className="inline-block rounded-full font-bold leading-none mt-1" style={{ padding: "1.5px 8px", fontSize: 8, fontFamily: "var(--display)", background: `${C.coral}15`, color: C.coral }}>
+                  الخصم
+                </span>
+              </div>
+            </div>
+          </div>
+        </PremiumShell>
+
         <div style={{ height: 8 }} />
       </div>
 
       {/* ── Footer ── */}
       <footer
-        className="relative z-10 flex shrink-0 gap-2.5 px-4 pt-2"
+        className="relative z-10 flex shrink-0 gap-2.5 px-4 pt-3"
         style={{
           paddingBottom: "max(1rem, env(safe-area-inset-bottom))",
-          background: "linear-gradient(180deg, transparent, rgba(252,232,210,0.65) 40%)",
+          background: `linear-gradient(180deg, transparent, ${C.bg} 40%)`,
         }}
       >
         <motion.button
           type="button"
           onClick={onHome}
-          whileTap={{ scale: 0.97 }}
-          transition={{ type: "spring", stiffness: 420, damping: 28 }}
+          whileTap={WHILE_TAP}
+          transition={SPRING_UI}
+          className="flex-1 rounded-2xl font-black leading-none"
           style={{
-            flex: 1,
-            borderRadius: 18,
-            border: "1.5px solid rgba(244,196,141,0.52)",
-            background: "linear-gradient(180deg, rgba(255,255,255,0.98), rgba(255,248,236,0.95))",
             padding: "14px 0",
             fontSize: 14,
-            fontWeight: 800,
-            color: W_INK,
-            boxShadow:
-              "inset 0 1.5px 0 rgba(255,255,255,0.95), inset 0 -1px 0 rgba(196,130,60,0.10), 0 2px 0 rgba(196,130,60,0.22), 0 6px 16px rgba(180,100,30,0.10)",
+            fontFamily: "var(--display)",
+            background: C.white,
+            color: C.ink,
+            boxShadow: "0 1px 4px rgba(139,92,246,0.06), 0 2px 8px rgba(0,0,0,0.03)",
             cursor: "pointer",
           }}
         >
           القائمة
         </motion.button>
+
         <motion.button
           type="button"
           onClick={onReplay}
           disabled={replayBusy}
-          whileTap={{ scale: 0.97 }}
-          transition={{ type: "spring", stiffness: 420, damping: 28 }}
+          whileTap={WHILE_TAP}
+          transition={SPRING_UI}
+          className="flex-1 flex items-center justify-center gap-2 rounded-2xl font-black leading-none"
           style={{
-            flex: 1,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 8,
-            borderRadius: 18,
-            border: "none",
             padding: "14px 0",
             fontSize: 14,
-            fontWeight: 800,
-            color: "#fff",
-            background: `linear-gradient(180deg, ${W_ORANGE} 0%, #f06018 60%, ${W_ORANGE_DEEP} 100%)`,
-            boxShadow: `inset 0 1.5px 0 rgba(255,255,255,0.48), inset 0 -2px 0 rgba(0,0,0,0.12), 0 2px 0 #b84a00, 0 8px 20px ${W_ORANGE_DEEP}55, 0 16px 40px -8px ${W_ORANGE_DEEP}38`,
+            fontFamily: "var(--display)",
+            background: `linear-gradient(135deg, ${C.purple}, ${C.coral})`,
+            color: C.white,
+            boxShadow: `0 4px 16px ${C.purple}44, inset 0 1px 0 rgba(255,255,255,0.25)`,
             opacity: replayBusy ? 0.55 : 1,
             cursor: replayBusy ? "not-allowed" : "pointer",
           }}
         >
-          <IconRefresh />
+          <svg width="16" height="16" viewBox="0 0 18 18" fill="none" aria-hidden>
+            <path d="M3 9a6 6 0 1 0 1.5-4M3 3v3.5h3.5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
           إعادة
         </motion.button>
       </footer>

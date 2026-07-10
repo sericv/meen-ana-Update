@@ -179,5 +179,11 @@ service cloud.firestore {
       );
       allow write: if false;
     }
+
+    // ── Reports ────────────────────────────────────────────────────
+    match /reports/{reportId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
   }
 }
