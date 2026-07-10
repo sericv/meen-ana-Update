@@ -117,7 +117,7 @@ export default function HomePage() {
       </div>
 
       {/* Main Content Area */}
-      <div className="f-1 scroll-y relative z-10" style={{ padding: "16px 16px 24px" }}>
+      <div className="f-1 scroll-y relative z-10" style={{ padding: "16px 16px calc(85px + env(safe-area-inset-bottom))" }}>
         <MajlisHero onPlay={() => nav("/play/random")} />
 
         {/* Space gap */}
@@ -244,6 +244,44 @@ export default function HomePage() {
                 <span className="text-[10px] font-black text-slate-800">إضافة صديق</span>
               </div>
             </motion.button>
+          </div>
+        </div>
+
+        {/* ── Footer ─────────────────────────────────────────────── */}
+        <div className="mt-10 mb-2">
+          <div className="game-card-outer" style={{ borderRadius: 18 }}>
+            <div
+              className="game-card-inner flex flex-col items-center gap-2.5"
+              style={{ borderRadius: 14, padding: "14px 18px 12px" }}
+            >
+              {/* Links row */}
+              <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
+                <motion.button
+                  type="button"
+                  className="text-[11px] font-bold text-[#7C3AED] hover:text-[#6D28D9] transition-colors"
+                  style={{ background: "none", border: "none", cursor: "pointer" }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => nav("/privacy")}
+                >
+                  سياسة الخصوصية
+                </motion.button>
+                <span className="text-[10px] text-slate-300 select-none" aria-hidden>·</span>
+                <motion.button
+                  type="button"
+                  className="text-[11px] font-bold text-[#7C3AED] hover:text-[#6D28D9] transition-colors"
+                  style={{ background: "none", border: "none", cursor: "pointer" }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => nav("/terms")}
+                >
+                  شروط الاستخدام
+                </motion.button>
+              </div>
+
+              {/* Copyright */}
+              <span className="text-[9px] font-semibold text-slate-400 select-none">
+                © 2026 مين أنا؟ جميع الحقوق محفوظة.
+              </span>
+            </div>
           </div>
         </div>
       </div>
