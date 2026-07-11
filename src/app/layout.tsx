@@ -32,12 +32,26 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: "cover",
-  themeColor: "#fff6ea",
+  themeColor: "#7C3AED",
 };
 
 export const metadata: Metadata = {
-  title: "مين أنا؟",
-  description: "لعبة تخمين اجتماعية سريعة عبر الويب",
+  title: "مين أنا؟ | لعبة التخمين الاجتماعية",
+  description: "تحدَّ ذكاءك، اطرح الأسئلة، واكتشف بطاقتك قبل خصمك في تجربة اجتماعية سريعة وممتعة.",
+  keywords: ["مين أنا", "لعبة تخمين", "ألعاب جماعية", "ألعاب أصدقاء", "Party Game", "Guessing Game", "Multiplayer", "لعبة عربية"],
+  openGraph: {
+    title: "مين أنا؟ | لعبة التخمين الاجتماعية",
+    description: "تحدَّ ذكاءك، اطرح الأسئلة، واكتشف بطاقتك قبل خصمك في تجربة اجتماعية سريعة وممتعة.",
+    type: "website",
+    locale: "ar_AR",
+    url: "https://meen-ana.com",
+    siteName: "مين أنا؟",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "مين أنا؟ | لعبة التخمين الاجتماعية",
+    description: "تحدَّ ذكاءك، اطرح الأسئلة، واكتشف بطاقتك قبل خصمك في تجربة اجتماعية سريعة وممتعة.",
+  },
   icons: {
     icon: [
       { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },

@@ -3,7 +3,7 @@
 import { collection, onSnapshot, type Timestamp } from "firebase/firestore";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { useDefaultOnlinePresence } from "@/hooks/useDefaultOnlinePresence";
 import { useLiveUserProfile } from "@/hooks/useLiveUserProfile";
@@ -36,6 +36,7 @@ export default function HomePage() {
   const myCosmetic = liveProfile?.cosmetic;
 
   const [friends, setFriends] = useState<FriendRow[]>([]);
+  const [howToPlayOpen, setHowToPlayOpen] = useState(false);
 
   useEffect(() => {
     if (!uid || !google) {
@@ -104,8 +105,21 @@ export default function HomePage() {
               <span className="h-display text-xs font-black text-slate-800">{loading ? "…" : displayName}</span>
             </div>
           </button>
-          
+
           <div className="flex items-center gap-2">
+            {/* Help Button (؟) */}
+            <motion.button
+              type="button"
+              whileHover={{ scale: 1.08 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setHowToPlayOpen(true)}
+              className="w-8 h-8 rounded-full flex items-center justify-center bg-slate-50 border border-slate-200/60 text-[#7C3AED] hover:bg-[#F3E8FF] hover:border-purple-200/80 shadow-sm active:scale-95 transition-all"
+              style={{ cursor: "pointer" }}
+              aria-label="كيفية اللعب"
+            >
+              <span className="text-sm font-black font-sans leading-none">؟</span>
+            </motion.button>
+
             {user ? (
               /* Coins counter only — NO Diamonds */
               <div className="bg-[#FFE600]/10 border border-[#FFE600]/30 px-3 py-1.5 rounded-full flex items-center gap-1.5 min-w-[70px]">
@@ -285,6 +299,77 @@ export default function HomePage() {
           </div>
         </div>
       </div>
+
+      {/* ── How To Play Dialog ─────────────────────────────────── */}
+      <AnimatePresence>
+        {howToPlayOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
+            onClick={() => setHowToPlayOpen(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.88, y: 24 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.92, y: 16 }}
+              transition={{ type: "spring", stiffness: 420, damping: 28 }}
+              className="w-full max-w-sm"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="game-card-outer w-full">
+                <div className="game-card-inner p-6 bg-white rounded-[22px] border border-slate-100 shadow-xl flex flex-col gap-4 text-right">
+                  
+                  {/* Title */}
+                  <div className="text-center flex flex-col gap-1 border-b border-slate-100 pb-3">
+                    <h3 className="h-display text-sm font-black text-slate-800">كيفية اللعب</h3>
+                  </div>
+
+                  {/* Body Copy */}
+                  <div className="flex flex-col gap-3 font-sans text-slate-600 font-bold leading-relaxed pr-1 text-[11px]" dir="rtl">
+                    <p className="text-slate-800 font-black text-xs mb-1">كيف تلعب؟</p>
+                    <div className="flex flex-col gap-2.5 text-[10px] text-slate-500 leading-normal pr-1">
+                      <div>• أنشئ غرفة أو انضم إلى مباراة</div>
+                      <div>• سيحصل كل لاعب على بطاقة لا يستطيع رؤيتها، بينما يراها اللاعب الآخر</div>
+                      <div>• اطرح أسئلة ذكية لتكتشف البطاقة الخاصة بك</div>
+                      <div>
+                        • عندما يسألك خصمك، أجب باستخدام :
+                        <div className="flex gap-1.5 mt-1.5 mr-3">
+                          <span className="px-2 py-0.5 rounded-md bg-purple-50 border border-purple-100/50 text-[#7C3AED] font-black text-[9px]">نعم</span>
+                          <span className="px-2 py-0.5 rounded-md bg-purple-50 border border-purple-100/50 text-[#7C3AED] font-black text-[9px]">لا</span>
+                          <span className="px-2 py-0.5 rounded-md bg-purple-50 border border-purple-100/50 text-[#7C3AED] font-black text-[9px]">ربما</span>
+                          <span className="px-2 py-0.5 rounded-md bg-purple-50 border border-purple-100/50 text-[#7C3AED] font-black text-[9px]">إجابة أخرى</span>
+                        </div>
+                      </div>
+                      <div>• عندما تعتقد أنك عرفت بطاقتك، اضغط "تخمين" واكتب الإجابة</div>
+                      <div>• أول لاعب يكتشف بطاقته يفوز بالمباراة</div>
+                    </div>
+                  </div>
+
+                  {/* Divider */}
+                  <div className="h-[1px] bg-slate-100 my-1" />
+
+                  {/* Action button */}
+                  <motion.button
+                    type="button"
+                    whileTap={{ scale: 0.96 }}
+                    onClick={() => setHowToPlayOpen(false)}
+                    className="w-full py-3.5 rounded-2xl text-xs font-black text-white shadow-md active:scale-95 transition-transform flex items-center justify-center border border-purple-800"
+                    style={{
+                      background: "linear-gradient(135deg, #7C3AED 0%, #A78BFA 100%)",
+                      cursor: "pointer",
+                    }}
+                  >
+                    فهمت
+                  </motion.button>
+
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
     </div>
   );

@@ -36,14 +36,26 @@ export const GameplayChatActionBar = memo(function GameplayChatActionBar({
 }: Props) {
   const [focused, setFocused] = useState(false);
   const [showCustomAnswerInput, setShowCustomAnswerInput] = useState(false);
+  const [clickedOption, setClickedOption] = useState<string | null>(null);
+  const hasClickedRef = useRef(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Reset custom answer state on phase / turn changes
+  // Reset custom answer and click state on phase / turn changes
   useEffect(() => {
     if (phase !== "answer" || !myTurn) {
       setShowCustomAnswerInput(false);
+      setClickedOption(null);
+      hasClickedRef.current = false;
     }
   }, [phase, myTurn]);
+
+  // Reset click state when busy turns false (e.g. failure or completion of request)
+  useEffect(() => {
+    if (!busy) {
+      setClickedOption(null);
+      hasClickedRef.current = false;
+    }
+  }, [busy]);
 
   // Autofocus input when custom answer input is chosen
   useEffect(() => {
@@ -92,29 +104,49 @@ export const GameplayChatActionBar = memo(function GameplayChatActionBar({
             className="flex flex-col items-center w-full"
           >
             <div className="grid grid-cols-2 gap-2.5 w-full max-w-[420px] mx-auto py-1">
-              {["نعم", "لا", "ربما", "إجابة أخرى"].map((option) => (
-                <motion.button
-                  key={option}
-                  type="button"
-                  whileHover={{ scale: 1.015 }}
-                  whileTap={{ scale: 0.96 }}
-                  onClick={() => {
-                    if (option === "إجابة أخرى") {
-                      setShowCustomAnswerInput(true);
-                    } else {
-                      onSend(option);
-                    }
-                  }}
-                  className="game-card-outer w-full shadow-sm"
-                  style={{ cursor: "pointer" }}
-                >
-                  <div className="game-card-inner bg-[#FAFAF8] hover:bg-[#F3E8FF] border border-slate-200/50 hover:border-purple-300 py-3.5 px-4 text-center rounded-2xl transition-colors duration-200 flex items-center justify-center min-h-[48px]">
-                    <span className="text-xs font-black text-slate-800 hover:text-[#7C3AED] font-sans">
-                      {option}
-                    </span>
-                  </div>
-                </motion.button>
-              ))}
+              {["نعم", "لا", "ربما", "إجابة أخرى"].map((option) => {
+                const isClicked = clickedOption === option;
+                const isAnyClicked = clickedOption !== null;
+                const isDisabled = (isAnyClicked && !isClicked) || busy;
+
+                return (
+                  <motion.button
+                    key={option}
+                    type="button"
+                    disabled={isAnyClicked || busy}
+                    whileHover={!(isAnyClicked || busy) ? { scale: 1.015 } : {}}
+                    whileTap={!(isAnyClicked || busy) ? { scale: 0.96 } : {}}
+                    onClick={() => {
+                      if (hasClickedRef.current || busy) return;
+                      if (option === "إجابة أخرى") {
+                        setShowCustomAnswerInput(true);
+                      } else {
+                        hasClickedRef.current = true;
+                        setClickedOption(option);
+                        onSend(option);
+                      }
+                    }}
+                    className={`game-card-outer w-full shadow-sm transition-opacity duration-200 ${
+                      isDisabled ? "opacity-45 pointer-events-none" : ""
+                    }`}
+                    style={{ cursor: isAnyClicked || busy ? "not-allowed" : "pointer" }}
+                  >
+                    <div className="game-card-inner bg-[#FAFAF8] hover:bg-[#F3E8FF] border border-slate-200/50 hover:border-purple-300 py-3.5 px-4 text-center rounded-2xl transition-colors duration-200 flex items-center justify-center min-h-[48px] gap-2">
+                      {isClicked && (
+                        <svg className="animate-spin h-3.5 w-3.5 text-[#7C3AED] shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                      )}
+                      <span className={`text-xs font-black font-sans transition-colors ${
+                        isClicked ? "text-[#7C3AED]" : "text-slate-800 hover:text-[#7C3AED]"
+                      }`}>
+                        {isClicked ? "جاري الإرسال..." : option}
+                      </span>
+                    </div>
+                  </motion.button>
+                );
+              })}
             </div>
           </motion.div>
         ) : (
