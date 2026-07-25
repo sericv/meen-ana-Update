@@ -344,7 +344,14 @@ export const WordRaceResults: React.FC<WordRaceResultsProps> = ({
                     <div className="p-3.5 rounded-xl bg-white border border-purple-200 space-y-1">
                       <span className="text-[10px] text-slate-400 font-bold">{p1.displayName} (أنت)</span>
                       <div className="flex items-center justify-between">
-                        <span className="font-black text-slate-900 text-sm">{myRes.word || "لم يجب"}</span>
+                        {!myRes.word || myRes.word === "لم يجب" || myRes.word === "لم أعرف" ? (
+                          <span className="px-2.5 py-0.5 rounded-full bg-rose-50 border border-rose-200 text-rose-700 text-xs font-black inline-flex items-center gap-1">
+                            <SvgCrossIcon size={12} className="text-rose-600" />
+                            <span>لم يجب</span>
+                          </span>
+                        ) : (
+                          <span className="font-black text-slate-900 text-sm break-words">{myRes.word}</span>
+                        )}
                         <span className="text-xs font-sans font-black text-purple-900">+{myRes.points} pt</span>
                       </div>
                     </div>
@@ -353,7 +360,14 @@ export const WordRaceResults: React.FC<WordRaceResultsProps> = ({
                     <div className="p-3.5 rounded-xl bg-white border border-slate-200 space-y-1">
                       <span className="text-[10px] text-slate-400 font-bold">{p2.displayName}</span>
                       <div className="flex items-center justify-between">
-                        <span className="font-black text-slate-900 text-sm">{oppRes.word || "لم يجب"}</span>
+                        {!oppRes.word || oppRes.word === "لم يجب" || oppRes.word === "لم أعرف" ? (
+                          <span className="px-2.5 py-0.5 rounded-full bg-rose-50 border border-rose-200 text-rose-700 text-xs font-black inline-flex items-center gap-1">
+                            <SvgCrossIcon size={12} className="text-rose-600" />
+                            <span>لم يجب</span>
+                          </span>
+                        ) : (
+                          <span className="font-black text-slate-900 text-sm break-words">{oppRes.word}</span>
+                        )}
                         <span className="text-xs font-sans font-black text-slate-700">+{oppRes.points} pt</span>
                       </div>
                     </div>
@@ -368,7 +382,7 @@ export const WordRaceResults: React.FC<WordRaceResultsProps> = ({
               <motion.button
                 whileTap={{ scale: 0.96 }}
                 onClick={handleNextReveal}
-                className="px-8 py-3 rounded-2xl bg-[#7C3AED] hover:bg-purple-700 text-white text-xs font-black shadow-lg shadow-purple-200 transition-all flex items-center gap-2 mx-auto"
+                className="px-8 py-3 rounded-2xl bg-[#7C3AED] hover:bg-purple-700 text-white text-xs font-black shadow-lg shadow-purple-200 transition-all flex items-center gap-2 mx-auto cursor-pointer"
               >
                 <span>{revealStep < activeCategories.length - 1 ? "الفئة التالية" : "عرض النتيجة النهائية"}</span>
                 <SvgArrowRightIcon size={16} />
@@ -452,6 +466,9 @@ export const WordRaceResults: React.FC<WordRaceResultsProps> = ({
                       const r2 = evaluated.results[opponentUid]?.[cat.id] || { word: "لم يجب", points: 0 };
                       const IconComponent = CATEGORY_SVG_MAP[cat.icon] || SvgSparklesIcon;
 
+                      const isR1Unanswered = !r1.word || r1.word === "لم يجب" || r1.word === "لم أعرف";
+                      const isR2Unanswered = !r2.word || r2.word === "لم يجب" || r2.word === "لم أعرف";
+
                       return (
                         <tr key={cat.id} className="hover:bg-slate-50/80 transition-colors">
                           <td className="p-3 flex items-center gap-2 font-black">
@@ -459,8 +476,26 @@ export const WordRaceResults: React.FC<WordRaceResultsProps> = ({
                             <span>{cat.nameAr}</span>
                           </td>
                           <td className="p-3 font-sans font-black text-[#7C3AED]">{letter}</td>
-                          <td className="p-3">{r1.word || "لم يجب"}</td>
-                          <td className="p-3 text-slate-500">{r2.word || "لم يجب"}</td>
+                          <td className="p-3">
+                            {isR1Unanswered ? (
+                              <span className="px-2.5 py-0.5 rounded-full bg-rose-50 border border-rose-200 text-rose-700 text-[10px] font-black inline-flex items-center gap-1">
+                                <SvgCrossIcon size={11} className="text-rose-600" />
+                                <span>لم يجب</span>
+                              </span>
+                            ) : (
+                              <span className="font-black text-slate-900 break-words">{r1.word}</span>
+                            )}
+                          </td>
+                          <td className="p-3">
+                            {isR2Unanswered ? (
+                              <span className="px-2.5 py-0.5 rounded-full bg-rose-50 border border-rose-200 text-rose-700 text-[10px] font-black inline-flex items-center gap-1">
+                                <SvgCrossIcon size={11} className="text-rose-600" />
+                                <span>لم يجب</span>
+                              </span>
+                            ) : (
+                              <span className="font-black text-slate-700 break-words">{r2.word}</span>
+                            )}
+                          </td>
                           <td className="p-3 text-center font-sans font-black text-purple-900">
                             +{r1.points} pt
                           </td>

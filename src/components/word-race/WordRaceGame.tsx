@@ -61,12 +61,12 @@ export const WordRaceGame: React.FC<WordRaceGameProps> = ({
 
   const inputRef = useRef<HTMLInputElement | null>(null);
 
-  // Sync answers from match props if updated remotely
+  // Sync initial answers on match ID load
   useEffect(() => {
     if (match.answers[myUid]) {
       setAnswers(match.answers[myUid]);
     }
-  }, [match.answers, myUid]);
+  }, [match.id, myUid]);
 
   // Server-Authoritative Synced Timer Loop
   useEffect(() => {
@@ -114,6 +114,7 @@ export const WordRaceGame: React.FC<WordRaceGameProps> = ({
     if (!isLastCategory) {
       onUpdateAnswers(nextAnswers, false);
       setActiveCatIndex((prev) => prev + 1);
+      inputRef.current?.focus();
     } else {
       // TYPED ANSWER ON LAST CATEGORY: ALLOW IMMEDIATE MATCH FINISH!
       onUpdateAnswers(nextAnswers, true);
@@ -133,9 +134,9 @@ export const WordRaceGame: React.FC<WordRaceGameProps> = ({
     if (!isLastCategory) {
       onUpdateAnswers(nextAnswers, false);
       setActiveCatIndex((prev) => prev + 1);
+      inputRef.current?.focus();
     } else {
       // SKIPPED LAST CATEGORY: DO NOT FINISH MATCH IMMEDIATELY!
-      // Update answers, hide buttons, and display waiting state for opponent or time expiration.
       onUpdateAnswers(nextAnswers, false);
       setHasSkippedFinalCategory(true);
     }
@@ -154,16 +155,14 @@ export const WordRaceGame: React.FC<WordRaceGameProps> = ({
 
   // ─── Rounded Square Timer Calculations ─────────────────────────────────────
   const progressRatio = Math.max(0, Math.min(1, timeLeft / durationSec));
-  // Rounded square perimeter (width=90, height=90, rx=18): ~328
   const squarePerimeter = 328;
   const squareDashoffset = squarePerimeter * (1 - progressRatio);
 
-  // Dynamic Ring/Border Color Transition: Purple -> Orange -> Red
   let borderColor = "#7C3AED"; // Default Purple
   if (timeLeft <= 8) {
-    borderColor = "#E11D48"; // Red final seconds
+    borderColor = "#E11D48";
   } else if (timeLeft <= 20) {
-    borderColor = "#F97316"; // Orange warning
+    borderColor = "#F97316";
   }
 
   const isFinalSeconds = timeLeft <= 5 && timeLeft > 0;
@@ -184,7 +183,7 @@ export const WordRaceGame: React.FC<WordRaceGameProps> = ({
           <button
             type="button"
             onClick={() => setIsConfirmLeaveOpen(true)}
-            className="px-3.5 py-1.5 rounded-xl bg-rose-50 border border-rose-200/80 text-rose-700 text-xs font-bold hover:bg-rose-100 transition-all flex items-center gap-1.5 active:scale-95 shadow-2xs"
+            className="px-3.5 py-1.5 rounded-xl bg-rose-50 border border-rose-200/80 text-rose-700 text-xs font-bold hover:bg-rose-100 transition-all flex items-center gap-1.5 active:scale-95 shadow-2xs cursor-pointer"
           >
             <SvgCrossIcon size={14} />
             <span>مغادرة</span>
@@ -246,183 +245,179 @@ export const WordRaceGame: React.FC<WordRaceGameProps> = ({
           </div>
         )}
 
-        {/* 3. RESTRUCTURED NATURAL VISUAL HIERARCHY */}
-        <AnimatePresence mode="wait">
-          {currentCategory && (
-            <motion.div
-              key={currentCategory.id}
-              initial={{ opacity: 0, x: 25 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -25 }}
-              transition={{ duration: 0.22, ease: "easeInOut" }}
-              className="bg-slate-50/90 border border-slate-200/80 rounded-2xl p-4 sm:p-5 space-y-5 shadow-sm relative z-10 flex-1 flex flex-col justify-between"
-            >
-              {/* STEP 1 (TOP): INTEGRATED ROUNDED SQUARE PROGRESS FRAME AROUND TARGET LETTER BADGE */}
-              <div className="flex flex-col items-center justify-center pt-1 space-y-1.5 text-center">
-                <span className="text-[11px] text-purple-900/70 font-sans font-black uppercase tracking-wider">
-                  الحرف المطلوب
-                </span>
+        {/* 3. GAMEPLAY ARENA CONTAINER */}
+        <div className="bg-slate-50/90 border border-slate-200/80 rounded-2xl p-4 sm:p-5 space-y-4 shadow-sm relative z-10 flex-1 flex flex-col justify-between">
+          
+          {/* SECTION A: ANIMATED CATEGORY & LETTER DISPLAY (Inside AnimatePresence for smooth slide transitions) */}
+          <AnimatePresence mode="wait">
+            {currentCategory && (
+              <motion.div
+                key={currentCategory.id}
+                initial={{ opacity: 0, x: 25 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -25 }}
+                transition={{ duration: 0.2, ease: "easeInOut" }}
+                className="space-y-4"
+              >
+                {/* Target Letter & Square Timer Frame */}
+                <div className="flex flex-col items-center justify-center pt-1 space-y-1.5 text-center">
+                  <span className="text-[11px] text-purple-900/70 font-sans font-black uppercase tracking-wider">
+                    الحرف المطلوب
+                  </span>
 
-                {/* Square Timer Frame Wrapper */}
-                <motion.div 
-                  animate={{ scale: isFinalSeconds ? [1, 1.03, 1] : 1 }}
-                  transition={{ repeat: isFinalSeconds ? Infinity : 0, duration: 0.8 }}
-                  className="relative w-28 h-28 sm:w-32 sm:h-32 flex items-center justify-center mx-auto p-1"
-                >
-                  {/* Outer SVG Rounded Square Depleting Progress Frame */}
-                  <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100">
-                    {/* Background Track Square */}
-                    <rect
-                      x="5"
-                      y="5"
-                      width="90"
-                      height="90"
-                      rx="18"
-                      ry="18"
-                      fill="none"
-                      stroke="#E2E8F0"
-                      strokeWidth="5"
-                    />
-                    {/* Dynamic Animated Depleting Square Progress Border */}
-                    <rect
-                      x="5"
-                      y="5"
-                      width="90"
-                      height="90"
-                      rx="18"
-                      ry="18"
-                      fill="none"
-                      stroke={borderColor}
-                      strokeWidth="5.5"
-                      strokeLinecap="round"
-                      strokeDasharray={squarePerimeter}
-                      strokeDashoffset={squareDashoffset}
-                      style={{
-                        transition: "stroke-dashoffset 0.5s linear, stroke 0.5s ease",
-                      }}
-                    />
-                  </svg>
+                  <motion.div 
+                    animate={{ scale: isFinalSeconds ? [1, 1.03, 1] : 1 }}
+                    transition={{ repeat: isFinalSeconds ? Infinity : 0, duration: 0.8 }}
+                    className="relative w-28 h-28 sm:w-32 sm:h-32 flex items-center justify-center mx-auto p-1"
+                  >
+                    <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100">
+                      <rect
+                        x="5"
+                        y="5"
+                        width="90"
+                        height="90"
+                        rx="18"
+                        ry="18"
+                        fill="none"
+                        stroke="#E2E8F0"
+                        strokeWidth="5"
+                      />
+                      <rect
+                        x="5"
+                        y="5"
+                        width="90"
+                        height="90"
+                        rx="18"
+                        ry="18"
+                        fill="none"
+                        stroke={borderColor}
+                        strokeWidth="5.5"
+                        strokeLinecap="round"
+                        strokeDasharray={squarePerimeter}
+                        strokeDashoffset={squareDashoffset}
+                        style={{
+                          transition: "stroke-dashoffset 0.5s linear, stroke 0.5s ease",
+                        }}
+                      />
+                    </svg>
 
-                  {/* Inner Target Letter Square Badge */}
-                  <div className="w-20 h-20 sm:w-22 sm:h-22 aspect-square rounded-2xl bg-gradient-to-br from-[#7C3AED] to-purple-900 p-0.5 shadow-md flex items-center justify-center z-10">
-                    <div className="w-full h-full aspect-square rounded-[14px] bg-white flex flex-col items-center justify-center shadow-inner relative">
-                      <span className="text-4xl sm:text-5xl font-black text-[#7C3AED] font-sans leading-none">
-                        {targetLetter}
-                      </span>
-                      {/* Integrated Seconds Pill */}
-                      <span className={`text-[10px] font-sans font-black px-2 py-0.5 rounded-full mt-0.5 ${
-                        timeLeft <= 8 ? "bg-rose-100 text-rose-700 animate-pulse" : "bg-purple-100 text-purple-900"
-                      }`}>
-                        {timeLeft}ث
-                      </span>
-                    </div>
-                  </div>
-                </motion.div>
-              </div>
-
-              {/* STEP 2 (MIDDLE): Large Category Card with Dedicated Vector SVG Illustration */}
-              <div className="bg-white border border-slate-200/90 rounded-2xl p-4 shadow-xs flex items-center gap-4">
-                <div className={`p-3.5 rounded-2xl border bg-purple-50/60 border-purple-100 shadow-2xs flex items-center justify-center shrink-0 ${currentCategory.color}`}>
-                  <IconComponent size={38} className="w-9.5 h-9.5" />
-                </div>
-                <div className="flex-1 min-w-0 space-y-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <h3 className="text-lg sm:text-xl font-black text-slate-900 truncate">
-                      {currentCategory.nameAr}
-                    </h3>
-                    <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-800 font-sans font-extrabold shrink-0">
-                      {activeCatIndex + 1} من {activeCategories.length}
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-500 font-bold leading-tight">
-                    {currentCategory.descriptionAr}
-                  </p>
-                </div>
-              </div>
-
-              {/* STEP 3 & 4 OR SKIPPED FINAL CATEGORY WAITING BANNER */}
-              {hasSkippedFinalCategory ? (
-                /* CASE 2 WAITING STATE BANNER: Player skipped final category using "لم أعرف" */
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="p-4 bg-purple-50/90 border border-purple-200 rounded-2xl text-center space-y-2 shadow-xs"
-                >
-                  <div className="flex items-center justify-center gap-2 text-purple-950 font-sans font-black text-sm">
-                    <SvgTimerIcon size={18} className="text-[#7C3AED] animate-spin" />
-                    <span>لقد أكملت جميع الفئات!</span>
-                  </div>
-                  <p className="text-xs text-slate-600 font-bold leading-relaxed">
-                    سيتم إنهاء المباراة وحساب النتائج تلقائياً عند انتهاء الخصم من إجاباته أو انتهاء الوقت.
-                  </p>
-                  <div className="text-[11px] font-sans font-extrabold text-[#7C3AED] bg-white px-3 py-1 rounded-xl border border-purple-200 inline-block shadow-2xs">
-                    بانتظار انتهاء الخصم...
-                  </div>
-                </motion.div>
-              ) : (
-                <>
-                  {/* STEP 3 (INPUT): Large Answer Input Field */}
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between px-1">
-                      <label className="text-xs font-black text-purple-950">
-                        أدخل إجابتك تبدأ بحرف ({targetLetter}):
-                      </label>
-                      {currentRawAnswer === "لم أعرف" && (
-                        <span className="text-[9px] text-slate-400 font-bold bg-slate-200/60 px-2 py-0.5 rounded-md">
-                          تم اختيار "لم أعرف"
+                    <div className="w-20 h-20 sm:w-22 sm:h-22 aspect-square rounded-2xl bg-gradient-to-br from-[#7C3AED] to-purple-900 p-0.5 shadow-md flex items-center justify-center z-10">
+                      <div className="w-full h-full aspect-square rounded-[14px] bg-white flex flex-col items-center justify-center shadow-inner relative">
+                        <span className="text-4xl sm:text-5xl font-black text-[#7C3AED] font-sans leading-none">
+                          {targetLetter}
                         </span>
-                      )}
+                        <span className={`text-[10px] font-sans font-black px-2 py-0.5 rounded-full mt-0.5 ${
+                          timeLeft <= 8 ? "bg-rose-100 text-rose-700 animate-pulse" : "bg-purple-100 text-purple-900"
+                        }`}>
+                          {timeLeft}ث
+                        </span>
+                      </div>
                     </div>
-                    
-                    <input
-                      ref={inputRef}
-                      type="text"
-                      disabled={isMatchLocked}
-                      value={answers[currentCategory.id] === "لم أعرف" ? "" : answers[currentCategory.id] || ""}
-                      onChange={(e) => handleInputChange(currentCategory.id, e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && isCurrentAnswerTyped) {
-                          handleConfirmAnswer();
-                        }
-                      }}
-                      placeholder={`اكتب كلمة تبدأ بحرف ${targetLetter}...`}
-                      className="w-full bg-white border border-slate-300 rounded-2xl px-4 py-3.5 sm:py-4 text-lg font-black text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#7C3AED] focus:ring-4 focus:ring-purple-500/20 transition-all dir-rtl disabled:opacity-60 shadow-inner"
-                    />
+                  </motion.div>
+                </div>
+
+                {/* Category Card */}
+                <div className="bg-white border border-slate-200/90 rounded-2xl p-4 shadow-xs flex items-center gap-4">
+                  <div className={`p-3.5 rounded-2xl border bg-purple-50/60 border-purple-100 shadow-2xs flex items-center justify-center shrink-0 ${currentCategory.color}`}>
+                    <IconComponent size={38} className="w-9.5 h-9.5" />
                   </div>
-
-                  {/* STEP 4 (BOTTOM): Primary Confirm Button & Skip Button */}
-                  {!isMatchLocked && (
-                    <div className="flex items-center gap-2 pt-1">
-                      {/* Primary Confirm Button (DISABLED when input is empty!) */}
-                      <motion.button
-                        whileTap={{ scale: 0.96 }}
-                        type="button"
-                        onClick={handleConfirmAnswer}
-                        disabled={!isCurrentAnswerTyped}
-                        className="flex-1 py-3.5 rounded-2xl text-xs font-black transition-all flex items-center justify-center gap-2 shadow-md bg-[#7C3AED] hover:bg-purple-700 text-white shadow-purple-200 disabled:opacity-40 disabled:pointer-events-none"
-                      >
-                        <SvgCheckIcon size={16} />
-                        <span>{isLastCategory ? "إنهاء المباراة" : "تأكيد الإجابة"}</span>
-                        {!isLastCategory && <SvgArrowRightIcon size={14} />}
-                      </motion.button>
-
-                      {/* Secondary "لم أعرف" Button */}
-                      <motion.button
-                        whileTap={{ scale: 0.95 }}
-                        type="button"
-                        onClick={handleDontKnow}
-                        className="px-4 py-3.5 rounded-2xl bg-slate-200/70 hover:bg-slate-300 text-slate-700 text-xs font-extrabold transition-all flex items-center gap-1 shadow-2xs"
-                      >
-                        <SvgEmptyIcon size={14} />
-                        <span>لم أعرف</span>
-                      </motion.button>
+                  <div className="flex-1 min-w-0 space-y-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <h3 className="text-lg sm:text-xl font-black text-slate-900 truncate">
+                        {currentCategory.nameAr}
+                      </h3>
+                      <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-800 font-sans font-extrabold shrink-0">
+                        {activeCatIndex + 1} من {activeCategories.length}
+                      </span>
                     </div>
-                  )}
-                </>
-              )}
+                    <p className="text-xs text-slate-500 font-bold leading-tight">
+                      {currentCategory.descriptionAr}
+                    </p>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* SECTION B: PERSISTENT STABLE INPUT AREA & BUTTONS (OUTSIDE AnimatePresence - Never Unmounts!) */}
+          {hasSkippedFinalCategory ? (
+            /* SKIPPED FINAL CATEGORY WAITING BANNER */
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="p-4 bg-purple-50/90 border border-purple-200 rounded-2xl text-center space-y-2 shadow-xs"
+            >
+              <div className="flex items-center justify-center gap-2 text-purple-950 font-sans font-black text-sm">
+                <SvgTimerIcon size={18} className="text-[#7C3AED] animate-spin" />
+                <span>لقد أكملت جميع الفئات!</span>
+              </div>
+              <p className="text-xs text-slate-600 font-bold leading-relaxed">
+                سيتم إنهاء المباراة وحساب النتائج تلقائياً عند انتهاء الخصم من إجاباته أو انتهاء الوقت.
+              </p>
+              <div className="text-[11px] font-sans font-extrabold text-[#7C3AED] bg-white px-3 py-1 rounded-xl border border-purple-200 inline-block shadow-2xs">
+                بانتظار انتهاء الخصم...
+              </div>
             </motion.div>
+          ) : (
+            <div className="space-y-3 pt-1">
+              {/* Input Header & Label */}
+              <div className="flex items-center justify-between px-1">
+                <label className="text-xs font-black text-purple-950">
+                  أدخل إجابتك تبدأ بحرف ({targetLetter}):
+                </label>
+                {currentRawAnswer === "لم أعرف" && (
+                  <span className="text-[9px] text-slate-400 font-bold bg-slate-200/60 px-2 py-0.5 rounded-md">
+                    تم اختيار "لم أعرف"
+                  </span>
+                )}
+              </div>
+              
+              {/* SINGLE PERSISTENT INPUT DOM NODE - STAYS MOUNTED ACROSS ALL CATEGORIES */}
+              <input
+                ref={inputRef}
+                type="text"
+                disabled={isMatchLocked}
+                value={answers[currentCategory?.id || ""] === "لم أعرف" ? "" : answers[currentCategory?.id || ""] || ""}
+                onChange={(e) => handleInputChange(currentCategory?.id || "", e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && isCurrentAnswerTyped) {
+                    handleConfirmAnswer();
+                  }
+                }}
+                placeholder={currentCategory ? `اكتب كلمة تبدأ بحرف ${targetLetter}...` : "اكتب إجابتك..."}
+                className="w-full bg-white border border-slate-300 rounded-2xl px-4 py-3.5 sm:py-4 text-lg font-black text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#7C3AED] focus:ring-4 focus:ring-purple-500/20 transition-all dir-rtl disabled:opacity-60 shadow-inner"
+              />
+
+              {/* Action Buttons */}
+              {!isMatchLocked && (
+                <div className="flex items-center gap-2 pt-1">
+                  <motion.button
+                    whileTap={{ scale: 0.96 }}
+                    type="button"
+                    onClick={handleConfirmAnswer}
+                    disabled={!isCurrentAnswerTyped}
+                    className="flex-1 py-3.5 rounded-2xl text-xs font-black transition-all flex items-center justify-center gap-2 shadow-md bg-[#7C3AED] hover:bg-purple-700 text-white shadow-purple-200 disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
+                  >
+                    <SvgCheckIcon size={16} />
+                    <span>{isLastCategory ? "إنهاء المباراة" : "تأكيد الإجابة"}</span>
+                    {!isLastCategory && <SvgArrowRightIcon size={14} />}
+                  </motion.button>
+
+                  <motion.button
+                    whileTap={{ scale: 0.95 }}
+                    type="button"
+                    onClick={handleDontKnow}
+                    className="px-4 py-3.5 rounded-2xl bg-slate-200/70 hover:bg-slate-300 text-slate-700 text-xs font-extrabold transition-all flex items-center gap-1 shadow-2xs cursor-pointer"
+                  >
+                    <SvgEmptyIcon size={14} />
+                    <span>لم أعرف</span>
+                  </motion.button>
+                </div>
+              )}
+            </div>
           )}
-        </AnimatePresence>
+
+        </div>
 
       </div>
 

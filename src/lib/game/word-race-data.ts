@@ -58,7 +58,7 @@ export function normalizeArabicWord(text: string): string {
 
 /** Check if answer begins with assigned letter */
 export function validateAnswer(answerRaw: string, targetLetter: string): boolean {
-  if (!answerRaw || answerRaw.trim().length === 0) return false;
+  if (!answerRaw || answerRaw.trim().length === 0 || answerRaw.trim() === "لم أعرف" || answerRaw.trim() === "لم يجب") return false;
   const normalizedAns = normalizeArabicWord(answerRaw);
   const normalizedTarget = normalizeArabicWord(targetLetter);
   return normalizedAns.startsWith(normalizedTarget);
@@ -106,8 +106,9 @@ export function evaluateWordRaceMatch(
     for (const uid of playerUids) {
       const pAns = answersInCat[uid];
       if (!pAns.isValid) {
+        const isUnanswered = !pAns.raw || !pAns.raw.trim() || pAns.raw.trim() === "لم أعرف" || pAns.raw.trim() === "لم يجب";
         results[uid][catId] = {
-          word: pAns.raw,
+          word: isUnanswered ? "لم يجب" : pAns.raw,
           isValid: false,
           isDuplicate: false,
           points: 0,
