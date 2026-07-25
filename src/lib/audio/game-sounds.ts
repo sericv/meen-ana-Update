@@ -330,3 +330,31 @@ export function playTacticalAlert(blocked = false): void {
   window.setTimeout(() => beep(494, 0.07, 0.048), 72);
   window.setTimeout(() => beep(740, 0.11, 0.04), 155);
 }
+
+/** Check if audio/sound effects are muted */
+export function isAudioMuted(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return window.localStorage.getItem("sound_effects_muted") === "true";
+  } catch {
+    return false;
+  }
+}
+
+/** Mechanical tick sound for slot machine reel step */
+export function playReelTick(progressRatio = 0): void {
+  if (isAudioMuted()) return;
+  resumeAudioContext();
+  // Pitch lowers slightly as deceleration progresses (from 620Hz down to 420Hz)
+  const pitch = 620 - Math.round(progressRatio * 200);
+  beepTriangle(pitch, 0.025, 0.045);
+}
+
+/** Slot machine reel lock-in / landing chime sound */
+export function playReelLanding(): void {
+  if (isAudioMuted()) return;
+  resumeAudioContext();
+  // Bright 2-note lock-in chime (523Hz -> 784Hz)
+  beep(523, 0.07, 0.06);
+  window.setTimeout(() => beep(784, 0.12, 0.05), 70);
+}

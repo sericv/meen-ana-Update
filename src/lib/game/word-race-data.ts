@@ -56,10 +56,13 @@ export function normalizeArabicWord(text: string): string {
   return clean;
 }
 
-/** Check if answer begins with assigned letter */
+/** Check if answer begins with assigned letter (must be > 1 character) */
 export function validateAnswer(answerRaw: string, targetLetter: string): boolean {
-  if (!answerRaw || answerRaw.trim().length === 0 || answerRaw.trim() === "لم أعرف" || answerRaw.trim() === "لم يجب") return false;
-  const normalizedAns = normalizeArabicWord(answerRaw);
+  if (!answerRaw) return false;
+  const clean = answerRaw.trim();
+  // Answers must be > 1 character long (lone single letters score 0)
+  if (clean.length <= 1 || clean === "لم أعرف" || clean === "لم يجب") return false;
+  const normalizedAns = normalizeArabicWord(clean);
   const normalizedTarget = normalizeArabicWord(targetLetter);
   return normalizedAns.startsWith(normalizedTarget);
 }
@@ -139,12 +142,10 @@ export function evaluateWordRaceMatch(
     }
   }
 
-  // 3. Add finisher bonus (+15 pts for finishing first) & calculate XP
+  // 3. Calculate XP & Coins (totalPoints is strictly sum of category points)
   for (const uid of playerUids) {
-    if (uid === finisherUid) {
-      scores[uid].totalPoints += 15;
-    }
-    scores[uid].xpEarned = Math.round(scores[uid].totalPoints * 1.5 + (scores[uid].validCount * 5));
+    const finisherXpBonus = uid === finisherUid ? 25 : 0;
+    scores[uid].xpEarned = Math.round(scores[uid].totalPoints * 1.5 + (scores[uid].validCount * 5) + finisherXpBonus);
     scores[uid].coinsEarned = Math.round(scores[uid].totalPoints / 2);
   }
 

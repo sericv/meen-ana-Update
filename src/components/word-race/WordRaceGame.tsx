@@ -246,7 +246,7 @@ export const WordRaceGame: React.FC<WordRaceGameProps> = ({
         )}
 
         {/* 3. GAMEPLAY ARENA CONTAINER */}
-        <div className="bg-slate-50/90 border border-slate-200/80 rounded-2xl p-4 sm:p-5 space-y-4 shadow-sm relative z-10 flex-1 flex flex-col justify-between">
+        <div className="bg-slate-50/90 border border-slate-200/80 rounded-2xl p-4 sm:p-5 space-y-3 shadow-sm relative z-10 flex-1 flex flex-col justify-start">
           
           {/* SECTION A: ANIMATED CATEGORY & LETTER DISPLAY (Inside AnimatePresence for smooth slide transitions) */}
           <AnimatePresence mode="wait">
@@ -257,10 +257,10 @@ export const WordRaceGame: React.FC<WordRaceGameProps> = ({
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -25 }}
                 transition={{ duration: 0.2, ease: "easeInOut" }}
-                className="space-y-4"
+                className="space-y-3"
               >
-                {/* Target Letter & Square Timer Frame */}
-                <div className="flex flex-col items-center justify-center pt-1 space-y-1.5 text-center">
+                {/* Target Letter Container */}
+                <div className="flex flex-col items-center justify-center pt-1 space-y-1 text-center">
                   <span className="text-[11px] text-purple-900/70 font-sans font-black uppercase tracking-wider">
                     الحرف المطلوب
                   </span>
@@ -268,7 +268,7 @@ export const WordRaceGame: React.FC<WordRaceGameProps> = ({
                   <motion.div 
                     animate={{ scale: isFinalSeconds ? [1, 1.03, 1] : 1 }}
                     transition={{ repeat: isFinalSeconds ? Infinity : 0, duration: 0.8 }}
-                    className="relative w-28 h-28 sm:w-32 sm:h-32 flex items-center justify-center mx-auto p-1"
+                    className="relative w-24 h-24 sm:w-28 sm:h-28 flex items-center justify-center mx-auto p-1"
                   >
                     <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100">
                       <rect
@@ -301,29 +301,37 @@ export const WordRaceGame: React.FC<WordRaceGameProps> = ({
                       />
                     </svg>
 
-                    <div className="w-20 h-20 sm:w-22 sm:h-22 aspect-square rounded-2xl bg-gradient-to-br from-[#7C3AED] to-purple-900 p-0.5 shadow-md flex items-center justify-center z-10">
-                      <div className="w-full h-full aspect-square rounded-[14px] bg-white flex flex-col items-center justify-center shadow-inner relative">
+                    <div className="w-18 h-18 sm:w-20 sm:h-20 aspect-square rounded-2xl bg-gradient-to-br from-[#7C3AED] to-purple-900 p-0.5 shadow-md flex items-center justify-center z-10">
+                      <div className="w-full h-full aspect-square rounded-[14px] bg-white flex items-center justify-center shadow-inner relative">
                         <span className="text-4xl sm:text-5xl font-black text-[#7C3AED] font-sans leading-none">
                           {targetLetter}
-                        </span>
-                        <span className={`text-[10px] font-sans font-black px-2 py-0.5 rounded-full mt-0.5 ${
-                          timeLeft <= 8 ? "bg-rose-100 text-rose-700 animate-pulse" : "bg-purple-100 text-purple-900"
-                        }`}>
-                          {timeLeft}ث
                         </span>
                       </div>
                     </div>
                   </motion.div>
                 </div>
 
-                {/* Category Card */}
-                <div className="bg-white border border-slate-200/90 rounded-2xl p-4 shadow-xs flex items-center gap-4">
-                  <div className={`p-3.5 rounded-2xl border bg-purple-50/60 border-purple-100 shadow-2xs flex items-center justify-center shrink-0 ${currentCategory.color}`}>
-                    <IconComponent size={38} className="w-9.5 h-9.5" />
+                {/* Standalone Round Timer Pill (Positioned between Target Letter Box & Category Card) */}
+                <div className="flex justify-center my-1">
+                  <div className={`px-3.5 py-1 rounded-full font-sans font-black text-xs flex items-center gap-1.5 border shadow-2xs transition-all ${
+                    timeLeft <= 8
+                      ? "bg-rose-50 border-rose-200 text-rose-700 animate-pulse"
+                      : "bg-purple-50 border-purple-200 text-[#7C3AED]"
+                  }`}>
+                    <SvgTimerIcon size={14} className={timeLeft <= 8 ? "text-rose-600 animate-spin" : "text-[#7C3AED]"} />
+                    <span>الوقت المتبقي:</span>
+                    <span className="text-sm font-black tracking-tight">{timeLeft}ث</span>
                   </div>
-                  <div className="flex-1 min-w-0 space-y-1">
+                </div>
+
+                {/* Category Card */}
+                <div className="bg-white border border-slate-200/90 rounded-2xl p-3.5 sm:p-4 shadow-xs flex items-center gap-3.5">
+                  <div className={`p-3 rounded-2xl border bg-purple-50/60 border-purple-100 shadow-2xs flex items-center justify-center shrink-0 ${currentCategory.color}`}>
+                    <IconComponent size={34} className="w-8.5 h-8.5" />
+                  </div>
+                  <div className="flex-1 min-w-0 space-y-0.5">
                     <div className="flex items-center justify-between gap-2">
-                      <h3 className="text-lg sm:text-xl font-black text-slate-900 truncate">
+                      <h3 className="text-base sm:text-lg font-black text-slate-900 truncate">
                         {currentCategory.nameAr}
                       </h3>
                       <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-800 font-sans font-extrabold shrink-0">
@@ -339,7 +347,7 @@ export const WordRaceGame: React.FC<WordRaceGameProps> = ({
             )}
           </AnimatePresence>
 
-          {/* SECTION B: PERSISTENT STABLE INPUT AREA & BUTTONS (OUTSIDE AnimatePresence - Never Unmounts!) */}
+          {/* SECTION B: PERSISTENT STABLE INPUT AREA & BUTTONS (ATTACHED IMMEDIATELY BELOW CATEGORY CARD) */}
           {hasSkippedFinalCategory ? (
             /* SKIPPED FINAL CATEGORY WAITING BANNER */
             <motion.div
@@ -359,7 +367,7 @@ export const WordRaceGame: React.FC<WordRaceGameProps> = ({
               </div>
             </motion.div>
           ) : (
-            <div className="space-y-3 pt-1">
+            <div className="space-y-2.5 pt-0 mt-0">
               {/* Input Header & Label */}
               <div className="flex items-center justify-between px-1">
                 <label className="text-xs font-black text-purple-950">
@@ -372,7 +380,7 @@ export const WordRaceGame: React.FC<WordRaceGameProps> = ({
                 )}
               </div>
               
-              {/* SINGLE PERSISTENT INPUT DOM NODE - STAYS MOUNTED ACROSS ALL CATEGORIES */}
+              {/* SINGLE PERSISTENT INPUT DOM NODE - font-size explicitly >= 16px to prevent mobile focus auto-zoom */}
               <input
                 ref={inputRef}
                 type="text"
@@ -385,18 +393,19 @@ export const WordRaceGame: React.FC<WordRaceGameProps> = ({
                   }
                 }}
                 placeholder={currentCategory ? `اكتب كلمة تبدأ بحرف ${targetLetter}...` : "اكتب إجابتك..."}
-                className="w-full bg-white border border-slate-300 rounded-2xl px-4 py-3.5 sm:py-4 text-lg font-black text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#7C3AED] focus:ring-4 focus:ring-purple-500/20 transition-all dir-rtl disabled:opacity-60 shadow-inner"
+                style={{ fontSize: "16px" }}
+                className="w-full bg-white border border-slate-300 rounded-2xl px-4 py-3 sm:py-3.5 text-[16px] sm:text-lg font-black text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#7C3AED] focus:ring-4 focus:ring-purple-500/20 transition-all dir-rtl disabled:opacity-60 shadow-inner"
               />
 
               {/* Action Buttons */}
               {!isMatchLocked && (
-                <div className="flex items-center gap-2 pt-1">
+                <div className="flex items-center gap-2 pt-0.5">
                   <motion.button
                     whileTap={{ scale: 0.96 }}
                     type="button"
                     onClick={handleConfirmAnswer}
                     disabled={!isCurrentAnswerTyped}
-                    className="flex-1 py-3.5 rounded-2xl text-xs font-black transition-all flex items-center justify-center gap-2 shadow-md bg-[#7C3AED] hover:bg-purple-700 text-white shadow-purple-200 disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
+                    className="flex-1 py-3 sm:py-3.5 rounded-2xl text-xs font-black transition-all flex items-center justify-center gap-2 shadow-md bg-[#7C3AED] hover:bg-purple-700 text-white shadow-purple-200 disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
                   >
                     <SvgCheckIcon size={16} />
                     <span>{isLastCategory ? "إنهاء المباراة" : "تأكيد الإجابة"}</span>
@@ -407,7 +416,7 @@ export const WordRaceGame: React.FC<WordRaceGameProps> = ({
                     whileTap={{ scale: 0.95 }}
                     type="button"
                     onClick={handleDontKnow}
-                    className="px-4 py-3.5 rounded-2xl bg-slate-200/70 hover:bg-slate-300 text-slate-700 text-xs font-extrabold transition-all flex items-center gap-1 shadow-2xs cursor-pointer"
+                    className="px-4 py-3 sm:py-3.5 rounded-2xl bg-slate-200/70 hover:bg-slate-300 text-slate-700 text-xs font-extrabold transition-all flex items-center gap-1 shadow-2xs cursor-pointer"
                   >
                     <SvgEmptyIcon size={14} />
                     <span>لم أعرف</span>

@@ -18,6 +18,8 @@ import {
   SvgStarIcon,
   SvgShieldIcon,
   SvgLightningIcon,
+  SvgRocketIcon,
+  SvgTimerIcon,
 } from "@/lib/game/word-race-svgs";
 
 interface WordRaceResultsProps {
@@ -41,9 +43,10 @@ export const WordRaceResults: React.FC<WordRaceResultsProps> = ({
     ? { results: match.results, scores: match.scores }
     : evaluateWordRaceMatch(room.settings.categories, match.letterAssignment, match.answers, match.finisherUid);
 
-  // Verification intro sequence phase (0s -> 2.7s) before starting reveal
+  // Verification intro sequence phase (0s -> 2.7s)
   const [isVerifying, setIsVerifying] = useState<boolean>(true);
   const [verifySubPhase, setVerifySubPhase] = useState<"checking" | "calculating">("checking");
+  const [showAnnouncement, setShowAnnouncement] = useState<boolean>(false);
   const [revealStep, setRevealStep] = useState<number>(0);
   const [showFinalSummary, setShowFinalSummary] = useState<boolean>(false);
 
@@ -53,9 +56,10 @@ export const WordRaceResults: React.FC<WordRaceResultsProps> = ({
       setVerifySubPhase("calculating");
     }, 1300);
 
-    // End verification & start category reveal
+    // End verification & show match-end announcement screen
     const endVerifyTimer = setTimeout(() => {
       setIsVerifying(false);
+      setShowAnnouncement(true);
     }, 2700);
 
     return () => {
@@ -63,6 +67,16 @@ export const WordRaceResults: React.FC<WordRaceResultsProps> = ({
       clearTimeout(endVerifyTimer);
     };
   }, []);
+
+  // Auto-advance announcement after 4 seconds if user doesn't click
+  useEffect(() => {
+    if (showAnnouncement) {
+      const autoTimer = setTimeout(() => {
+        setShowAnnouncement(false);
+      }, 4500);
+      return () => clearTimeout(autoTimer);
+    }
+  }, [showAnnouncement]);
 
   const myScore = evaluated.scores[myUid] || { totalPoints: 0, validCount: 0, duplicateCount: 0, unansweredCount: 0, xpEarned: 0, coinsEarned: 0 };
   const opponentUid = room.players.find((p) => p.uid !== myUid)?.uid || "";
@@ -76,6 +90,18 @@ export const WordRaceResults: React.FC<WordRaceResultsProps> = ({
 
   const p1 = room.players.find((p) => p.uid === myUid) || { displayName: "أنت" };
   const p2 = room.players.find((p) => p.uid === opponentUid) || { displayName: "الخصم" };
+
+  // ─── Match-End Reason Detection ──────────────────────────────────────────────
+  const totalCatCount = activeCategories.length;
+  const finisherUid = match.finisherUid;
+  const finisherPlayer = finisherUid ? room.players.find((p) => p.uid === finisherUid) : null;
+  const finisherProgress = finisherUid ? (match.progress[finisherUid] || 0) : 0;
+
+  // Case B: Player completed all categories first
+  const isPlayerFinishedEnd = Boolean(finisherPlayer && finisherProgress >= totalCatCount);
+  const finisherDisplayName = finisherPlayer
+    ? (finisherPlayer.uid === myUid ? "أنت" : finisherPlayer.displayName || "منافسك")
+    : "";
 
   const handleNextReveal = () => {
     if (revealStep < activeCategories.length - 1) {
@@ -162,14 +188,14 @@ export const WordRaceResults: React.FC<WordRaceResultsProps> = ({
           <div className="flex items-center justify-center gap-3 pt-2">
             <button
               onClick={onReturnHome}
-              className="flex-1 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all active:scale-95 flex items-center justify-center gap-2"
+              className="flex-1 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
             >
               <SvgHomeIcon size={16} />
               <span>الرئيسية</span>
             </button>
             <button
               onClick={onRematchVote}
-              className="flex-1 py-3 rounded-2xl bg-[#7C3AED] hover:bg-purple-700 text-white text-xs font-black shadow-lg shadow-purple-200 transition-all active:scale-95 flex items-center justify-center gap-2"
+              className="flex-1 py-3 rounded-2xl bg-[#7C3AED] hover:bg-purple-700 text-white text-xs font-black shadow-lg shadow-purple-200 transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
             >
               <SvgRepeatIcon size={16} />
               <span>إعادة اللعب فوراً</span>
@@ -291,7 +317,96 @@ export const WordRaceResults: React.FC<WordRaceResultsProps> = ({
     );
   }
 
-  // 3. Normal Reveal & Final Summary
+  // 3. NEW INTERMEDIATE MATCH-END ANNOUNCEMENT SCREEN (Transitional Context Card)
+  if (showAnnouncement) {
+    return (
+      <div className="game-card-outer w-full dir-rtl select-none my-auto" style={{ direction: "rtl" }}>
+        <div className="game-card-inner p-8 sm:p-10 bg-white/95 border border-black/5 rounded-[32px] shadow-2xl text-slate-800 space-y-7 max-w-lg mx-auto text-center relative overflow-hidden my-auto">
+          
+          {/* Ambient Background Glow */}
+          <div 
+            className="absolute pointer-events-none rounded-full" 
+            style={{
+              width: 240,
+              height: 240,
+              background: isPlayerFinishedEnd
+                ? "radial-gradient(circle, rgba(124, 58, 237, 0.18) 0%, transparent 70%)"
+                : "radial-gradient(circle, rgba(245, 158, 11, 0.18) 0%, transparent 70%)",
+              top: "40%",
+              left: "50%",
+              transform: "translate(-50%, -50%)",
+              filter: "blur(35px)",
+            }}
+          />
+
+          {/* Animated Hero Icon Orb */}
+          <motion.div
+            initial={{ scale: 0.7, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: "spring", stiffness: 300, damping: 20 }}
+            className={`w-22 h-22 mx-auto rounded-3xl flex items-center justify-center shadow-xl ring-8 ${
+              isPlayerFinishedEnd
+                ? "bg-gradient-to-br from-[#7C3AED] to-purple-900 text-white ring-purple-500/20"
+                : "bg-gradient-to-br from-amber-400 to-orange-500 text-white ring-amber-400/20"
+            }`}
+          >
+            {isPlayerFinishedEnd ? (
+              <SvgRocketIcon size={44} />
+            ) : (
+              <SvgTimerIcon size={44} className="animate-pulse" />
+            )}
+          </motion.div>
+
+          {/* Announcement Titles & Subtitles */}
+          <div className="space-y-2.5">
+            <span className={`px-3.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
+              isPlayerFinishedEnd
+                ? "bg-purple-100 border border-purple-200 text-[#7C3AED]"
+                : "bg-amber-100 border border-amber-200 text-amber-900"
+            }`}>
+              {isPlayerFinishedEnd ? "إنهاء مبكر بالجولة 🚀" : "انتهاء الوقت المحدد ⏳"}
+            </span>
+
+            <h2 className="text-2xl sm:text-3xl font-black text-slate-900 leading-tight">
+              {isPlayerFinishedEnd
+                ? `${finisherDisplayName} أنهى الجولة أولاً!`
+                : "انتهى الوقت المحدد للجولة!"}
+            </h2>
+
+            <p className="text-xs text-slate-500 font-bold leading-relaxed max-w-xs mx-auto">
+              {isPlayerFinishedEnd
+                ? `أكمل ${finisherDisplayName} جميع الفئات المطلوب إجابتها بنجاح، مما أدى لإغلاق الجولة والانتقال للتقييم.`
+                : "انتهت الثواني المخصصة للمباراة قبل أن يتمكن أي متنافس من إكمال جميع الفئات."}
+            </p>
+          </div>
+
+          {/* Auto-Advance Progress Bar & Manual Continue Button */}
+          <div className="space-y-3 pt-2">
+            <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+              <motion.div
+                initial={{ width: "0%" }}
+                animate={{ width: "100%" }}
+                transition={{ duration: 4.5, ease: "linear" }}
+                className={`h-full ${isPlayerFinishedEnd ? "bg-[#7C3AED]" : "bg-amber-500"}`}
+              />
+            </div>
+
+            <motion.button
+              whileTap={{ scale: 0.96 }}
+              onClick={() => setShowAnnouncement(false)}
+              className="w-full py-3.5 rounded-2xl bg-[#7C3AED] hover:bg-purple-700 text-white text-xs font-black shadow-lg shadow-purple-200 transition-all flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <span>عرض النتائج والتحليل التفصيلي</span>
+              <SvgArrowRightIcon size={16} />
+            </motion.button>
+          </div>
+
+        </div>
+      </div>
+    );
+  }
+
+  // 4. Normal Reveal & Final Summary Table
   return (
     <div className="game-card-outer w-full dir-rtl select-none my-auto" style={{ direction: "rtl" }}>
       <div className="game-card-inner p-6 sm:p-8 bg-white/95 border border-black/5 rounded-[28px] shadow-xl text-slate-800 space-y-6">
