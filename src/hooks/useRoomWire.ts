@@ -598,7 +598,7 @@ export function useRoomWire(roomId: string | null, myUid: string | null) {
     const q = query(
       collection(db, col.rooms, rid, "messages"),
       orderBy("createdAt", "asc"),
-      limit(150),
+      limit(35),
     );
     const msgPath = `${col.rooms}/${rid}/messages`;
     logFsListenAttach("useRoomWire.messages", msgPath, { roomId: rid, myUid });
@@ -648,7 +648,7 @@ export function useRoomWire(roomId: string | null, myUid: string | null) {
     };
   }, [roomId]);
 
-  // Presence heartbeat
+  // Presence heartbeat (Optimized interval: 45s instead of 15s to reduce write charges by 67%)
   useEffect(() => {
     if (!roomId || !myUid) return;
     const db = getFirebaseDb();
@@ -671,7 +671,7 @@ export function useRoomWire(roomId: string | null, myUid: string | null) {
         });
       });
     void tick();
-    const id = window.setInterval(() => void tick(), 15000);
+    const id = window.setInterval(() => void tick(), 45000);
     return () => window.clearInterval(id);
   }, [roomId, myUid]);
 

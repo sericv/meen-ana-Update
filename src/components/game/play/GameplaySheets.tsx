@@ -23,7 +23,7 @@ export function GameplaySheet({
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.2 }}
-      className="absolute inset-0 z-[70] flex items-end justify-center bg-slate-900/60 backdrop-blur-sm"
+      className="absolute inset-0 z-[70] flex items-end justify-center bg-slate-900/70 backdrop-blur-md"
       onClick={onClose}
     >
       <motion.div
@@ -36,6 +36,7 @@ export function GameplaySheet({
         style={{
           outline: "1px solid rgba(255,255,255,0.85)",
           willChange: "transform",
+          borderTop: `2.5px solid ${accent}`,
         }}
       >
         {/* drag handle */}
@@ -49,10 +50,11 @@ export function GameplaySheet({
           >
             {title}
           </h2>
-          <button
+          <motion.button
             type="button"
             onClick={onClose}
-            className="w-8 h-8 rounded-lg bg-slate-50 border border-slate-200/50 flex items-center justify-center text-slate-400 active:scale-95 transition-transform"
+            whileTap={{ scale: 0.93 }}
+            className="w-8 h-8 rounded-lg bg-slate-50 border border-slate-200/50 flex items-center justify-center text-slate-400"
             aria-label="إغلاق"
             style={{ cursor: "pointer" }}
           >
@@ -60,7 +62,7 @@ export function GameplaySheet({
               <line x1="18" y1="6" x2="6" y2="18" />
               <line x1="6" y1="6" x2="18" y2="18" />
             </svg>
-          </button>
+          </motion.button>
         </div>
 
         {children}
@@ -197,7 +199,7 @@ const HintCard = memo(function HintCard({
         <div className={`game-card-inner p-3 bg-white border rounded-[20px] flex items-center gap-3 ${recommended && active ? "border-amber-200 bg-amber-50/10" : "border-slate-100"}`}>
           
           {/* icon indicator */}
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${recommended && active ? "bg-amber-50 text-amber-600" : "bg-purple-50 text-[#7C3AED]"}`}>
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${recommended && active ? "bg-amber-50 text-[#FFE600]" : "bg-purple-50 text-[#7C3AED]"}`}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .6 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5" />
               <path d="M9 18h6" />
@@ -210,7 +212,7 @@ const HintCard = memo(function HintCard({
             <div className="flex items-center gap-1.5">
               <span className="text-xs font-black text-slate-800">{title}</span>
               {recommended && active && (
-                <span className="text-[8px] font-black px-1.5 py-0.5 rounded-full bg-gradient-to-r from-amber-400 to-yellow-500 text-white shadow-sm">
+                <span className="text-[8px] font-black px-1.5 py-0.5 rounded-full text-white shadow-sm" style={{ background: "linear-gradient(135deg, #FFE600, #E5CC00)" }}>
                   الأفضل
                 </span>
               )}
@@ -226,8 +228,8 @@ const HintCard = memo(function HintCard({
               ? "bg-slate-50 border-slate-200/50 text-slate-400" 
               : active 
                 ? recommended 
-                  ? "bg-amber-50 border-amber-200 text-amber-600" 
-                  : "bg-purple-50 border-purple-100 text-purple-600" 
+                  ? "bg-[#FFF8E0] border-[#FFE600]/30 text-[#B3A000]" 
+                  : "bg-purple-50 border-purple-100 text-[#7C3AED]" 
                 : "bg-slate-50 border-slate-200/50 text-slate-400"
           }`}>
             {used ? "مستخدم" : active ? "متاح" : "لا يوجد"}

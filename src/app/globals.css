@@ -51,33 +51,26 @@ html {
   --font-sans: var(--font-baloo), system-ui, -apple-system, Segoe UI, Arial, sans-serif;
 }
 
-/* ─── App-shell: lock document to the visible viewport (native-app feel).
-       The page/body must never scroll; only `.scroll-y` / `.app-scroll-y`
-       regions scroll internally. ─── */
+/* ─── App-shell: natural document scroll configuration ─── */
 html {
-  position: fixed;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  height: 100dvh;
-  max-height: 100dvh;
-  overflow: hidden;
-  overscroll-behavior: none;
+  min-height: 100%;
+  min-height: 100dvh;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 body {
-  width: 100%;
-  height: 100%;
-  max-height: 100%;
-  overflow: hidden;
-  overscroll-behavior: none;
+  min-height: 100%;
+  min-height: 100dvh;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .app-shell {
-  height: 100%;
-  max-height: 100%;
-  overflow: hidden;
-  overscroll-behavior: none;
+  min-height: 100%;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
   /* Premium multi-radial off-white gradients — modern light mode game background */
   background:
     radial-gradient(ellipse 60% 40% at 15% 15%, rgba(124, 62, 237, 0.04) 0%, transparent 60%),
@@ -91,17 +84,13 @@ body {
   touch-action: manipulation;
 }
 
-/* Primary route host — fills body flex column, never grows past viewport. */
+/* Primary route host — fills body flex column naturally */
 .app-main {
   position: relative;
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;
-  min-height: 0;
-  min-width: 0;
   width: 100%;
-  overflow: hidden;
-  overscroll-behavior: none;
 }
 
 /* Standalone pages (login, tutorial) without shell-screen. */
@@ -109,10 +98,7 @@ body {
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;
-  min-height: 0;
   width: 100%;
-  overflow: hidden;
-  overscroll-behavior: none;
 }
 
 ::selection {
@@ -182,14 +168,11 @@ label {
 .scroll-y,
 .app-scroll-y {
   flex: 1 1 auto;
-  min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
-  overscroll-behavior: contain;
+  overscroll-behavior: auto;
   -webkit-overflow-scrolling: touch;
   scroll-behavior: smooth;
-  overflow-anchor: none;
-  touch-action: pan-y;
 }
 
 .app-scroll-y {

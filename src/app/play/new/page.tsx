@@ -163,7 +163,7 @@ function NewRoomInner() {
   };
 
   return (
-    <div className="shell-screen relative memphis-grid" style={{ background: "transparent", overflow: "hidden" }}>
+    <div className="shell-screen relative memphis-grid" style={{ background: "transparent" }}>
       {/* Background floaters */}
       <div className="bg-shape text-2xl memphis-float" style={{ top: "12%", left: "6%", opacity: 0.05 }}>✨</div>
       <div className="bg-shape text-2xl memphis-float-delayed" style={{ top: "45%", right: "6%", opacity: 0.05 }}>⭐</div>

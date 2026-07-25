@@ -74,7 +74,7 @@ export default function HomePage() {
   }
 
   return (
-    <div className="shell-screen relative memphis-grid" style={{ background: "transparent", overflow: "hidden" }}>
+    <div className="shell-screen relative memphis-grid" style={{ background: "transparent" }}>
       {/* Soft floating game background shapes */}
       <div className="bg-shape text-3xl memphis-float" style={{ top: "12%", left: "8%", opacity: 0.08 }}>❓</div>
       <div className="bg-shape text-3xl memphis-float-delayed" style={{ top: "45%", right: "8%", opacity: 0.08 }}>🔍</div>
@@ -131,7 +131,7 @@ export default function HomePage() {
       </div>
 
       {/* Main Content Area */}
-      <div className="f-1 scroll-y relative z-10" style={{ padding: "16px 16px calc(85px + env(safe-area-inset-bottom))" }}>
+      <div className="relative z-10 px-4 pt-4 pb-28">
         <MajlisHero onPlay={() => nav("/play/random")} />
 
         {/* Space gap */}
@@ -149,6 +149,14 @@ export default function HomePage() {
               onClick={() => nav("/play/new", true)}
             />
           </div>
+
+          <ActionTile
+            icon="word-race"
+            title="اسم حيوان نبات"
+            subtitle="لعبة السرعة والتحدي البصري للحروف العربية"
+            tint="purple"
+            onClick={() => nav("/play/word-race")}
+          />
           
           <ActionTile
             icon="search"
@@ -166,16 +174,14 @@ export default function HomePage() {
             onClick={() => nav("/shop", true)} 
           />
 
-          <div className="col-span-2">
-            <ActionTile
-              icon="trophy"
-              title="التصنيف العالمي"
-              subtitle="قريباً: تصدر قائمة أذكى اللاعبين في الوطن العربي"
-              tint="blue"
-              badge="قريباً"
-              onClick={() => nav("/ranking")}
-            />
-          </div>
+          <ActionTile
+            icon="trophy"
+            title="التصنيف العالمي"
+            subtitle="قريباً: تصدر قائمة أذكى اللاعبين في الوطن العربي"
+            tint="blue"
+            badge="قريباً"
+            onClick={() => nav("/ranking")}
+          />
         </ActionGrid>
 
         {/* Spacing gap */}

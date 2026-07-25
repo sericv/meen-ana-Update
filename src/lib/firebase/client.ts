@@ -10,13 +10,11 @@ import {
   initializeAuth,
 } from "firebase/auth";
 import { type Firestore, getFirestore } from "firebase/firestore";
-import { getStorage, type FirebaseStorage } from "firebase/storage";
 import { firebaseConfig } from "./config";
 
 let app: FirebaseApp | undefined;
 let auth: Auth | undefined;
 let db: Firestore | undefined;
-let storage: FirebaseStorage | undefined;
 
 export function getFirebaseApp(): FirebaseApp {
   if (!app) {
@@ -64,9 +62,4 @@ export function getFirebaseAuth(): Auth {
 export function getFirebaseDb(): Firestore {
   if (!db) db = getFirestore(getFirebaseApp());
   return db;
-}
-
-export function getFirebaseStorage(): FirebaseStorage {
-  if (!storage) storage = getStorage(getFirebaseApp());
-  return storage;
 }

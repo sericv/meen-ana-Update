@@ -29,9 +29,13 @@ export function useOpponentTyping(
     return () => unsub();
   }, [roomId, opponentUid, enabled]);
 
+  const isTypingRef = useRef(false);
+
   const setMyTyping = useCallback(
     (typing: boolean) => {
       if (!enabled || !roomId || !myUid) return;
+      if (isTypingRef.current === typing) return; // Prevent duplicate writes if state hasn't changed
+      isTypingRef.current = typing;
       const db = getFirebaseDb();
       const ref = doc(db, roomTypingCol(roomId), myUid);
       void setDoc(
@@ -44,15 +48,21 @@ export function useOpponentTyping(
   );
 
   const pulseTyping = useCallback(() => {
-    setMyTyping(true);
+    if (!isTypingRef.current) {
+      setMyTyping(true);
+    }
     if (clearRef.current) clearTimeout(clearRef.current);
-    clearRef.current = setTimeout(() => setMyTyping(false), 2200);
+    clearRef.current = setTimeout(() => {
+      setMyTyping(false);
+    }, 2500);
   }, [setMyTyping]);
 
   useEffect(() => {
     return () => {
       if (clearRef.current) clearTimeout(clearRef.current);
-      if (roomId && myUid) setMyTyping(false);
+      if (roomId && myUid && isTypingRef.current) {
+        setMyTyping(false);
+      }
     };
   }, [roomId, myUid, setMyTyping]);
 

@@ -71,11 +71,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ar" dir="rtl" className={`${balooBhaijaan2.variable} ${plusJakartaSans.variable} h-dvh max-h-dvh overflow-hidden antialiased`}>
-      <body className="app-shell flex h-dvh max-h-dvh flex-col overflow-hidden font-sans text-[#5e3011] antialiased">
+    <html lang="ar" dir="rtl" className={`${balooBhaijaan2.variable} ${plusJakartaSans.variable} antialiased`}>
+      <body className="app-shell flex flex-col font-sans text-[#5e3011] antialiased">
         <AuthProvider>
           <PlayerProfileModalProvider>
-            <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+            <div className="flex flex-1 flex-col min-w-0">
               <GlobalRoomInviteDockLazy />
               <div className="app-main">{children}</div>
             </div>

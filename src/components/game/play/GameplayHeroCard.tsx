@@ -68,9 +68,22 @@ export const GameplayHeroCard = memo(function GameplayHeroCard({ opponentCard, c
     >
       {/* Decorative floating elements behind card */}
       <div className="absolute inset-0 pointer-events-none select-none z-0">
-        <span className="absolute -top-3 -left-3 text-sm opacity-20 animate-pulse">✨</span>
-        <span className="absolute -bottom-3 -right-3 text-sm opacity-20 animate-pulse">⭐</span>
-        <span className="absolute top-1/2 -right-4 text-xs opacity-10">💬</span>
+        <span className="absolute -top-3 -left-3 opacity-20 animate-pulse">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="#7C3AED" aria-hidden>
+            <path d="M12 2l2.4 5.8 6.3.5-4.8 4.1 1.5 6.1L12 15.8 7.6 18.5l1.5-6.1-4.8-4.1 6.3-.5L12 2z" />
+          </svg>
+        </span>
+        <span className="absolute -bottom-3 -right-3 opacity-20 animate-pulse">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="#FFE600" aria-hidden>
+            <path d="M12 2l2.4 5.8 6.3.5-4.8 4.1 1.5 6.1L12 15.8 7.6 18.5l1.5-6.1-4.8-4.1 6.3-.5L12 2z" />
+          </svg>
+        </span>
+        <span className="absolute top-1/2 -right-4 opacity-10">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="2" aria-hidden>
+            <circle cx="12" cy="12" r="10" />
+            <path d="M9 10a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1v-4z" />
+          </svg>
+        </span>
       </div>
 
       {/* Collectible Card Outer Bezel */}

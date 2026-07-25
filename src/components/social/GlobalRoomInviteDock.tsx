@@ -33,6 +33,7 @@ type InviteDoc = {
   hostAvatarId?: string | null;
   hostAvatarFrameId?: string | null;
   createdMs: number;
+  inviteType?: string;
 };
 
 function parseInvite(id: string, data: Record<string, unknown>): InviteDoc | null {
@@ -62,6 +63,7 @@ function parseInvite(id: string, data: Record<string, unknown>): InviteDoc | nul
     hostAvatarId: data.hostAvatarId != null ? String(data.hostAvatarId) : null,
     hostAvatarFrameId: data.hostAvatarFrameId != null ? String(data.hostAvatarFrameId) : null,
     createdMs,
+    inviteType: String(data.inviteType ?? "classic"),
   };
 }
 
@@ -140,9 +142,14 @@ function RoomInviteToast({
           {/* Header row & Countdown Timer */}
           <div className="flex items-start justify-between">
             <div style={{ lineHeight: 1.2 }}>
-              <h3 className="h-display text-sm font-black text-slate-800">دعوة إلى غرفة</h3>
-              <p className="text-[9px] text-slate-400 font-bold mt-0.5">
-                قام <span className="text-[#7C3AED] font-black">{inv.hostDisplayName}</span> بدعوتك للانضمام إلى تحدٍ خاص.
+              <h3 className="h-display text-sm font-black text-slate-800">
+                {inv.inviteType === "games_lobby" ? "دعوة إلى قاعة الألعاب" : "دعوة إلى غرفة"}
+              </h3>
+              <p className="text-[9px] text-slate-400 font-bold mt-0.5 font-sans">
+                {inv.inviteType === "games_lobby" 
+                  ? <>قام <span className="text-[#7C3AED] font-black">{inv.hostDisplayName}</span> بدعوتك للانضمام إلى قاعة الألعاب المشتركة.</>
+                  : <>قام <span className="text-[#7C3AED] font-black">{inv.hostDisplayName}</span> بدعوتك للانضمام إلى تحدٍ خاص.</>
+                }
               </p>
             </div>
 
@@ -167,15 +174,27 @@ function RoomInviteToast({
             </div>
           </div>
 
-          {/* Invitation Envelope Illustration */}
-          <div className="w-12 h-12 rounded-full bg-purple-50 border border-purple-100 flex items-center justify-center mx-auto my-1 flex-shrink-0 text-purple-600">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-              <polyline points="22,6 12,13 2,6" />
-            </svg>
-          </div>
+          {/* Thematic Illustration (envelope for classic, game controller for games lobby - no emojis) */}
+          {inv.inviteType === "games_lobby" ? (
+            <div className="w-16 h-16 rounded-full bg-purple-50 border border-purple-100 flex items-center justify-center mx-auto my-1 flex-shrink-0 text-purple-600 relative select-none">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="animate-pulse">
+                <rect x="2" y="6" width="20" height="12" rx="3" />
+                <line x1="6" y1="12" x2="10" y2="12" />
+                <line x1="8" y1="10" x2="8" y2="14" />
+                <line x1="15" y1="13" x2="15.01" y2="13" />
+                <line x1="18" y1="11" x2="18.01" y2="11" />
+              </svg>
+            </div>
+          ) : (
+            <div className="w-12 h-12 rounded-full bg-purple-50 border border-purple-100 flex items-center justify-center mx-auto my-1 flex-shrink-0 text-purple-600">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                <polyline points="22,6 12,13 2,6" />
+              </svg>
+            </div>
+          )}
 
-          {/* Room Information card details */}
+          {/* Room / Games Information card details */}
           <div className="game-card-outer w-full">
             <div className="game-card-inner p-4 bg-slate-50/50 border border-slate-200/50 rounded-2xl flex flex-col gap-3">
               
@@ -192,20 +211,20 @@ function RoomInviteToast({
                 </div>
 
                 <div className="flex-1 min-w-0" style={{ lineHeight: 1.15 }}>
-                  <span className="text-xs font-black text-slate-800 truncate block">
+                  <span className="text-xs font-black text-slate-800 truncate block font-sans">
                     {inv.hostDisplayName}
                   </span>
-                  <span className="text-[8px] text-slate-400 font-bold block mt-0.5">
-                    {inv.hostUsername ? `@${inv.hostUsername}` : "مضيف الغرفة"}
+                  <span className="text-[8px] text-slate-400 font-bold block mt-0.5 font-sans">
+                    {inv.hostUsername ? `@${inv.hostUsername}` : inv.inviteType === "games_lobby" ? "مضيف القاعة" : "مضيف الغرفة"}
                   </span>
                 </div>
 
                 {/* Overlapping player slot previews */}
                 <div className="flex -space-x-1.5 overflow-hidden">
-                  <div className="w-5.5 h-5.5 rounded-full border border-white bg-purple-50 text-[7px] font-black text-purple-600 flex items-center justify-center flex-shrink-0 z-10">
+                  <div className="w-5.5 h-5.5 rounded-full border border-white bg-purple-50 text-[7px] font-black text-purple-600 flex items-center justify-center flex-shrink-0 z-10 font-sans">
                     {inv.hostDisplayName.slice(0, 1)}
                   </div>
-                  <div className="w-5.5 h-5.5 rounded-full border border-white bg-slate-200 text-[6px] text-slate-400 flex items-center justify-center flex-shrink-0 z-0 select-none">
+                  <div className="w-5.5 h-5.5 rounded-full border border-white bg-slate-200 text-[6px] text-slate-400 flex items-center justify-center flex-shrink-0 z-0 select-none font-sans">
                     +
                   </div>
                 </div>
@@ -215,24 +234,37 @@ function RoomInviteToast({
               <div className="h-[1px] bg-slate-200/50" />
 
               {/* Chips Details Grid */}
-              <div className="flex flex-wrap gap-2 text-[8px] font-bold text-slate-500">
-                <div className="px-2.5 py-1 rounded-full bg-white border border-slate-200/50 flex items-center gap-1">
-                  <span>فئة:</span>
-                  <span className="text-[#7C3AED] font-black">{inv.categoryLabel || "عام"}</span>
+              {inv.inviteType === "games_lobby" ? (
+                <div className="flex flex-wrap gap-2 text-[8px] font-bold text-slate-500">
+                  <div className="px-2.5 py-1 rounded-full bg-white border border-slate-200/50 flex items-center gap-1 font-sans">
+                    <span>النوع:</span>
+                    <span className="text-[#7C3AED] font-black">قاعة انتظار مشتركة</span>
+                  </div>
+                  <div className="px-2.5 py-1 rounded-full bg-white border border-slate-200/50 flex items-center gap-1 font-sans">
+                    <span>الصوت:</span>
+                    <span className="text-[#7C3AED] font-black">نشط تلقائياً</span>
+                  </div>
                 </div>
-                <div className="px-2.5 py-1 rounded-full bg-white border border-slate-200/50 flex items-center gap-1">
-                  <span>وقت السؤال:</span>
-                  <span className="text-slate-800 font-black">{inv.questionTimerSec ? `${inv.questionTimerSec}ث` : "تلقائي"}</span>
+              ) : (
+                <div className="flex flex-wrap gap-2 text-[8px] font-bold text-slate-500">
+                  <div className="px-2.5 py-1 rounded-full bg-white border border-slate-200/50 flex items-center gap-1 font-sans">
+                    <span>فئة:</span>
+                    <span className="text-[#7C3AED] font-black">{inv.categoryLabel || "عام"}</span>
+                  </div>
+                  <div className="px-2.5 py-1 rounded-full bg-white border border-slate-200/50 flex items-center gap-1 font-sans">
+                    <span>وقت السؤال:</span>
+                    <span className="text-slate-800 font-black">{inv.questionTimerSec ? `${inv.questionTimerSec}ث` : "تلقائي"}</span>
+                  </div>
+                  <div className="px-2.5 py-1 rounded-full bg-white border border-slate-200/50 flex items-center gap-1 font-mono">
+                    <span>الرمز:</span>
+                    <span className="text-slate-700 font-black">{inv.roomCode || "—"}</span>
+                  </div>
                 </div>
-                <div className="px-2.5 py-1 rounded-full bg-white border border-slate-200/50 flex items-center gap-1 font-mono">
-                  <span>الرمز:</span>
-                  <span className="text-slate-700 font-black">{inv.roomCode || "—"}</span>
-                </div>
-              </div>
+              )}
 
               {/* Optional host custom message bubble */}
               {inv.message && (
-                <div className="p-2.5 rounded-xl bg-purple-50/50 border border-purple-100 text-[9px] font-bold text-purple-700 leading-normal relative">
+                <div className="p-2.5 rounded-xl bg-purple-50/50 border border-purple-100 text-[9px] font-bold text-purple-700 leading-normal relative font-sans">
                   <span className="absolute -top-1.5 right-3 text-[7px] bg-purple-100 text-purple-700 px-1 rounded-full font-black">
                     ملاحظة
                   </span>
@@ -344,7 +376,11 @@ export function GlobalRoomInviteDock() {
       })) as { roomId?: string | null };
       const rid = res.roomId ? String(res.roomId) : "";
       if (rid) {
-        router.replace(`/room/${rid}`);
+        if (inv.inviteType === "games_lobby") {
+          router.replace(`/games?roomId=${rid}`);
+        } else {
+          router.replace(`/room/${rid}`);
+        }
         return;
       }
       throw new Error("INVITE_ACCEPT_NO_ROOM");

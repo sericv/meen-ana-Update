@@ -361,3 +361,50 @@ export async function tryJoinOpenRoom(args: {
     throw err;
   }
 }
+
+export async function joinGamesLobbyRoom(args: {
+  roomId: string;
+  uid: string;
+  displayName: string;
+}): Promise<void> {
+  try {
+    await runTransaction(db(), async (tx) => {
+      const roomRef = doc(db(), col.rooms, args.roomId);
+      const rs = await tx.get(roomRef);
+      if (!rs.exists()) throw new Error("ROOM_GONE");
+      const r = rs.data();
+      const uids = (r.playerUids as string[]) ?? [];
+      if (uids.includes(args.uid)) return;
+      if (uids.length >= 2) throw new Error("ROOM_FULL");
+      const players = (r.players as RoomPlayer[]) ?? [];
+      const nextPlayers: RoomPlayer[] = [
+        ...players,
+        {
+          uid: args.uid,
+          displayName: args.displayName,
+          ready: true,
+          joinedAt: null,
+        },
+      ];
+      tx.update(roomRef, {
+        playerUids: [...uids, args.uid],
+        players: nextPlayers,
+        [`playerJoinedAt.${args.uid}`]: serverTimestamp(),
+        lastActivityAt: serverTimestamp(),
+      });
+    });
+  } catch (err) {
+    if (isFirebaseFirestoreError(err)) {
+      logFsOpFailure({
+        area: "rooms.client.joinGamesLobbyRoom.runTransaction",
+        op: "transaction",
+        path: `${col.rooms}/${args.roomId}`,
+        err,
+        roomId: args.roomId,
+        myUid: args.uid,
+      });
+    }
+    throw err;
+  }
+}
+

@@ -29,10 +29,12 @@ const STATUS_COLORS: Record<string, { bg: string; text: string; dot: string }> =
 export function RoomInviteFriendsPanel({
   myUid,
   roomId,
+  inviteType = "classic",
   onClose,
 }: {
   myUid: string;
   roomId: string;
+  inviteType?: string;
   onClose: () => void;
 }) {
   const { openProfile } = usePlayerProfileModal();
@@ -76,7 +78,7 @@ export function RoomInviteFriendsPanel({
     setInviteBusy(toUid);
     setInvitedOk(null);
     try {
-      await postSocial("/api/social/room-invite", { roomId, toUid });
+      await postSocial("/api/social/room-invite", { roomId, toUid, inviteType });
       setInvitedOk(toUid);
       setTimeout(() => {
         setInvitedOk(null);
@@ -120,8 +122,12 @@ export function RoomInviteFriendsPanel({
           {/* Header */}
           <div className="flex items-center justify-between">
             <div style={{ lineHeight: 1.2 }}>
-              <h3 className="h-display text-sm font-black text-slate-800">دعوة الأصدقاء للغرفة</h3>
-              <p className="text-[9px] text-slate-400 font-bold">اختر صديقاً للانضمام والتحدي فورياً</p>
+              <h3 className="h-display text-sm font-black text-slate-800">
+                {inviteType === "games_lobby" ? "دعوة الأصدقاء للوبي" : "دعوة الأصدقاء للغرفة"}
+              </h3>
+              <p className="text-[9px] text-slate-400 font-bold">
+                {inviteType === "games_lobby" ? "اختر صديقاً متصلاً للانضمام والاستقبال" : "اختر صديقاً للانضمام والتحدي فورياً"}
+              </p>
             </div>
             
             <button
@@ -201,7 +207,7 @@ export function RoomInviteFriendsPanel({
                   ? ({ toMillis: () => p.gamePresenceUpdatedAtMs! } as Timestamp)
                   : null;
                 const eff = clientEffectivePresence(raw, ts);
-                const blocked = INVITE_BLOCKING_PRESENCE.has(eff);
+                const blocked = INVITE_BLOCKING_PRESENCE.has(eff) || (inviteType === "games_lobby" && eff === "offline");
                 const ss = STATUS_COLORS[eff] ?? STATUS_COLORS.offline;
                 const level = levelFromXp(p?.xp ?? 0);
                 const wins = p?.matchWins ?? 0;

@@ -3,7 +3,6 @@
 import { memo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { IconHintBulb } from "@/components/game/play/icons";
-import { GP } from "@/components/game/play/tokens";
 import { SPRING_UI } from "@/lib/motion";
 
 type Props = {
@@ -18,7 +17,7 @@ type Props = {
   onPress: () => void;
 };
 
-/** زر تلميحات موحّد — لمبة دائماً، النتائج داخل الورقة فقط */
+/** زر تلميحات موحّد ومحسّن تجميلياً ليتطابق مع الهوية البصرية الجديدة */
 export const GameplayMyHiddenCard = memo(function GameplayMyHiddenCard({
   hintsLeft,
   bonusLetterHints = 0,
@@ -28,93 +27,98 @@ export const GameplayMyHiddenCard = memo(function GameplayMyHiddenCard({
   onPress,
 }: Props) {
   const voice = size === "voice";
-  const w = voice ? 76 : 68;
-  const h = voice ? 96 : 88;
+  const w = voice ? 86 : 76;
+  const h = voice ? 104 : 96;
   const hasStoreHint = bonusLetterHints + bonusCountHints > 0;
   const badge = hintUsed ? 0 : hasStoreHint ? 1 : hintsLeft;
-  const bulbSize = voice ? 34 : 30;
+  const bulbSize = voice ? 32 : 28;
   const hasBadge = badge > 0;
 
   return (
     <motion.button
       type="button"
-      whileTap={{ scale: 0.93 }}
+      whileTap={{ scale: 0.94 }}
+      whileHover={{ scale: 1.02 }}
       transition={SPRING_UI}
       onClick={onPress}
-      className="relative flex flex-col overflow-hidden text-center"
+      className="game-card-outer flex flex-col select-none relative"
       style={{
         width: w,
         height: h,
-        borderRadius: 18,
-        border: "1.5px solid rgba(251, 146, 60, 0.28)",
-        background: "linear-gradient(135deg, #FFFDF8 0%, #FFEFC4 100%)",
-        boxShadow: [
-          "0 2px 6px rgba(180, 100, 30, 0.05)",
-          "0 8px 20px rgba(180, 100, 30, 0.08)",
-          "inset 0 1.5px 0.5px #ffffff",
-        ].join(", "),
-        willChange: "transform",
+        padding: "4px",
+        borderRadius: 20,
+        cursor: "pointer",
       }}
-      aria-label="كرتك والتلميحات"
+      aria-label="تلميحات كرتي"
     >
-      {/* Ambient inner glow on press */}
-      <motion.span
-        aria-hidden
-        className="pointer-events-none absolute inset-0 rounded-[13px]"
-        initial={{ opacity: 0 }}
-        whileTap={{ opacity: 1 }}
-        transition={{ duration: 0.12 }}
+      <div 
+        className="game-card-inner flex-1 flex flex-col justify-between overflow-hidden relative w-full h-full"
         style={{
-          background: `radial-gradient(circle at 50% 40%, ${GP.gold}55 0%, transparent 70%)`,
-        }}
-      />
-
-      {/* Badge */}
-      <AnimatePresence>
-        {hasBadge && (
-          <motion.span
-            key="badge"
-            initial={{ scale: 0.5, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.5, opacity: 0 }}
-            transition={SPRING_UI}
-            className="absolute right-0.5 top-0.5 z-10 inline-flex min-w-[22px] items-center justify-center gap-0.5 rounded-full px-1.5 py-px text-[8px] font-extrabold tabular-nums"
-            style={{
-              background: `linear-gradient(160deg, ${GP.gold} 0%, ${GP.goldDeep} 100%)`,
-              color: GP.ink,
-              boxShadow: `0 2px 6px rgba(120,70,10,0.3), inset 0 1px 0 rgba(255,255,255,0.4)`,
-            }}
-          >
-            {badge}
-          </motion.span>
-        )}
-      </AnimatePresence>
-
-      <div className="flex flex-1 flex-col items-center justify-center px-1 pb-0.5 pt-3">
-        {/* Bulb glow halo — CSS animation (compositor thread, no JS loop) */}
-        <div
-          className="bulb-halo-pulse grid place-items-center rounded-full"
-          style={{
-            width: bulbSize + 14,
-            height: bulbSize + 14,
-            background: `radial-gradient(circle, ${GP.gold}55 0%, transparent 70%)`,
-          }}
-        >
-          <IconHintBulb size={bulbSize} variant="illustrated" />
-        </div>
-      </div>
-
-      <span
-        className="shrink-0 py-1 text-[7.5px] font-extrabold leading-tight"
-        style={{
-          background: "linear-gradient(180deg, #FFEAB2 0%, #F5BE50 100%)",
-          color: "#4f260a",
-          letterSpacing: "0.03em",
-          borderTop: "1px solid rgba(251, 146, 60, 0.2)",
+          borderRadius: 20 - 4,
+          background: "linear-gradient(135deg, #FAF8FF 0%, #F5ECFF 100%)",
+          border: "1.5px solid rgba(124, 58, 237, 0.15)",
         }}
       >
-        تلميحات
-      </span>
+        {/* Specular highlights inside */}
+        <span
+          aria-hidden
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 1,
+            background: "linear-gradient(90deg, transparent, rgba(124, 58, 237, 0.3), transparent)",
+            pointerEvents: "none",
+          }}
+        />
+
+        {/* Badge */}
+        <AnimatePresence>
+          {hasBadge && (
+            <motion.span
+              key="badge"
+              initial={{ scale: 0.5, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.5, opacity: 0 }}
+              transition={SPRING_UI}
+              className="absolute right-1 top-1 z-10 inline-flex min-w-[20px] h-[20px] items-center justify-center rounded-full px-1.5 text-[9px] font-extrabold font-sans text-white"
+              style={{
+                background: "linear-gradient(135deg, #7C3AED 0%, #5B21B6 100%)",
+                boxShadow: "0 2px 8px rgba(124, 58, 237, 0.35)",
+              }}
+            >
+              {badge}
+            </motion.span>
+          )}
+        </AnimatePresence>
+
+        {/* Bulb icon zone */}
+        <div className="flex-1 flex items-center justify-center pt-2">
+          <div
+            className="flex items-center justify-center rounded-full"
+            style={{
+              width: bulbSize + 12,
+              height: bulbSize + 12,
+              background: "radial-gradient(circle, rgba(245, 158, 11, 0.18) 0%, transparent 75%)",
+            }}
+          >
+            <IconHintBulb size={bulbSize} variant="illustrated" />
+          </div>
+        </div>
+
+        {/* Bottom banner label */}
+        <div
+          className="py-1 text-center text-[9px] font-extrabold leading-tight text-white font-sans"
+          style={{
+            background: "linear-gradient(180deg, #7C3AED 0%, #5B21B6 100%)",
+            borderTop: "1.2px solid rgba(124, 58, 237, 0.2)",
+            borderRadius: `0 0 ${20 - 4}px ${20 - 4}px`,
+          }}
+        >
+          تلميحات
+        </div>
+      </div>
     </motion.button>
   );
 });

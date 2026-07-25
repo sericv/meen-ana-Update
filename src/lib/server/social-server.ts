@@ -285,8 +285,9 @@ export async function sendRoomInvite(args: {
   toUid: string;
   roomId: string;
   message?: string;
+  inviteType?: string;
 }): Promise<{ inviteId: string }> {
-  const { fromUid, toUid, roomId } = args;
+  const { fromUid, toUid, roomId, inviteType = "classic" } = args;
   const message = (args.message ?? "انضم إلى غرفتي!").trim().slice(0, 120);
   if (fromUid === toUid) throw new HttpError(400, "لا يمكن دعوة نفسك.");
 
@@ -329,6 +330,7 @@ export async function sendRoomInvite(args: {
     fromUid,
     toUid,
     roomId,
+    inviteType,
     roomCode: String(room.code ?? ""),
     categoryId: String(room.categoryId ?? ""),
     categoryLabel: getCategoryById(String(room.categoryId ?? ""))?.nameAr ?? "عام",

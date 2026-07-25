@@ -62,7 +62,7 @@ function ProfileScreenInner() {
 
   return (
     <ShellScreen>
-      <div className="shell-screen relative memphis-grid" style={{ background: "transparent", overflow: "hidden" }}>
+      <div className="shell-screen relative memphis-grid" style={{ background: "transparent" }}>
         {/* Background floaters */}
         <div className="bg-shape text-3xl memphis-float" style={{ top: "15%", left: "6%", opacity: 0.05 }}>✨</div>
         <div className="bg-shape text-3xl memphis-float-delayed" style={{ top: "50%", right: "6%", opacity: 0.05 }}>👑</div>

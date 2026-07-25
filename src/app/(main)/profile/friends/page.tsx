@@ -192,7 +192,7 @@ function FriendsPageInner() {
   };
 
   return (
-    <div className="shell-screen relative bg-[#FAFAF8] overflow-hidden" dir="rtl">
+    <div className="shell-screen relative bg-[#FAFAF8]" dir="rtl">
       
       {/* Background low-opacity decals */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden select-none">
