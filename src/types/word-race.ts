@@ -28,6 +28,7 @@ export interface WordRaceRoomSettings {
   timeLimitSec: number; // e.g. 60, 90, 120, 180
   maxPlayers: number; // 2 to 6
   isPrivate: boolean;
+  roundsCount: number; // e.g. 1, 3, 5, 7
 }
 
 export interface WordRaceRoom {
@@ -60,10 +61,21 @@ export interface PlayerMatchScore {
   coinsEarned: number;
 }
 
+export interface CompletedRoundRecord {
+  roundNumber: number; // 1-indexed (1, 2, 3...)
+  letterAssignment: Record<string, string>;
+  answers: Record<string, Record<string, string>>;
+  finisherUid?: string | null;
+  results: Record<string, Record<string, CategoryAnswerResult>>;
+  scores: Record<string, PlayerMatchScore>;
+}
+
 export interface WordRaceMatch {
   id: string;
   roomId: string;
   status: WordRaceRoomStatus;
+  currentRound?: number; // 1-indexed current round (e.g. 1, 2, 3)
+  totalRounds?: number; // Total configured rounds (e.g. 3)
   startedAt: number;
   durationSec?: number;
   endedAt?: number;
@@ -74,6 +86,8 @@ export interface WordRaceMatch {
   progress: Record<string, number>; // uid -> count of completed categories
   results?: Record<string, Record<string, CategoryAnswerResult>>; // uid -> { categoryId: CategoryAnswerResult }
   scores?: Record<string, PlayerMatchScore>; // uid -> PlayerMatchScore
+  roundHistory?: CompletedRoundRecord[]; // Past completed rounds
+  cumulativeScores?: Record<string, PlayerMatchScore>; // Derived total score across all rounds
   rematchVotes?: Record<string, boolean>; // uid -> boolean
 }
 

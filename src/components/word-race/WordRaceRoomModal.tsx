@@ -39,6 +39,7 @@ export const WordRaceRoomModal: React.FC<WordRaceRoomModalProps> = ({
   const [letterMode, setLetterMode] = useState<LetterMode>(initialSettings?.letterMode || "SINGLE_UNIVERSAL");
   const [timeLimitSec, setTimeLimitSec] = useState<number>(initialSettings?.timeLimitSec || 90);
   const [maxPlayers, setMaxPlayers] = useState<number>(initialSettings?.maxPlayers || 2);
+  const [roundsCount, setRoundsCount] = useState<number>(initialSettings?.roundsCount || 3);
   const [isPrivate, setIsPrivate] = useState<boolean>(initialSettings?.isPrivate || false);
 
   React.useEffect(() => {
@@ -47,6 +48,7 @@ export const WordRaceRoomModal: React.FC<WordRaceRoomModalProps> = ({
       setLetterMode(initialSettings.letterMode);
       setTimeLimitSec(initialSettings.timeLimitSec);
       setMaxPlayers(initialSettings.maxPlayers);
+      setRoundsCount(initialSettings.roundsCount || 3);
       setIsPrivate(initialSettings.isPrivate);
     }
   }, [isOpen, initialSettings]);
@@ -79,6 +81,7 @@ export const WordRaceRoomModal: React.FC<WordRaceRoomModalProps> = ({
       letterMode,
       timeLimitSec: Math.min(300, Math.max(15, timeLimitSec)),
       maxPlayers,
+      roundsCount,
       isPrivate,
     });
   };
@@ -261,63 +264,91 @@ export const WordRaceRoomModal: React.FC<WordRaceRoomModalProps> = ({
                 </div>
               </div>
 
-              {/* Segmented Pickers for Max Players & Privacy */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-slate-200/60 pt-4">
-                
-                {/* Max Players Segmented Pill Picker */}
+              {/* Segmented Pickers for Rounds Count, Max Players & Privacy */}
+              <div className="space-y-4 border-t border-slate-200/60 pt-4">
+
+                {/* Number of Rounds Segmented Pill Picker */}
                 <div className="space-y-2">
                   <label className="text-xs font-black text-slate-700 flex items-center gap-1.5">
-                    <SvgUsersIcon size={16} className="text-blue-500" />
-                    <span>الحد الأقصى للاعبين:</span>
+                    <SvgSparklesIcon size={16} className="text-purple-600" />
+                    <span>عدد الجولات في المباراة:</span>
                   </label>
                   <div className="grid grid-cols-4 gap-1.5 p-1 bg-white border border-slate-200 rounded-2xl">
-                    {[2, 3, 4, 6].map((num) => (
+                    {[1, 3, 5, 7].map((count) => (
                       <button
-                        key={num}
+                        key={count}
                         type="button"
-                        onClick={() => setMaxPlayers(num)}
+                        onClick={() => setRoundsCount(count)}
                         className={`py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                          maxPlayers === num
+                          roundsCount === count
                             ? "bg-[#7C3AED] text-white font-black shadow-xs"
                             : "text-slate-600 hover:bg-slate-50"
                         }`}
                       >
-                        {num === 2 ? "1v1" : `${num} لاعبين`}
+                        {count === 1 ? "جولة واحدة" : `${count} جولات`}
                       </button>
                     ))}
                   </div>
                 </div>
 
-                {/* Privacy Segmented Pill Picker */}
-                <div className="space-y-2">
-                  <label className="text-xs font-black text-slate-700 flex items-center gap-1.5">
-                    <SvgShieldIcon size={16} className="text-emerald-500" />
-                    <span>خصوصية الغرفة:</span>
-                  </label>
-                  <div className="grid grid-cols-2 gap-1.5 p-1 bg-white border border-slate-200 rounded-2xl">
-                    <button
-                      type="button"
-                      onClick={() => setIsPrivate(false)}
-                      className={`py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                        !isPrivate
-                          ? "bg-emerald-600 text-white font-black shadow-xs"
-                          : "text-slate-600 hover:bg-slate-50"
-                      }`}
-                    >
-                      عامة (للجميع)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setIsPrivate(true)}
-                      className={`py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                        isPrivate
-                          ? "bg-amber-600 text-white font-black shadow-xs"
-                          : "text-slate-600 hover:bg-slate-50"
-                      }`}
-                    >
-                      خاصة (برمز)
-                    </button>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+                  
+                  {/* Max Players Segmented Pill Picker */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-black text-slate-700 flex items-center gap-1.5">
+                      <SvgUsersIcon size={16} className="text-blue-500" />
+                      <span>الحد الأقصى للاعبين:</span>
+                    </label>
+                    <div className="grid grid-cols-4 gap-1.5 p-1 bg-white border border-slate-200 rounded-2xl">
+                      {[2, 3, 4, 6].map((num) => (
+                        <button
+                          key={num}
+                          type="button"
+                          onClick={() => setMaxPlayers(num)}
+                          className={`py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                            maxPlayers === num
+                              ? "bg-[#7C3AED] text-white font-black shadow-xs"
+                              : "text-slate-600 hover:bg-slate-50"
+                          }`}
+                        >
+                          {num === 2 ? "1v1" : `${num} لاعبين`}
+                        </button>
+                      ))}
+                    </div>
                   </div>
+
+                  {/* Privacy Segmented Pill Picker */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-black text-slate-700 flex items-center gap-1.5">
+                      <SvgShieldIcon size={16} className="text-emerald-500" />
+                      <span>خصوصية الغرفة:</span>
+                    </label>
+                    <div className="grid grid-cols-2 gap-1.5 p-1 bg-white border border-slate-200 rounded-2xl">
+                      <button
+                        type="button"
+                        onClick={() => setIsPrivate(false)}
+                        className={`py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                          !isPrivate
+                            ? "bg-emerald-600 text-white font-black shadow-xs"
+                            : "text-slate-600 hover:bg-slate-50"
+                        }`}
+                      >
+                        عامة (للجميع)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setIsPrivate(true)}
+                        className={`py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                          isPrivate
+                            ? "bg-amber-600 text-white font-black shadow-xs"
+                            : "text-slate-600 hover:bg-slate-50"
+                        }`}
+                      >
+                        خاصة (برمز)
+                      </button>
+                    </div>
+                  </div>
+
                 </div>
 
               </div>

@@ -8,7 +8,7 @@ import { useLiveUserProfile } from "@/hooks/useLiveUserProfile";
 import { getFirebaseDb } from "@/lib/firebase/client";
 import { doc, setDoc, collection, query, where, getDocs, updateDoc, deleteDoc, arrayUnion, onSnapshot } from "firebase/firestore";
 import type { WordRaceRoom, WordRaceMatch, WordRaceRoomSettings, WordRacePlayerStats } from "@/types/word-race";
-import { generateMatchLetters } from "@/lib/game/word-race-data";
+import { generateMatchLetters, evaluateWordRaceMatch } from "@/lib/game/word-race-data";
 import { fetchWordRaceRoom } from "@/lib/firestore/word-race-rooms.client";
 import { ShellFramedAvatar } from "@/components/shell/ShellFramedAvatar";
 import { ShellCoin } from "@/components/shell/ShellCoin";
@@ -274,18 +274,22 @@ export default function WordRacePage() {
   const handleStartMatch = async () => {
     if (!activeRoom || activeRoom.hostUid !== uid) return;
     const matchId = `match_${Date.now()}`;
+    const totalRounds = activeRoom.settings.roundsCount || 3;
     const letterAssignment = generateMatchLetters(activeRoom.settings.categories, activeRoom.settings.letterMode);
 
     const matchData: WordRaceMatch = sanitizeDoc({
       id: matchId,
       roomId: activeRoom.id,
       status: "intro",
+      currentRound: 1,
+      totalRounds,
       startedAt: Date.now(),
       durationSec: activeRoom.settings.timeLimitSec,
       letterAssignment,
       answers: {},
       progress: {},
       finisherUid: null,
+      roundHistory: [],
     });
 
     try {
@@ -300,6 +304,86 @@ export default function WordRacePage() {
     } catch (err) {
       console.error("Failed to start match:", err);
       setErrorMsg("حدث خطأ أثناء بدء المباراة.");
+    }
+  };
+
+  // 3b. Next Round Handler (Multi-round transitions)
+  const handleNextRound = async () => {
+    if (!activeMatch || !activeRoom) return;
+
+    const currentRoundNum = activeMatch.currentRound || 1;
+    const totalRoundsNum = activeMatch.totalRounds || activeRoom.settings.roundsCount || 1;
+
+    // Evaluate current round answers and scores
+    const evaluated = activeMatch.results && activeMatch.scores
+      ? { results: activeMatch.results, scores: activeMatch.scores }
+      : evaluateWordRaceMatch(activeRoom.settings.categories, activeMatch.letterAssignment, activeMatch.answers, activeMatch.finisherUid);
+
+    const currentRoundRecord = {
+      roundNumber: currentRoundNum,
+      letterAssignment: activeMatch.letterAssignment,
+      answers: activeMatch.answers,
+      finisherUid: activeMatch.finisherUid ?? null,
+      results: evaluated.results,
+      scores: evaluated.scores,
+    };
+
+    const nextHistory = [...(activeMatch.roundHistory || []), currentRoundRecord];
+
+    if (currentRoundNum >= totalRoundsNum) {
+      // Final Round completed -> End Match
+      const updatedMatch: WordRaceMatch = sanitizeDoc({
+        ...activeMatch,
+        status: "ended",
+        endedAt: Date.now(),
+        roundHistory: nextHistory,
+      });
+
+      try {
+        const db = getFirebaseDb();
+        await setDoc(doc(db, "word_race_matches", activeMatch.id), updatedMatch, { merge: true });
+        await setDoc(doc(db, "word_race_rooms", activeRoom.id), { status: "ended" }, { merge: true });
+      } catch (err) {
+        console.error("Failed to finalize match:", err);
+      }
+      return;
+    }
+
+    // Advance to Next Round (Round N -> Round N+1)
+    const nextRoundNum = currentRoundNum + 1;
+
+    // Collect all letters used so far to prevent immediate repeat
+    const usedLetters: string[] = [];
+    for (const record of nextHistory) {
+      usedLetters.push(...Object.values(record.letterAssignment || {}));
+    }
+
+    const nextLetterAssignment = generateMatchLetters(
+      activeRoom.settings.categories,
+      activeRoom.settings.letterMode,
+      usedLetters
+    );
+
+    const updatedMatch: WordRaceMatch = sanitizeDoc({
+      ...activeMatch,
+      status: "intro",
+      currentRound: nextRoundNum,
+      letterAssignment: nextLetterAssignment,
+      answers: {},
+      progress: {},
+      finisherUid: null,
+      results: undefined,
+      scores: undefined,
+      roundHistory: nextHistory,
+    });
+
+    try {
+      const db = getFirebaseDb();
+      await setDoc(doc(db, "word_race_matches", activeMatch.id), updatedMatch);
+      await setDoc(doc(db, "word_race_rooms", activeRoom.id), { status: "intro" }, { merge: true });
+      setActiveMatch(updatedMatch);
+    } catch (err) {
+      console.error("Failed to advance to next round:", err);
     }
   };
 
@@ -496,11 +580,12 @@ export default function WordRacePage() {
               />
             )}
 
-            {activeRoom.status === "revealing" && activeMatch && (
+            {(activeRoom.status === "revealing" || activeRoom.status === "ended") && activeMatch && (
               <WordRaceResults
                 room={activeRoom}
                 match={activeMatch}
                 myUid={uid}
+                onNextRound={handleNextRound}
                 onRematchVote={async () => {
                   try {
                     const db = getFirebaseDb();

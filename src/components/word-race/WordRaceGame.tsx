@@ -190,7 +190,9 @@ export const WordRaceGame: React.FC<WordRaceGameProps> = ({
           </button>
 
           <span className="px-3 py-1 rounded-full bg-purple-100 text-[#7C3AED] text-[10px] font-sans font-black uppercase tracking-wider">
-            مباراة تنافسية مباشر
+            {match.totalRounds && match.totalRounds > 1
+              ? `الجولة ${match.currentRound || 1} من ${match.totalRounds}`
+              : "مباراة تنافسية مباشر"}
           </span>
         </div>
 

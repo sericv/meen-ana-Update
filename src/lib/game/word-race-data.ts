@@ -20,24 +20,32 @@ export const WORD_RACE_CATEGORIES: WordRaceCategory[] = [
   { id: "sport", nameAr: "رياضة", descriptionAr: "أنواع الرياضات والألعاب الأولمبية", icon: "sport", color: "text-teal-500", gradient: "from-teal-600/30 to-cyan-600/30" }
 ];
 
-export function getRandomArabicLetter(): string {
-  const index = Math.floor(Math.random() * ARABIC_ALPHABET.length);
-  return ARABIC_ALPHABET[index];
+export function getRandomArabicLetter(excludedLetters: string[] = []): string {
+  const pool = ARABIC_ALPHABET.filter((l) => !excludedLetters.includes(l));
+  const available = pool.length > 0 ? pool : ARABIC_ALPHABET;
+  const index = Math.floor(Math.random() * available.length);
+  return available[index];
 }
 
-/** Generate letter assignment for match categories */
-export function generateMatchLetters(categories: string[], mode: LetterMode): Record<string, string> {
+/** Generate letter assignment for match categories, respecting excluded letters */
+export function generateMatchLetters(
+  categories: string[],
+  mode: LetterMode,
+  excludedLetters: string[] = []
+): Record<string, string> {
+  const pool = ARABIC_ALPHABET.filter((l) => !excludedLetters.includes(l));
+  const available = pool.length > 0 ? pool : ARABIC_ALPHABET;
   const result: Record<string, string> = {};
   if (mode === "SINGLE_UNIVERSAL") {
-    const universalLetter = getRandomArabicLetter();
+    const universalLetter = available[Math.floor(Math.random() * available.length)];
     for (const catId of categories) {
       result[catId] = universalLetter;
     }
   } else {
     // Mode 2: Per Category unique random letters
-    const available = [...ARABIC_ALPHABET].sort(() => Math.random() - 0.5);
+    const shuffled = [...available].sort(() => Math.random() - 0.5);
     for (let i = 0; i < categories.length; i++) {
-      result[categories[i]] = available[i % available.length];
+      result[categories[i]] = shuffled[i % shuffled.length];
     }
   }
   return result;
@@ -150,4 +158,46 @@ export function evaluateWordRaceMatch(
   }
 
   return { results, scores };
+}
+
+/** Compute cumulative scores across completed round history + optional current round */
+export function computeCumulativeScores(
+  roundHistory: Array<{ scores: Record<string, PlayerMatchScore> }>,
+  currentScores?: Record<string, PlayerMatchScore>
+): Record<string, PlayerMatchScore> {
+  const cumulative: Record<string, PlayerMatchScore> = {};
+
+  const allSources = [...roundHistory];
+  if (currentScores) {
+    allSources.push({ scores: currentScores });
+  }
+
+  for (const roundData of allSources) {
+    for (const [uid, score] of Object.entries(roundData.scores || {})) {
+      if (!cumulative[uid]) {
+        cumulative[uid] = {
+          totalPoints: 0,
+          validCount: 0,
+          duplicateCount: 0,
+          unansweredCount: 0,
+          isFinisherBonus: false,
+          xpEarned: 0,
+          coinsEarned: 0,
+        };
+      }
+      cumulative[uid].totalPoints += score.totalPoints || 0;
+      cumulative[uid].validCount += score.validCount || 0;
+      cumulative[uid].duplicateCount += score.duplicateCount || 0;
+      cumulative[uid].unansweredCount += score.unansweredCount || 0;
+    }
+  }
+
+  for (const uid of Object.keys(cumulative)) {
+    const totalPts = cumulative[uid].totalPoints;
+    const validCnt = cumulative[uid].validCount;
+    cumulative[uid].xpEarned = Math.round(totalPts * 1.5 + validCnt * 5);
+    cumulative[uid].coinsEarned = Math.round(totalPts / 2);
+  }
+
+  return cumulative;
 }

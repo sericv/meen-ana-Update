@@ -23,23 +23,23 @@ export function TurnNotification({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
+      transition={{ duration: 0.18 }}
       className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/15 backdrop-blur-[1.5px] pointer-events-none"
       dir="rtl"
     >
       <motion.div
-        initial={{ opacity: 0, scale: 0.9, y: 25 }}
+        initial={{ opacity: 0, scale: 0.88, y: 15 }}
         animate={{ 
           opacity: 1, 
           scale: 1, 
           y: 0 
         }}
-        exit={{ opacity: 0, scale: 0.9, y: -15 }}
+        exit={{ opacity: 0, scale: 0.92, y: -10 }}
         transition={{ 
-          type: "spring", 
-          stiffness: 380, 
-          damping: 24,
+          duration: 0.2,
+          ease: [0.16, 1, 0.3, 1],
         }}
-        className="game-card-outer w-full max-w-[260px] shadow-2xl relative pointer-events-auto"
+        className="game-card-outer w-full max-w-[260px] shadow-2xl relative pointer-events-none"
       >
         {/* Continuous breathing glow loop */}
         <motion.div

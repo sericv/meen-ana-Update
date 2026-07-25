@@ -129,7 +129,11 @@ export const WordRaceIntro: React.FC<WordRaceIntroProps> = ({
           className="px-4 py-1.5 rounded-full bg-purple-100/90 border border-purple-200 text-[#7C3AED] text-xs font-black uppercase tracking-wider flex items-center gap-2 shadow-2xs"
         >
           <SvgLightningIcon size={14} />
-          <span>اسم حيوان نبات • دولاب اختيار الحروف</span>
+          <span>
+            {match.totalRounds && match.totalRounds > 1
+              ? `الجولة ${match.currentRound || 1} من ${match.totalRounds} • دولاب الحروف`
+              : "اسم حيوان نبات • دولاب اختيار الحروف"}
+          </span>
         </motion.div>
 
         {/* Players vs Matchup Header Pill */}

@@ -2,7 +2,7 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import type { RefObject } from "react";
-import { memo, useMemo, useState, useCallback } from "react";
+import { memo, useMemo, useState, useCallback, useEffect } from "react";
 import { GameplayChatActionBar } from "@/components/game/play/GameplayChatActionBar";
 import { GameplayHeroCard } from "@/components/game/play/GameplayHeroCard";
 import { GuessRemainingIndicator } from "@/components/game/play/GuessRemainingIndicator";
@@ -176,6 +176,30 @@ export const GameplaySocialSurface = memo(function GameplaySocialSurface({
     () => messages.filter((m) => !isHintChatMessage(m)),
     [messages],
   );
+
+  const [isScrolledUp, setIsScrolledUp] = useState<boolean>(false);
+
+  const handleChatScroll = useCallback(() => {
+    const el = chatScrollRef.current;
+    if (!el) return;
+    const isAtBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+    setIsScrolledUp(!isAtBottom);
+  }, [chatScrollRef]);
+
+  // Smart auto-scroll when new message arrives if user is not scrolled up
+  useEffect(() => {
+    if (!isScrolledUp) {
+      chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [chatMessages.length, isScrolledUp, chatEndRef]);
+
+  const handleJumpToBottom = () => {
+    const el = chatScrollRef.current;
+    if (el) {
+      el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+      setIsScrolledUp(false);
+    }
+  };
 
   const handleDraftChange = useCallback((v: string) => {
     onDraftChange(v);
@@ -353,7 +377,7 @@ export const GameplaySocialSurface = memo(function GameplaySocialSurface({
             </div>
           </div>
 
-          <section className="relative mx-auto w-full max-w-md shrink-0 px-3 pb-1 pt-0">
+          <section className="relative mx-auto w-full max-w-md shrink-0 px-3 pb-0.5 pt-0">
             <motion.div className="relative flex min-h-[218px] w-full items-center justify-center">
               {/* SideActionRail — replaces the two corner buttons */}
               {tacticalInventory && onUseTactical ? (
@@ -403,53 +427,83 @@ export const GameplaySocialSurface = memo(function GameplaySocialSurface({
             </motion.div>
           </section>
 
-          <motion.div className="flex min-h-0 min-w-0 flex-1 flex-col px-2 pb-0 pt-1">
-            <div
-              ref={chatScrollRef}
-              className="min-h-0 flex-1 overflow-y-auto px-3 pb-1 pt-2"
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: 8,
-                overscrollBehavior: "contain",
-              }}
-            >
-              {chatMessages.length === 0 ? (
-                <motion.div
-                  className="flex flex-1 flex-col items-center justify-center gap-1 py-4 text-center"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                >
-                  <span className="text-2xl">💬</span>
-                  <p className="text-[11px] font-bold" style={{ color: GP.inkSoft }}>
-                    ابدأ بطرح سؤالك
-                  </p>
-                </motion.div>
-              ) : (
-                chatMessages.map((m) => renderMessage(m))
-              )}
-              {!myTurn && opponentTyping ? (
-                <div className="shrink-0">
-                  <TypingDots />
-                </div>
-              ) : null}
-              <div ref={chatEndRef} className="h-0 shrink-0" />
-            </div>
+          <motion.div className="flex min-h-0 min-w-0 flex-1 flex-col px-2 pb-2 pt-0.5 max-w-xl mx-auto w-full">
+            {/* Seamless Glassmorphism Communication Dock — Blends naturally with ambient background */}
+            <div className="relative flex-1 flex flex-col justify-between bg-gradient-to-b from-purple-50/50 via-white/30 to-purple-50/40 backdrop-blur-xl border border-purple-200/50 rounded-[24px] shadow-[inset_0_1px_1px_rgba(255,255,255,0.7),0_8px_30px_rgba(124,58,237,0.06)] overflow-hidden min-h-[250px] sm:min-h-[290px]">
+              
+              {/* Top & Bottom Ambient Gradient Overlay Masks */}
+              <div className="pointer-events-none absolute inset-x-0 top-0 h-5 bg-gradient-to-b from-purple-50/80 to-transparent z-10" />
+              <div className="pointer-events-none absolute inset-x-0 bottom-14 h-5 bg-gradient-to-t from-purple-50/80 to-transparent z-10" />
 
-            <GameplayChatActionBar
-              myTurn={myTurn}
-              phase={phase}
-              draft={draft}
-              busy={busy}
-              guessRemaining={myGuessRemaining}
-              extraQuestionPending={extraQuestionPending}
-              onDraftChange={handleDraftChange}
-              onSend={(customText) => void onSendDraft(customText)}
-              onGuess={onGuessClick}
-              onComposerFocus={onComposerFocus}
-              onComposerBlur={onComposerBlur}
-              keyboardOverlapPx={keyboardOverlapPx}
-            />
+              {/* Floating Jump to Bottom Button */}
+              <AnimatePresence>
+                {isScrolledUp && (
+                  <motion.button
+                    initial={{ opacity: 0, y: 8, scale: 0.9 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 8, scale: 0.9 }}
+                    onClick={handleJumpToBottom}
+                    type="button"
+                    className="absolute bottom-16 left-1/2 -translate-x-1/2 z-20 px-3.5 py-1.5 rounded-full bg-[#7C3AED] text-white text-[11px] font-black shadow-lg shadow-purple-500/20 flex items-center gap-1.5 hover:bg-purple-700 transition-all cursor-pointer"
+                  >
+                    <span>العودة لآخر رسالة</span>
+                    <span className="text-xs">⬇️</span>
+                  </motion.button>
+                )}
+              </AnimatePresence>
+
+              {/* Scrollable Game Log Area — Translucent glass backdrop */}
+              <div
+                ref={chatScrollRef}
+                onScroll={handleChatScroll}
+                className="flex-1 min-h-[200px] max-h-[380px] sm:max-h-[440px] overflow-y-auto px-3 pb-2 pt-3 custom-scrollbar"
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 8,
+                  overscrollBehavior: "contain",
+                }}
+              >
+                {chatMessages.length === 0 ? (
+                  <motion.div
+                    className="flex flex-1 flex-col items-center justify-center gap-1 py-4 text-center h-full"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                  >
+                    <span className="text-2xl">💬</span>
+                    <p className="text-[11px] font-bold text-purple-900/60">
+                      سجل أحداث اللعبة • ابدأ بطرح سؤالك
+                    </p>
+                  </motion.div>
+                ) : (
+                  chatMessages.map((m) => renderMessage(m))
+                )}
+                {!myTurn && opponentTyping ? (
+                  <div className="shrink-0">
+                    <TypingDots />
+                  </div>
+                ) : null}
+                <div ref={chatEndRef} className="h-0 shrink-0" />
+              </div>
+
+              {/* Fixed Input & Action Bar (Integrated translucent glass footer attached directly below chat) */}
+              <div className="bg-white/65 backdrop-blur-md border-t border-purple-200/40 p-2 shrink-0">
+                <GameplayChatActionBar
+                  myTurn={myTurn}
+                  phase={phase}
+                  draft={draft}
+                  busy={busy}
+                  guessRemaining={myGuessRemaining}
+                  extraQuestionPending={extraQuestionPending}
+                  onDraftChange={handleDraftChange}
+                  onSend={(customText) => void onSendDraft(customText)}
+                  onGuess={onGuessClick}
+                  onComposerFocus={onComposerFocus}
+                  onComposerBlur={onComposerBlur}
+                  keyboardOverlapPx={keyboardOverlapPx}
+                />
+              </div>
+            </div>
           </motion.div>
 
         </>

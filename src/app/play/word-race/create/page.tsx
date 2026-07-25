@@ -101,6 +101,7 @@ function CreateWordRaceRoomInner() {
         letterMode,
         timeLimitSec: Math.min(300, Math.max(15, timeLimitSec)),
         maxPlayers,
+        roundsCount: 3,
         isPrivate,
       };
 

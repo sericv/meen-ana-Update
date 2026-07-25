@@ -1,22 +1,17 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { WordRaceRoom, WordRaceMatch } from "@/types/word-race";
-import { WORD_RACE_CATEGORIES, evaluateWordRaceMatch } from "@/lib/game/word-race-data";
+import { WORD_RACE_CATEGORIES, evaluateWordRaceMatch, computeCumulativeScores } from "@/lib/game/word-race-data";
 import {
   CATEGORY_SVG_MAP,
   SvgTrophyIcon,
   SvgSparklesIcon,
-  SvgCheckIcon,
   SvgCrossIcon,
-  SvgDuplicateIcon,
-  SvgEmptyIcon,
   SvgHomeIcon,
   SvgRepeatIcon,
   SvgArrowRightIcon,
-  SvgStarIcon,
-  SvgShieldIcon,
   SvgLightningIcon,
   SvgRocketIcon,
   SvgTimerIcon,
@@ -28,6 +23,7 @@ interface WordRaceResultsProps {
   myUid: string;
   onRematchVote: () => void;
   onReturnHome: () => void;
+  onNextRound?: () => void;
 }
 
 export const WordRaceResults: React.FC<WordRaceResultsProps> = ({
@@ -36,19 +32,37 @@ export const WordRaceResults: React.FC<WordRaceResultsProps> = ({
   myUid,
   onRematchVote,
   onReturnHome,
+  onNextRound,
 }) => {
   const activeCategories = WORD_RACE_CATEGORIES.filter((c) => room.settings.categories.includes(c.id));
   
+  const currentRoundNum = match.currentRound || 1;
+  const totalRoundsNum = match.totalRounds || room.settings.roundsCount || 1;
+  const isMultiRound = totalRoundsNum > 1;
+  const isFinalRound = currentRoundNum >= totalRoundsNum;
+
   const evaluated = match.results && match.scores
     ? { results: match.results, scores: match.scores }
     : evaluateWordRaceMatch(room.settings.categories, match.letterAssignment, match.answers, match.finisherUid);
+
+  // Cumulative score across all completed rounds + current evaluated round
+  const cumulativeScores = computeCumulativeScores(match.roundHistory || [], evaluated.scores);
 
   // Verification intro sequence phase (0s -> 2.7s)
   const [isVerifying, setIsVerifying] = useState<boolean>(true);
   const [verifySubPhase, setVerifySubPhase] = useState<"checking" | "calculating">("checking");
   const [showAnnouncement, setShowAnnouncement] = useState<boolean>(false);
+  const [showCountdown, setShowCountdown] = useState<boolean>(false);
+  const [countdownSec, setCountdownSec] = useState<number>(3);
   const [revealStep, setRevealStep] = useState<number>(0);
   const [showFinalSummary, setShowFinalSummary] = useState<boolean>(false);
+  const [selectedRoundTab, setSelectedRoundTab] = useState<number | "grand">(totalRoundsNum > 1 ? "grand" : 1);
+
+  // Store onNextRound in a ref to prevent effect cleanup on parent re-renders
+  const onNextRoundRef = useRef(onNextRound);
+  useEffect(() => {
+    onNextRoundRef.current = onNextRound;
+  }, [onNextRound]);
 
   useEffect(() => {
     // Phase 1 -> Phase 2 (Calculating results & rewards)
@@ -56,7 +70,7 @@ export const WordRaceResults: React.FC<WordRaceResultsProps> = ({
       setVerifySubPhase("calculating");
     }, 1300);
 
-    // End verification & show match-end announcement screen
+    // End verification & show announcement screen
     const endVerifyTimer = setTimeout(() => {
       setIsVerifying(false);
       setShowAnnouncement(true);
@@ -68,36 +82,78 @@ export const WordRaceResults: React.FC<WordRaceResultsProps> = ({
     };
   }, []);
 
-  // Auto-advance announcement after 4 seconds if user doesn't click
+  // Auto-advance announcement after 4.5s
   useEffect(() => {
     if (showAnnouncement) {
       const autoTimer = setTimeout(() => {
-        setShowAnnouncement(false);
+        handleProceedFromAnnouncement();
       }, 4500);
       return () => clearTimeout(autoTimer);
     }
   }, [showAnnouncement]);
 
-  const myScore = evaluated.scores[myUid] || { totalPoints: 0, validCount: 0, duplicateCount: 0, unansweredCount: 0, xpEarned: 0, coinsEarned: 0 };
-  const opponentUid = room.players.find((p) => p.uid !== myUid)?.uid || "";
-  const opponentScore = evaluated.scores[opponentUid] || { totalPoints: 0, validCount: 0, duplicateCount: 0, unansweredCount: 0, xpEarned: 0, coinsEarned: 0 };
+  const handleProceedFromAnnouncement = () => {
+    setShowAnnouncement(false);
+    if (isMultiRound && !isFinalRound) {
+      setShowCountdown(true);
+    }
+  };
 
-  const isWinner = myScore.totalPoints > opponentScore.totalPoints;
-  const isTie = myScore.totalPoints === opponentScore.totalPoints;
+  // Robust 3-2-1 Countdown Timer Effect (1000ms per number hold)
+  useEffect(() => {
+    if (!showCountdown || isFinalRound) return;
+
+    setCountdownSec(3);
+
+    const t1 = setTimeout(() => {
+      setCountdownSec(2);
+    }, 1000);
+
+    const t2 = setTimeout(() => {
+      setCountdownSec(1);
+    }, 2000);
+
+    const t3 = setTimeout(() => {
+      setCountdownSec(0);
+      onNextRoundRef.current?.();
+    }, 3000);
+
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+    };
+  }, [showCountdown, isFinalRound]);
+
+  const opponentUid = room.players.find((p) => p.uid !== myUid)?.uid || "";
+  const p1 = room.players.find((p) => p.uid === myUid) || { displayName: "أنت" };
+  const p2 = room.players.find((p) => p.uid === opponentUid) || { displayName: "الخصم" };
+
+  // Current Round Scores
+  const myRoundScore = evaluated.scores[myUid] || { totalPoints: 0, validCount: 0, duplicateCount: 0, unansweredCount: 0, xpEarned: 0, coinsEarned: 0 };
+  const oppRoundScore = evaluated.scores[opponentUid] || { totalPoints: 0, validCount: 0, duplicateCount: 0, unansweredCount: 0, xpEarned: 0, coinsEarned: 0 };
+
+  // Cumulative Totals
+  const myCumulative = cumulativeScores[myUid] || myRoundScore;
+  const oppCumulative = cumulativeScores[opponentUid] || oppRoundScore;
+
+  const isWinner = isFinalRound 
+    ? myCumulative.totalPoints > oppCumulative.totalPoints 
+    : myRoundScore.totalPoints > oppRoundScore.totalPoints;
+    
+  const isTie = isFinalRound 
+    ? myCumulative.totalPoints === oppCumulative.totalPoints 
+    : myRoundScore.totalPoints === oppRoundScore.totalPoints;
 
   const isAbandoned = Boolean(match.forfeitedByUid);
   const opponentForfeited = isAbandoned && match.forfeitedByUid === opponentUid;
 
-  const p1 = room.players.find((p) => p.uid === myUid) || { displayName: "أنت" };
-  const p2 = room.players.find((p) => p.uid === opponentUid) || { displayName: "الخصم" };
-
-  // ─── Match-End Reason Detection ──────────────────────────────────────────────
+  // Match-End Reason Detection
   const totalCatCount = activeCategories.length;
   const finisherUid = match.finisherUid;
   const finisherPlayer = finisherUid ? room.players.find((p) => p.uid === finisherUid) : null;
   const finisherProgress = finisherUid ? (match.progress[finisherUid] || 0) : 0;
 
-  // Case B: Player completed all categories first
   const isPlayerFinishedEnd = Boolean(finisherPlayer && finisherProgress >= totalCatCount);
   const finisherDisplayName = finisherPlayer
     ? (finisherPlayer.uid === myUid ? "أنت" : finisherPlayer.displayName || "منافسك")
@@ -118,13 +174,11 @@ export const WordRaceResults: React.FC<WordRaceResultsProps> = ({
 
   const IconComponent = currentRevealCat ? (CATEGORY_SVG_MAP[currentRevealCat.icon] || SvgSparklesIcon) : SvgSparklesIcon;
 
-  // 1. Abandoned Match (Victory By Forfeit or Defeat By Forfeit) Screen
+  // 1. Abandoned Match Screen
   if (isAbandoned) {
     return (
       <div className="game-card-outer w-full dir-rtl select-none my-auto" style={{ direction: "rtl" }}>
         <div className="game-card-inner p-8 sm:p-10 bg-white/95 border border-black/5 rounded-[32px] shadow-2xl text-slate-800 space-y-7 max-w-lg mx-auto text-center relative overflow-hidden my-auto">
-          
-          {/* Ambient Glow */}
           <div 
             className="absolute pointer-events-none rounded-full" 
             style={{
@@ -149,42 +203,20 @@ export const WordRaceResults: React.FC<WordRaceResultsProps> = ({
                 : "bg-rose-100 text-rose-600 ring-rose-400/20"
             }`}
           >
-            {opponentForfeited ? <SvgTrophyIcon size={40} /> : <SvgShieldIcon size={40} />}
+            {opponentForfeited ? <SvgTrophyIcon size={40} /> : <SvgCrossIcon size={40} />}
           </motion.div>
 
           <div className="space-y-2">
-            <span className="px-3 py-1 rounded-full bg-slate-100 text-slate-600 text-xs font-bold uppercase tracking-wider">
-              {opponentForfeited ? "انسحاب المنافس" : "تمت المغادرة"}
-            </span>
             <h2 className="text-2xl sm:text-3xl font-black text-slate-900">
-              {opponentForfeited ? "فوز مستحق بالانسحاب!" : "خسارة بالانسحاب"}
+              {opponentForfeited ? "انسحب المنافس! فوز مستحق 🎉" : "لقد انسحبت من المباراة"}
             </h2>
             <p className="text-xs text-slate-500 font-bold leading-relaxed max-w-xs mx-auto">
               {opponentForfeited
-                ? `لقد غادر ${p2.displayName} المباراة، وتم احتساب الفوز لك كاملاً!`
-                : "لقد غادرت المباراة قبل اكتمالها واحتُسبت النتيجة لصالح منافسك."}
+                ? `غادر ${p2.displayName} المباراة أثناء اللعب، مما أدى لإنهائها واحتساب الفوز لك.`
+                : "قمت بإنهاء المباراة مبكراً وإعلان الانسحاب."}
             </p>
           </div>
 
-          {opponentForfeited && (
-            <motion.div 
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="p-4 bg-purple-50/80 border border-purple-200 rounded-2xl flex items-center justify-center gap-4 text-xs font-bold shadow-xs"
-            >
-              <div className="flex items-center gap-1.5 text-purple-900 font-sans">
-                <SvgStarIcon size={16} className="text-amber-500" />
-                <span>+150 XP</span>
-              </div>
-              <span>•</span>
-              <div className="flex items-center gap-1.5 text-purple-900 font-sans">
-                <SvgSparklesIcon size={16} className="text-[#7C3AED]" />
-                <span>+50 كوينز</span>
-              </div>
-            </motion.div>
-          )}
-
-          {/* Action Buttons */}
           <div className="flex items-center justify-center gap-3 pt-2">
             <button
               onClick={onReturnHome}
@@ -201,19 +233,16 @@ export const WordRaceResults: React.FC<WordRaceResultsProps> = ({
               <span>إعادة اللعب فوراً</span>
             </button>
           </div>
-
         </div>
       </div>
     );
   }
 
-  // 2. Premium 2.7-Second Match Finish Cinematic Verification Sequence
+  // 2. Verification Sequence Screen
   if (isVerifying) {
     return (
       <div className="game-card-outer w-full dir-rtl select-none my-auto" style={{ direction: "rtl" }}>
         <div className="game-card-inner p-8 sm:p-10 bg-white/95 border border-black/5 rounded-[32px] shadow-2xl text-slate-800 space-y-7 max-w-lg mx-auto text-center relative overflow-hidden my-auto">
-          
-          {/* Ambient Glow */}
           <div 
             className="absolute pointer-events-none rounded-full" 
             style={{
@@ -227,7 +256,6 @@ export const WordRaceResults: React.FC<WordRaceResultsProps> = ({
             }}
           />
 
-          {/* Animated Verification Spinner Badge */}
           <motion.div
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
@@ -240,10 +268,9 @@ export const WordRaceResults: React.FC<WordRaceResultsProps> = ({
             </div>
           </motion.div>
 
-          {/* Verification Status Title & Subtitle */}
           <div className="space-y-2">
             <span className="px-3.5 py-1 rounded-full bg-purple-100 border border-purple-200 text-[#7C3AED] text-[10px] font-black uppercase tracking-wider">
-              انتهت المباراة
+              {isMultiRound ? `الجولة ${currentRoundNum} من ${totalRoundsNum}` : "انتهت الجولة"}
             </span>
             
             <AnimatePresence mode="wait">
@@ -255,7 +282,7 @@ export const WordRaceResults: React.FC<WordRaceResultsProps> = ({
                   exit={{ opacity: 0, y: -6 }}
                   className="text-xl sm:text-2xl font-black text-slate-900"
                 >
-                  جارٍ التحقق من الإجابات...
+                  جارٍ التحقق من إجابات الجولة...
                 </motion.h2>
               ) : (
                 <motion.h2
@@ -265,15 +292,14 @@ export const WordRaceResults: React.FC<WordRaceResultsProps> = ({
                   exit={{ opacity: 0, y: -6 }}
                   className="text-xl sm:text-2xl font-black text-slate-900"
                 >
-                  يتم احتساب النتائج والمكافآت...
+                  يتم احتساب النقاط الحالية...
                 </motion.h2>
               )}
             </AnimatePresence>
 
-            <p className="text-xs text-slate-400 font-bold">تأكد من إجابات اللاعبين وحفظ الحصيلة النهائية</p>
+            <p className="text-xs text-slate-400 font-bold">تأكد من إجابات اللاعبين وحفظ نتائج الجولة</p>
           </div>
 
-          {/* Animated 100% Filled Progress Bars */}
           <div className="space-y-3 pt-2">
             <div className="p-3 bg-purple-50/80 border border-purple-200 rounded-2xl space-y-2">
               <div className="flex items-center justify-between text-xs font-bold">
@@ -311,19 +337,16 @@ export const WordRaceResults: React.FC<WordRaceResultsProps> = ({
               </div>
             </div>
           </div>
-
         </div>
       </div>
     );
   }
 
-  // 3. NEW INTERMEDIATE MATCH-END ANNOUNCEMENT SCREEN (Transitional Context Card)
+  // 3. Announcement Screen (End of Round Notice)
   if (showAnnouncement) {
     return (
       <div className="game-card-outer w-full dir-rtl select-none my-auto" style={{ direction: "rtl" }}>
         <div className="game-card-inner p-8 sm:p-10 bg-white/95 border border-black/5 rounded-[32px] shadow-2xl text-slate-800 space-y-7 max-w-lg mx-auto text-center relative overflow-hidden my-auto">
-          
-          {/* Ambient Background Glow */}
           <div 
             className="absolute pointer-events-none rounded-full" 
             style={{
@@ -339,7 +362,6 @@ export const WordRaceResults: React.FC<WordRaceResultsProps> = ({
             }}
           />
 
-          {/* Animated Hero Icon Orb */}
           <motion.div
             initial={{ scale: 0.7, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
@@ -357,14 +379,13 @@ export const WordRaceResults: React.FC<WordRaceResultsProps> = ({
             )}
           </motion.div>
 
-          {/* Announcement Titles & Subtitles */}
           <div className="space-y-2.5">
             <span className={`px-3.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
               isPlayerFinishedEnd
                 ? "bg-purple-100 border border-purple-200 text-[#7C3AED]"
                 : "bg-amber-100 border border-amber-200 text-amber-900"
             }`}>
-              {isPlayerFinishedEnd ? "إنهاء مبكر بالجولة 🚀" : "انتهاء الوقت المحدد ⏳"}
+              {isPlayerFinishedEnd ? `إنهاء مبكر للجولة ${currentRoundNum} 🚀` : `انتهاء وقت الجولة ${currentRoundNum} ⏳`}
             </span>
 
             <h2 className="text-2xl sm:text-3xl font-black text-slate-900 leading-tight">
@@ -375,12 +396,11 @@ export const WordRaceResults: React.FC<WordRaceResultsProps> = ({
 
             <p className="text-xs text-slate-500 font-bold leading-relaxed max-w-xs mx-auto">
               {isPlayerFinishedEnd
-                ? `أكمل ${finisherDisplayName} جميع الفئات المطلوب إجابتها بنجاح، مما أدى لإغلاق الجولة والانتقال للتقييم.`
-                : "انتهت الثواني المخصصة للمباراة قبل أن يتمكن أي متنافس من إكمال جميع الفئات."}
+                ? `أكمل ${finisherDisplayName} جميع الفئات المطلوب إجابتها بالجولة ${currentRoundNum}، مما أدى لإغلاق الجولة.`
+                : `انتهت الثواني المخصصة للجولة ${currentRoundNum} قبل إكمال الفئات.`}
             </p>
           </div>
 
-          {/* Auto-Advance Progress Bar & Manual Continue Button */}
           <div className="space-y-3 pt-2">
             <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
               <motion.div
@@ -393,11 +413,78 @@ export const WordRaceResults: React.FC<WordRaceResultsProps> = ({
 
             <motion.button
               whileTap={{ scale: 0.96 }}
-              onClick={() => setShowAnnouncement(false)}
+              onClick={handleProceedFromAnnouncement}
               className="w-full py-3.5 rounded-2xl bg-[#7C3AED] hover:bg-purple-700 text-white text-xs font-black shadow-lg shadow-purple-200 transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
-              <span>عرض النتائج والتحليل التفصيلي</span>
+              <span>{isMultiRound && !isFinalRound ? "المتابعة للجولة التالية ➔" : "عرض النتائج والتحليل التفصيلي"}</span>
               <SvgArrowRightIcon size={16} />
+            </motion.button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 4. NON-FINAL ROUNDS STRICT GUARD & 3-2-1 COUNTDOWN (NO SCORES OR ANSWERS EVER MOUNTED HERE)
+  if (!isFinalRound) {
+    const upcomingRound = currentRoundNum + 1;
+    return (
+      <div className="game-card-outer w-full dir-rtl select-none my-auto" style={{ direction: "rtl" }}>
+        <div className="game-card-inner p-8 sm:p-10 bg-white/95 border border-black/5 rounded-[32px] shadow-2xl text-slate-800 space-y-7 max-w-lg mx-auto text-center relative overflow-hidden my-auto">
+          
+          {/* Ambient Purple Glow */}
+          <div 
+            className="absolute pointer-events-none rounded-full" 
+            style={{
+              width: 250,
+              height: 250,
+              background: "radial-gradient(circle, rgba(124, 58, 237, 0.18) 0%, transparent 70%)",
+              top: "45%",
+              left: "50%",
+              transform: "translate(-50%, -50%)",
+              filter: "blur(35px)",
+            }}
+          />
+
+          {/* Upcoming Round Badge Header */}
+          <span className="px-4 py-1.5 rounded-full bg-purple-100 border border-purple-200 text-[#7C3AED] text-xs font-black uppercase tracking-wider inline-flex items-center gap-2 shadow-2xs">
+            <SvgLightningIcon size={15} />
+            <span>الجولة {upcomingRound} من {totalRoundsNum}</span>
+          </span>
+
+          <div className="space-y-2">
+            <h2 className="text-2xl sm:text-3xl font-black text-slate-900">
+              الجولة التالية تبدأ خلال...
+            </h2>
+            <p className="text-xs text-slate-500 font-bold">
+              استعد لدولاب اختيارات الحروف الجديدة للجولة القادمة
+            </p>
+          </div>
+
+          {/* Big Animated 3-2-1 Countdown Number Orb */}
+          <div className="py-2">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={countdownSec}
+                initial={{ scale: 0.5, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 1.5, opacity: 0 }}
+                transition={{ type: "spring", stiffness: 350, damping: 22 }}
+                className="w-24 h-24 mx-auto rounded-full bg-gradient-to-br from-[#7C3AED] to-purple-900 text-white font-sans font-black text-5xl flex items-center justify-center shadow-xl ring-8 ring-purple-500/20"
+              >
+                {Math.max(1, countdownSec)}
+              </motion.div>
+            </AnimatePresence>
+          </div>
+
+          {/* Action Button: Skip countdown immediately */}
+          <div className="pt-2">
+            <motion.button
+              whileTap={{ scale: 0.96 }}
+              onClick={() => onNextRoundRef.current?.()}
+              className="w-full py-4 rounded-2xl bg-[#7C3AED] hover:bg-purple-700 text-white text-xs sm:text-sm font-black shadow-lg shadow-purple-200 transition-all flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <span>بدء الجولة {upcomingRound} فوراً ⚡</span>
             </motion.button>
           </div>
 
@@ -406,7 +493,16 @@ export const WordRaceResults: React.FC<WordRaceResultsProps> = ({
     );
   }
 
-  // 4. Normal Reveal & Final Summary Table
+  // 5. Final Match Breakdown (Mounted ONLY after the final round completes)
+  const selectedHistoryRound = typeof selectedRoundTab === "number" 
+    ? (selectedRoundTab === currentRoundNum 
+        ? evaluated 
+        : match.roundHistory?.find((r) => r.roundNumber === selectedRoundTab))
+    : null;
+
+  const displayResults = selectedHistoryRound ? selectedHistoryRound.results : evaluated.results;
+  const displayScores = selectedHistoryRound ? selectedHistoryRound.scores : cumulativeScores;
+
   return (
     <div className="game-card-outer w-full dir-rtl select-none my-auto" style={{ direction: "rtl" }}>
       <div className="game-card-inner p-6 sm:p-8 bg-white/95 border border-black/5 rounded-[28px] shadow-xl text-slate-800 space-y-6">
@@ -417,7 +513,9 @@ export const WordRaceResults: React.FC<WordRaceResultsProps> = ({
             <div className="flex flex-col items-center gap-1.5">
               <div className="px-3.5 py-1 rounded-full bg-purple-100 border border-purple-200 text-[#7C3AED] text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5">
                 <SvgSparklesIcon size={14} />
-                <span>كشف إجابات الفئات خطوة بخطوة</span>
+                <span>
+                  {isMultiRound ? `كشف الجولة ${currentRoundNum} من ${totalRoundsNum}` : "كشف إجابات الفئات خطوة بخطوة"}
+                </span>
               </div>
               <h2 className="text-xl sm:text-2xl font-black text-slate-900">
                 الفئة {revealStep + 1} من {activeCategories.length}: {currentRevealCat?.nameAr}
@@ -454,8 +552,6 @@ export const WordRaceResults: React.FC<WordRaceResultsProps> = ({
 
                   {/* Answers Comparison Rows */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-right">
-                    
-                    {/* My Answer */}
                     <div className="p-3.5 rounded-xl bg-white border border-purple-200 space-y-1">
                       <span className="text-[10px] text-slate-400 font-bold">{p1.displayName} (أنت)</span>
                       <div className="flex items-center justify-between">
@@ -471,7 +567,6 @@ export const WordRaceResults: React.FC<WordRaceResultsProps> = ({
                       </div>
                     </div>
 
-                    {/* Opponent Answer */}
                     <div className="p-3.5 rounded-xl bg-white border border-slate-200 space-y-1">
                       <span className="text-[10px] text-slate-400 font-bold">{p2.displayName}</span>
                       <div className="flex items-center justify-between">
@@ -486,7 +581,6 @@ export const WordRaceResults: React.FC<WordRaceResultsProps> = ({
                         <span className="text-xs font-sans font-black text-slate-700">+{oppRes.points} pt</span>
                       </div>
                     </div>
-
                   </div>
                 </motion.div>
               )}
@@ -519,67 +613,112 @@ export const WordRaceResults: React.FC<WordRaceResultsProps> = ({
                 <SvgTrophyIcon size={36} />
               </motion.div>
 
-              <h1 className="h-display text-2xl sm:text-3xl font-black text-slate-900">
-                {isWinner ? "انتصار ساحق ومبارك" : isTie ? "تعادل حماسي ومميز" : "خسارة بشرف وأداء رائع"}
-              </h1>
-              <p className="text-xs text-slate-400 font-bold">الجدول الموحد النهائي لحصيلة مباراة اسم حيوان نبات</p>
-            </div>
-
-            {/* Scores Comparison Overview */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-xl mx-auto">
-              <div className={`p-5 rounded-2xl border text-center space-y-3 ${
-                isWinner ? "bg-purple-50/90 border-purple-300 ring-2 ring-purple-300 shadow-sm" : "bg-slate-50 border-slate-200"
-              }`}>
-                <div className="text-xs text-slate-500 font-bold">{p1.displayName} (أنت)</div>
-                <div className="text-3xl font-black text-[#7C3AED] font-sans">{myScore.totalPoints} <span className="text-xs text-slate-400 font-normal">نقطة</span></div>
-                
-                <div className="bg-white border border-purple-200 rounded-xl p-2 text-xs font-bold text-purple-900 flex items-center justify-center gap-2 font-sans">
-                  <SvgStarIcon size={14} className="text-amber-500" />
-                  <span>+{myScore.xpEarned} XP</span>
-                  <span>•</span>
-                  <span>+{myScore.coinsEarned} كوينز</span>
-                </div>
-              </div>
-
-              <div className={`p-5 rounded-2xl border text-center space-y-3 ${
-                !isWinner && !isTie ? "bg-purple-50/90 border-purple-300 ring-2 ring-purple-300 shadow-sm" : "bg-slate-50 border-slate-200"
-              }`}>
-                <div className="text-xs text-slate-500 font-bold">{p2.displayName}</div>
-                <div className="text-3xl font-black text-[#7C3AED] font-sans">{opponentScore.totalPoints} <span className="text-xs text-slate-400 font-normal">نقطة</span></div>
-
-                <div className="bg-white border border-slate-200 rounded-xl p-2 text-xs font-bold text-slate-700 flex items-center justify-center gap-2 font-sans">
-                  <SvgStarIcon size={14} className="text-amber-500" />
-                  <span>+{opponentScore.xpEarned} XP</span>
-                  <span>•</span>
-                  <span>+{opponentScore.coinsEarned} كوينز</span>
-                </div>
+              <div className="space-y-1">
+                <span className="px-3 py-1 rounded-full bg-purple-100 text-[#7C3AED] text-[10px] font-black uppercase tracking-wider">
+                  {isMultiRound ? `النتيجة النهائية الكبرى (${totalRoundsNum} جولات)` : "النتيجة النهائية للمباراة"}
+                </span>
+                <h2 className="text-2xl sm:text-3xl font-black text-slate-900">
+                  {isTie ? "مباراة متعادلة! 🤝" : isWinner ? "فوز مستحق بالمركز الأول! 🎉" : "خسارة بشرف 👏"}
+                </h2>
+                <p className="text-xs text-slate-500 font-bold">
+                  {isWinner ? "أحسنت! قدمت أداءً مذهلاً وسريعاً في جميع الإجابات." : "مباراة قوية! حاول مرة أخرى في الجولات القادمة."}
+                </p>
               </div>
             </div>
 
-            {/* Comprehensive Summary Table */}
-            <div className="space-y-3 max-w-2xl mx-auto">
-              <h3 className="text-xs font-black uppercase text-purple-700 tracking-wider text-right flex items-center gap-1.5">
-                <SvgSparklesIcon size={16} />
-                <span>جدول الإجابات والنقاط الإجمالي:</span>
-              </h3>
+            {/* GRAND TOTAL SCORES CARD */}
+            <div className="grid grid-cols-2 gap-3 max-w-xl mx-auto text-right">
+              <div className="p-4 rounded-2xl bg-purple-50/90 border border-purple-200 space-y-1.5 shadow-xs">
+                <span className="text-xs font-black text-slate-800">{p1.displayName} (أنت)</span>
+                <div className="text-2xl font-sans font-black text-[#7C3AED]">
+                  {myCumulative.totalPoints} <span className="text-xs font-bold text-slate-500">نقطة</span>
+                </div>
+                <div className="text-[10px] text-slate-500 font-bold pt-1 border-t border-purple-200/50 flex items-center justify-between">
+                  <span>إجابات صحيحة: {myCumulative.validCount}</span>
+                  <span>مكررة: {myCumulative.duplicateCount}</span>
+                </div>
+              </div>
 
-              <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm dir-rtl">
-                <table className="w-full text-right border-collapse text-xs">
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-1.5 shadow-xs">
+                <span className="text-xs font-black text-slate-700">{p2.displayName}</span>
+                <div className="text-2xl font-sans font-black text-slate-800">
+                  {oppCumulative.totalPoints} <span className="text-xs font-bold text-slate-500">نقطة</span>
+                </div>
+                <div className="text-[10px] text-slate-500 font-bold pt-1 border-t border-slate-200/50 flex items-center justify-between">
+                  <span>إجابات صحيحة: {oppCumulative.validCount}</span>
+                  <span>مكررة: {oppCumulative.duplicateCount}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* MULTI-ROUND BREAKDOWN TABS */}
+            {isMultiRound && (
+              <div className="space-y-3 max-w-xl mx-auto">
+                <div className="text-xs font-black text-slate-700 text-right">تفاصيل الجولات:</div>
+                <div className="flex items-center gap-1.5 p-1 bg-slate-100 border border-slate-200 rounded-2xl overflow-x-auto custom-scrollbar">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedRoundTab("grand")}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
+                      selectedRoundTab === "grand"
+                        ? "bg-[#7C3AED] text-white font-black shadow-xs"
+                        : "text-slate-600 hover:bg-slate-200/60"
+                    }`}
+                  >
+                    المجموع الكلي
+                  </button>
+
+                  {Array.from({ length: totalRoundsNum }, (_, i) => i + 1).map((roundNum) => (
+                    <button
+                      key={roundNum}
+                      type="button"
+                      onClick={() => setSelectedRoundTab(roundNum)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
+                        selectedRoundTab === roundNum
+                          ? "bg-[#7C3AED] text-white font-black shadow-xs"
+                          : "text-slate-600 hover:bg-slate-200/60"
+                      }`}
+                    >
+                      الجولة {roundNum}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* PER-CATEGORY RESULTS TABLE */}
+            <div className="bg-slate-50/90 border border-slate-200 rounded-2xl p-4 space-y-3 max-w-xl mx-auto text-right shadow-xs">
+              <div className="flex items-center justify-between border-b border-slate-200/80 pb-2">
+                <h3 className="font-black text-xs text-slate-900">
+                  {selectedRoundTab === "grand"
+                    ? "جدول الإجابات والنقاط الإجمالي"
+                    : `جدول إجابات الجولة ${selectedRoundTab}`}
+                </h3>
+                <span className="text-[10px] font-sans font-black text-purple-700">
+                  {activeCategories.length} فئات
+                </span>
+              </div>
+
+              <div className="overflow-x-auto custom-scrollbar">
+                <table className="w-full text-right text-xs">
                   <thead>
-                    <tr className="bg-purple-50/80 border-b border-purple-100 text-purple-900 font-black">
-                      <th className="p-3">الفئة</th>
-                      <th className="p-3">الحرف</th>
-                      <th className="p-3">إجابتي</th>
-                      <th className="p-3">إجابة الخصم</th>
-                      <th className="p-3 text-center">نقاطك</th>
+                    <tr className="border-b border-slate-200 text-slate-500 font-extrabold text-[10px]">
+                      <th className="p-2">الفئة</th>
+                      <th className="p-2">الحرف</th>
+                      <th className="p-2">{p1.displayName} (أنت)</th>
+                      <th className="p-2">{p2.displayName}</th>
+                      <th className="p-2 text-center">النقاط</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100 font-bold text-slate-800">
+                  <tbody className="divide-y divide-slate-200/60">
                     {activeCategories.map((cat) => {
-                      const letter = match.letterAssignment[cat.id] || "أ";
-                      const r1 = evaluated.results[myUid]?.[cat.id] || { word: "لم يجب", points: 0 };
-                      const r2 = evaluated.results[opponentUid]?.[cat.id] || { word: "لم يجب", points: 0 };
-                      const IconComponent = CATEGORY_SVG_MAP[cat.icon] || SvgSparklesIcon;
+                      const letter = typeof selectedRoundTab === "number" && selectedRoundTab !== currentRoundNum
+                        ? (match.roundHistory?.find((r) => r.roundNumber === selectedRoundTab)?.letterAssignment[cat.id] || "أ")
+                        : (match.letterAssignment[cat.id] || "أ");
+
+                      const r1 = displayResults[myUid]?.[cat.id] || { word: "لم يجب", points: 0 };
+                      const r2 = displayResults[opponentUid]?.[cat.id] || { word: "لم يجب", points: 0 };
+                      const IconComp = CATEGORY_SVG_MAP[cat.icon] || SvgSparklesIcon;
 
                       const isR1Unanswered = !r1.word || r1.word === "لم يجب" || r1.word === "لم أعرف";
                       const isR2Unanswered = !r2.word || r2.word === "لم يجب" || r2.word === "لم أعرف";
@@ -587,7 +726,7 @@ export const WordRaceResults: React.FC<WordRaceResultsProps> = ({
                       return (
                         <tr key={cat.id} className="hover:bg-slate-50/80 transition-colors">
                           <td className="p-3 flex items-center gap-2 font-black">
-                            <IconComponent size={16} className={cat.color} />
+                            <IconComp size={16} className={cat.color} />
                             <span>{cat.nameAr}</span>
                           </td>
                           <td className="p-3 font-sans font-black text-[#7C3AED]">{letter}</td>
@@ -626,14 +765,14 @@ export const WordRaceResults: React.FC<WordRaceResultsProps> = ({
             <div className="flex items-center justify-center gap-3 pt-3 max-w-xl mx-auto">
               <button
                 onClick={onReturnHome}
-                className="flex-1 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all active:scale-95 flex items-center justify-center gap-2"
+                className="flex-1 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
               >
                 <SvgHomeIcon size={16} />
                 <span>العودة لغرفة المبارايات</span>
               </button>
               <button
                 onClick={onRematchVote}
-                className="flex-1 py-3 rounded-2xl bg-[#7C3AED] hover:bg-purple-700 text-white text-xs font-black shadow-lg shadow-purple-200 transition-all active:scale-95 flex items-center justify-center gap-2"
+                className="flex-1 py-3 rounded-2xl bg-[#7C3AED] hover:bg-purple-700 text-white text-xs font-black shadow-lg shadow-purple-200 transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
               >
                 <SvgRepeatIcon size={16} />
                 <span>العودة للصالة وإعادة اللعب</span>

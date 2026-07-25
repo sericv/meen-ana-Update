@@ -538,14 +538,14 @@ export function RoomExperience({ roomId }: Props) {
     resumeAudioContext();
   }, []);
 
-  // Combined turn change: audio cue + transition popup
+  // Combined turn change: audio cue + transition popup (fast ~850ms display)
   useEffect(() => {
     const wasMyTurn = prevMyTurn.current;
     if (match?.status === "active" && myTurn !== wasMyTurn) {
       if (myTurn) playTurnCue();
       if (turnPopupTimer.current) clearTimeout(turnPopupTimer.current);
       setTurnPopup(myTurn ? "دورك الآن!" : "دور الخصم");
-      turnPopupTimer.current = setTimeout(() => setTurnPopup(null), 1800);
+      turnPopupTimer.current = setTimeout(() => setTurnPopup(null), 850);
     }
     prevMyTurn.current = myTurn;
   }, [myTurn, match?.status]);
