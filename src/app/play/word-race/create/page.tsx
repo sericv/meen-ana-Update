@@ -68,6 +68,7 @@ function CreateWordRaceRoomInner() {
   const [letterMode, setLetterMode] = useState<LetterMode>("SINGLE_UNIVERSAL");
   const [timeLimitSec, setTimeLimitSec] = useState<number>(90);
   const [maxPlayers, setMaxPlayers] = useState<number>(2);
+  const [roundsCount, setRoundsCount] = useState<number>(3);
   const [isPrivate, setIsPrivate] = useState<boolean>(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -101,7 +102,7 @@ function CreateWordRaceRoomInner() {
         letterMode,
         timeLimitSec: Math.min(300, Math.max(15, timeLimitSec)),
         maxPlayers,
-        roundsCount: 3,
+        roundsCount,
         isPrivate,
       };
 
@@ -328,6 +329,45 @@ function CreateWordRaceRoomInner() {
                         }`}
                       >
                         {p} ثانية
+                      </motion.button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* 3b. Rounds Count Picker */}
+          <div>
+            <SectionLabel
+              title="عدد جولات المباراة"
+              note="حدد إجمالي عدد الجولات المطلوبة لحسم النزال"
+            />
+            <div className="game-card-outer w-full">
+              <div className="game-card-inner p-3.5 bg-white border border-slate-100 rounded-[22px] flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 pr-1">
+                  <div className="w-7 h-7 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
+                    <SvgSparklesIcon size={16} />
+                  </div>
+                  <span className="text-xs font-black text-slate-800">عدد الجولات:</span>
+                </div>
+                
+                <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200/50 p-1.5 rounded-xl">
+                  {[1, 3, 5, 7].map((cnt) => {
+                    const active = roundsCount === cnt;
+                    return (
+                      <motion.button
+                        key={cnt}
+                        type="button"
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => setRoundsCount(cnt)}
+                        className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-colors cursor-pointer ${
+                          active
+                            ? "bg-[#7C3AED] text-white shadow-sm"
+                            : "text-slate-500 hover:text-slate-700"
+                        }`}
+                      >
+                        {cnt} {cnt === 1 ? "جولة" : "جولات"}
                       </motion.button>
                     );
                   })}

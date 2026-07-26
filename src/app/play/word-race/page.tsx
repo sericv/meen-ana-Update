@@ -10,7 +10,7 @@ import { doc, setDoc, collection, query, where, getDocs, updateDoc, deleteDoc, a
 import type { WordRaceRoom, WordRaceMatch, WordRaceRoomSettings, WordRacePlayerStats } from "@/types/word-race";
 import { generateMatchLetters, evaluateWordRaceMatch } from "@/lib/game/word-race-data";
 import { fetchWordRaceRoom } from "@/lib/firestore/word-race-rooms.client";
-import { ShellFramedAvatar } from "@/components/shell/ShellFramedAvatar";
+import { ShellIcon } from "@/components/shell/ShellIcons";
 import { ShellCoin } from "@/components/shell/ShellCoin";
 import { ActionGrid, ActionTile } from "@/components/shell/HomeScreenParts";
 import { EASE_OUT } from "@/lib/motion";
@@ -491,28 +491,19 @@ export default function WordRacePage() {
       {/* Floating Double-Bezel Top Header (HIDDEN during active match flow) */}
       {!activeRoom && (
         <div className="mx-4 mt-5 p-1 bg-slate-900/5 ring-1 ring-black/5 rounded-[22px] relative z-20">
-          <div className="bg-white/95 rounded-[17px] p-2 flex items-center justify-between shadow-[inset_0_1px_0px_rgba(255,255,255,0.8)]">
-            <button
-              type="button"
-              className="flex items-center gap-2 text-right p-1 hover:bg-slate-50 rounded-xl active:scale-[0.98] transition-transform"
-              onClick={() => router.push("/profile")}
-            >
-              <ShellFramedAvatar
-                cosmetic={liveProfile?.cosmetic}
-                fallbackPhotoURL={user?.photoURL}
-                displayName={displayName}
-                size={34}
-                frame="simple"
-              />
+          <div className="bg-white/95 rounded-[17px] px-3 py-2 flex items-center justify-between shadow-[inset_0_1px_0px_rgba(255,255,255,0.8)]">
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                className="w-8 h-8 rounded-full border border-slate-200 bg-white hover:bg-slate-50 flex items-center justify-center active:scale-95 transition-transform cursor-pointer shadow-2xs"
+                onClick={() => router.push("/")}
+                aria-label="الرئيسية"
+              >
+                <ShellIcon name="back" size={16} color="#64748B" />
+              </button>
               <div className="flex flex-col text-right justify-center" style={{ lineHeight: 1.15 }}>
-                <span className="text-[8px] text-slate-400 font-extrabold uppercase tracking-wider">مرحبًا بك</span>
+                <span className="text-[8px] text-slate-400 font-extrabold uppercase tracking-wider">تحدي اسم حيوان نبات</span>
                 <span className="h-display text-xs font-black text-slate-800">{loading ? "…" : displayName}</span>
-              </div>
-            </button>
-
-            <div className="flex items-center gap-2">
-              <div className="bg-[#FFE600]/10 border border-[#FFE600]/30 px-3 py-1.5 rounded-full flex items-center gap-1.5 min-w-[70px]">
-                <ShellCoin value={coins} compact />
               </div>
             </div>
           </div>

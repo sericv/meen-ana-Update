@@ -326,14 +326,19 @@ export const WordRaceLobby: React.FC<WordRaceLobbyProps> = ({
               </div>
 
               {/* Setting Badges */}
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <div className="p-2.5 bg-white border border-slate-200 rounded-xl flex items-center justify-between">
-                  <span className="text-slate-500 font-bold text-[11px]">مؤقت الجولة:</span>
+              <div className="grid grid-cols-3 gap-2 text-xs">
+                <div className="p-2.5 bg-white border border-slate-200 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-1 text-center sm:text-right">
+                  <span className="text-slate-500 font-bold text-[10px] sm:text-[11px]">الجولات:</span>
+                  <span className="font-black text-[#7C3AED] font-mono text-xs">{room.settings.roundsCount || 3} جولات</span>
+                </div>
+
+                <div className="p-2.5 bg-white border border-slate-200 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-1 text-center sm:text-right">
+                  <span className="text-slate-500 font-bold text-[10px] sm:text-[11px]">المؤقت:</span>
                   <span className="font-black text-[#7C3AED] font-mono text-xs">{room.settings.timeLimitSec}ث</span>
                 </div>
 
-                <div className="p-2.5 bg-white border border-slate-200 rounded-xl flex items-center justify-between">
-                  <span className="text-slate-500 font-bold text-[11px]">نمط الحروف:</span>
+                <div className="p-2.5 bg-white border border-slate-200 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-1 text-center sm:text-right">
+                  <span className="text-slate-500 font-bold text-[10px] sm:text-[11px]">الحروف:</span>
                   <span className="font-black text-[#7C3AED] text-xs">
                     {room.settings.letterMode === "SINGLE_UNIVERSAL" ? "موحد" : "عشوائي"}
                   </span>
