@@ -4,6 +4,8 @@ import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { WordRaceRoom, WordRaceMatch } from "@/types/word-race";
 import { WORD_RACE_CATEGORIES, evaluateWordRaceMatch, computeCumulativeScores } from "@/lib/game/word-race-data";
+import { WordRaceVictoryConfetti } from "@/components/word-race/WordRaceVictoryConfetti";
+import { shareOrDownloadWordRaceResult } from "@/lib/game/word-race-share-card";
 import {
   CATEGORY_SVG_MAP,
   SvgTrophyIcon,
@@ -57,6 +59,7 @@ export const WordRaceResults: React.FC<WordRaceResultsProps> = ({
   const [revealStep, setRevealStep] = useState<number>(0);
   const [showFinalSummary, setShowFinalSummary] = useState<boolean>(false);
   const [selectedRoundTab, setSelectedRoundTab] = useState<number | "grand">(totalRoundsNum > 1 ? "grand" : 1);
+  const [isSharing, setIsSharing] = useState<boolean>(false);
 
   // Store onNextRound in a ref to prevent effect cleanup on parent re-renders
   const onNextRoundRef = useRef(onNextRound);
@@ -164,6 +167,58 @@ export const WordRaceResults: React.FC<WordRaceResultsProps> = ({
       setRevealStep((prev) => prev + 1);
     } else {
       setShowFinalSummary(true);
+    }
+  };
+
+  const handleShareResult = async () => {
+    if (isSharing) return;
+    setIsSharing(true);
+    try {
+      const isGrand = selectedRoundTab === "grand";
+      const targetRoundNum = typeof selectedRoundTab === "number" ? selectedRoundTab : currentRoundNum;
+
+      const letterMap = typeof selectedRoundTab === "number" && selectedRoundTab !== currentRoundNum
+        ? (match.roundHistory?.find((r) => r.roundNumber === selectedRoundTab)?.letterAssignment || match.letterAssignment)
+        : match.letterAssignment;
+
+      const heroLetter = letterMap[activeCategories[0]?.id] || "أ";
+
+      const activeMyScore = isGrand ? myCumulative : (displayScores[myUid] || { totalPoints: 0, validCount: 0, duplicateCount: 0 });
+      const activeOppScore = isGrand ? oppCumulative : (displayScores[opponentUid] || { totalPoints: 0, validCount: 0, duplicateCount: 0 });
+
+      const categoryReports = activeCategories.map((cat) => {
+        const letter = letterMap[cat.id] || heroLetter;
+        const r1 = displayResults[myUid]?.[cat.id] || { word: "لم يجب", points: 0 };
+        const r2 = displayResults[opponentUid]?.[cat.id] || { word: "لم يجب", points: 0 };
+        return {
+          catName: cat.nameAr,
+          letter,
+          myWord: r1.word,
+          oppWord: r2.word,
+          myPoints: r1.points,
+        };
+      });
+
+      await shareOrDownloadWordRaceResult({
+        playerName: p1.displayName || "اللاعب",
+        totalPoints: myCumulative.totalPoints,
+        myRoundPoints: activeMyScore.totalPoints,
+        oppRoundPoints: activeOppScore.totalPoints,
+        validCount: activeMyScore.validCount,
+        duplicateCount: activeMyScore.duplicateCount,
+        roundNumber: isGrand ? "grand" : targetRoundNum,
+        totalRounds: totalRoundsNum,
+        heroLetter,
+        isWinner,
+        isTie,
+        opponentName: p2.displayName,
+        opponentPoints: oppCumulative.totalPoints,
+        categoryReports,
+      });
+    } catch (err) {
+      console.error("Failed to generate share image:", err);
+    } finally {
+      setIsSharing(false);
     }
   };
 
@@ -602,6 +657,7 @@ export const WordRaceResults: React.FC<WordRaceResultsProps> = ({
 
           /* Final Results Summary Page & Comprehensive Table */
           <div className="space-y-6 animate-fade-in text-center">
+            {showFinalSummary && isWinner && !isTie && <WordRaceVictoryConfetti />}
             
             <div className="flex flex-col items-center gap-2">
               <motion.div
@@ -762,21 +818,33 @@ export const WordRaceResults: React.FC<WordRaceResultsProps> = ({
             </div>
 
             {/* Bottom Action Footer */}
-            <div className="flex items-center justify-center gap-3 pt-3 max-w-xl mx-auto">
-              <button
-                onClick={onReturnHome}
-                className="flex-1 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+            <div className="space-y-3 pt-3 max-w-xl mx-auto">
+              <motion.button
+                whileTap={{ scale: 0.96 }}
+                onClick={handleShareResult}
+                disabled={isSharing}
+                className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white text-xs sm:text-sm font-black shadow-lg shadow-emerald-200 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95 disabled:opacity-75"
               >
-                <SvgHomeIcon size={16} />
-                <span>العودة لغرفة المبارايات</span>
-              </button>
-              <button
-                onClick={onRematchVote}
-                className="flex-1 py-3 rounded-2xl bg-[#7C3AED] hover:bg-purple-700 text-white text-xs font-black shadow-lg shadow-purple-200 transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
-              >
-                <SvgRepeatIcon size={16} />
-                <span>العودة للصالة وإعادة اللعب</span>
-              </button>
+                <SvgSparklesIcon size={18} />
+                <span>{isSharing ? "جاري تجهيز بطاقة المشاركة..." : "مشاركة النتيجة"}</span>
+              </motion.button>
+
+              <div className="flex items-center justify-center gap-3">
+                <button
+                  onClick={onReturnHome}
+                  className="flex-1 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <SvgHomeIcon size={16} />
+                  <span>العودة لغرفة المبارايات</span>
+                </button>
+                <button
+                  onClick={onRematchVote}
+                  className="flex-1 py-3 rounded-2xl bg-[#7C3AED] hover:bg-purple-700 text-white text-xs font-black shadow-lg shadow-purple-200 transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <SvgRepeatIcon size={16} />
+                  <span>العودة للصالة وإعادة اللعب</span>
+                </button>
+              </div>
             </div>
 
           </div>

@@ -430,6 +430,27 @@ export default function WordRacePage() {
     }
   };
 
+  // 5. Time Expired Handler (Firestore Persisted Expiry)
+  const handleTimeExpired = async () => {
+    if (!activeMatch || !uid || !activeRoom) return;
+    if (activeMatch.status === "revealing" || activeMatch.status === "ended") return;
+
+    const opponentUid = activeRoom.playerUids.find((u) => u !== uid) || "";
+    const updatedMatch: WordRaceMatch = sanitizeDoc({
+      ...activeMatch,
+      status: "revealing",
+      finisherUid: activeMatch.finisherUid ?? opponentUid ?? uid,
+    });
+
+    try {
+      const db = getFirebaseDb();
+      await setDoc(doc(db, "word_race_matches", activeMatch.id), updatedMatch, { merge: true });
+      await setDoc(doc(db, "word_race_rooms", activeRoom.id), { status: "revealing" }, { merge: true });
+    } catch (err) {
+      console.error("Failed to handle time expired:", err);
+    }
+  };
+
   // Forfeit Match Handler
   const handleForfeitMatch = async () => {
     if (!activeMatch || !uid || !activeRoom) return;
@@ -565,9 +586,7 @@ export default function WordRacePage() {
                 myUid={uid}
                 onUpdateAnswers={handleUpdateAnswers}
                 onForfeitMatch={handleForfeitMatch}
-                onTimeExpired={() => {
-                  setActiveRoom((prev) => prev ? { ...prev, status: "revealing" } : null);
-                }}
+                onTimeExpired={handleTimeExpired}
               />
             )}
 

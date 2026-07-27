@@ -44,7 +44,7 @@ export const metadata: Metadata = {
     description: "تحدَّ ذكاءك، اطرح الأسئلة، واكتشف بطاقتك قبل خصمك في تجربة اجتماعية سريعة وممتعة.",
     type: "website",
     locale: "ar_AR",
-    url: "https://meen-ana.com",
+    url: "https://saeer.xyz",
     siteName: "مين أنا؟",
   },
   twitter: {

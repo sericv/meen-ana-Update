@@ -117,9 +117,10 @@ export function evaluateWordRaceMatch(
     for (const uid of playerUids) {
       const pAns = answersInCat[uid];
       if (!pAns.isValid) {
-        const isUnanswered = !pAns.raw || !pAns.raw.trim() || pAns.raw.trim() === "لم أعرف" || pAns.raw.trim() === "لم يجب";
+        const clean = (pAns.raw || "").trim();
+        const isUnanswered = !clean || clean.length <= 1 || clean === "لم أعرف" || clean === "لم يجب";
         results[uid][catId] = {
-          word: isUnanswered ? "لم يجب" : pAns.raw,
+          word: "لم يجب",
           isValid: false,
           isDuplicate: false,
           points: 0,
